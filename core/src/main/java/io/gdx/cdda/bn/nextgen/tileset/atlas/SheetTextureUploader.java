@@ -28,43 +28,141 @@ public final class SheetTextureUploader {
         final SpriteTextureTables targets,
         final TilesetLoadOptions bakeOptions
     ) {
-        final int atlasWidth = atlasPixmap.getWidth();
-        final int atlasHeight = atlasPixmap.getHeight();
-        final int expectedTileCount = AtlasGrid.expectedTileCount(
-            atlasWidth, atlasHeight, spriteWidth, spriteHeight
-        );
-        targets.ensureCapacity(globalOffset + expectedTileCount);
-
-        final int resolvedMaxWidth = AtlasChunkLayout.resolveMaxTextureWidth(
-            maxTextureWidth, spriteWidth, MIN_TILE_X_COUNT
-        );
-        final int resolvedMaxHeight = AtlasChunkLayout.resolveMaxTextureHeight(
-            maxTextureHeight, spriteHeight, MIN_TILE_Y_COUNT
-        );
-
-        final List<AtlasChunkLayout.ChunkRect> chunks = AtlasChunkLayout.computeChunks(
-            atlasWidth,
-            atlasHeight,
+        final IncrementalUpload upload = IncrementalUpload.begin(
+            atlasPixmap,
             spriteWidth,
             spriteHeight,
-            resolvedMaxWidth,
-            resolvedMaxHeight
+            globalOffset,
+            maxTextureWidth,
+            maxTextureHeight,
+            targets,
+            bakeOptions
         );
+        while (upload.step()) {
+            // upload all chunks synchronously
+        }
+        return upload.getExpectedTileCount();
+    }
 
-        final FilteredTableBake.Entry[] bakeEntries = FilteredTableBake.entriesFor(targets, bakeOptions);
-        for (final AtlasChunkLayout.ChunkRect chunk : chunks) {
+    /** One atlas chunk per {@link #step()} so the render thread can stay responsive. */
+    public static final class IncrementalUpload {
+
+        private final Pixmap atlasPixmap;
+        private final int spriteWidth;
+        private final int spriteHeight;
+        private final int globalOffset;
+        private final int atlasWidth;
+        private final FilteredTableBake.Entry[] bakeEntries;
+        private final List<AtlasChunkLayout.ChunkRect> chunks;
+        private final int expectedTileCount;
+        private int nextChunkIndex;
+        private boolean pixmapDisposed;
+
+        private IncrementalUpload(
+            final Pixmap atlasPixmap,
+            final int spriteWidth,
+            final int spriteHeight,
+            final int globalOffset,
+            final int atlasWidth,
+            final FilteredTableBake.Entry[] bakeEntries,
+            final List<AtlasChunkLayout.ChunkRect> chunks,
+            final int expectedTileCount
+        ) {
+            this.atlasPixmap = atlasPixmap;
+            this.spriteWidth = spriteWidth;
+            this.spriteHeight = spriteHeight;
+            this.globalOffset = globalOffset;
+            this.atlasWidth = atlasWidth;
+            this.bakeEntries = bakeEntries;
+            this.chunks = chunks;
+            this.expectedTileCount = expectedTileCount;
+        }
+
+        public static IncrementalUpload begin(
+            final Pixmap atlasPixmap,
+            final int spriteWidth,
+            final int spriteHeight,
+            final int globalOffset,
+            final int maxTextureWidth,
+            final int maxTextureHeight,
+            final SpriteTextureTables targets,
+            final TilesetLoadOptions bakeOptions
+        ) {
+            final int atlasWidth = atlasPixmap.getWidth();
+            final int atlasHeight = atlasPixmap.getHeight();
+            final int expectedTileCount = AtlasGrid.expectedTileCount(
+                atlasWidth, atlasHeight, spriteWidth, spriteHeight
+            );
+            targets.ensureCapacity(globalOffset + expectedTileCount);
+
+            final int resolvedMaxWidth = AtlasChunkLayout.resolveMaxTextureWidth(
+                maxTextureWidth, spriteWidth, MIN_TILE_X_COUNT
+            );
+            final int resolvedMaxHeight = AtlasChunkLayout.resolveMaxTextureHeight(
+                maxTextureHeight, spriteHeight, MIN_TILE_Y_COUNT
+            );
+
+            final List<AtlasChunkLayout.ChunkRect> chunks = AtlasChunkLayout.computeChunks(
+                atlasWidth,
+                atlasHeight,
+                spriteWidth,
+                spriteHeight,
+                resolvedMaxWidth,
+                resolvedMaxHeight
+            );
+            final FilteredTableBake.Entry[] bakeEntries = FilteredTableBake.entriesFor(targets, bakeOptions);
+            return new IncrementalUpload(
+                atlasPixmap,
+                spriteWidth,
+                spriteHeight,
+                globalOffset,
+                atlasWidth,
+                bakeEntries,
+                chunks,
+                expectedTileCount
+            );
+        }
+
+        /** @return {@code true} while more chunks remain */
+        public boolean step() {
+            if (nextChunkIndex >= chunks.size()) {
+                return false;
+            }
             uploadChunk(
                 atlasPixmap,
-                chunk,
+                chunks.get(nextChunkIndex),
                 atlasWidth,
                 spriteWidth,
                 spriteHeight,
                 globalOffset,
                 bakeEntries
             );
+            nextChunkIndex++;
+            return nextChunkIndex < chunks.size();
         }
 
-        return expectedTileCount;
+        public boolean isComplete() {
+            return nextChunkIndex >= chunks.size();
+        }
+
+        public int getExpectedTileCount() {
+            return expectedTileCount;
+        }
+
+        public int getUploadedChunkCount() {
+            return nextChunkIndex;
+        }
+
+        public int getTotalChunkCount() {
+            return chunks.size();
+        }
+
+        public void disposePixmap() {
+            if (!pixmapDisposed) {
+                atlasPixmap.dispose();
+                pixmapDisposed = true;
+            }
+        }
     }
 
     private static void uploadChunk(

@@ -64,7 +64,7 @@ public final class ModTilesetMerger {
         context.loadInternal(config, entry.getBasePath(), baseLegacyImagePath, spriteIdOffset);
     }
 
-    static JsonValue resolveConfigObject(final JsonValue root, final int numInFile) {
+    public static JsonValue resolveConfigObject(final JsonValue root, final int numInFile) {
         if (root.isArray()) {
             int index = 1;
             for (JsonValue child = root.child; child != null; child = child.next) {

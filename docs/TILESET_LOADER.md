@@ -15,8 +15,8 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/tileset/
   GfxPaths.java              # gfx root resolution
   TilesetDiscovery.java      # unit 02
   TilesetConfigLoader.java   # unit 04b
-  TilesetLoader.java         # units 05–09 orchestration
-  load/                      # load context, options
+  TilesetLoader.java         # units 05–09 orchestration (blocking)
+  load/                      # load context, options, TilesetLoadSession
   parse/                     # 07a, 07b, 07d
   atlas/                     # 06a, 06b, 06c, A1
   mod/                       # 04f
@@ -77,6 +77,26 @@ loaded.getTexture(spriteIndex, TilesetFxType.NIGHT);
 loaded.getStateModifiers();
 loaded.dispose();
 ```
+
+### Incremental load (UI)
+
+For loading screens and the sprite viewer — one GPU step per frame on the **render thread**:
+
+```java
+TilesetLoadSession session = TilesetLoadSession.start(
+    registry, "hoder", TilesetLoadOptions.defaults(), ModTilesetRegistry.empty()
+);
+// each frame:
+if (session.isActive()) {
+    session.step();
+}
+if (session.isComplete()) {
+    LoadedTileset loaded = session.getResult();
+}
+```
+
+See [INCREMENTAL_LOADING.md](./INCREMENTAL_LOADING.md). Do **not** call `TilesetLoader.load` from a
+background thread (OpenGL context is render-thread only on LWJGL3).
 
 ---
 

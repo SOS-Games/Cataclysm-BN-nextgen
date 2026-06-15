@@ -21,6 +21,7 @@ Generated from [gdx-liftoff](https://github.com/libgdx/gdx-liftoff); desktop tar
 | [AGENTS.md](AGENTS.md) | Instructions for AI coding agents |
 | [docs/TILESET_LOADER.md](docs/TILESET_LOADER.md) | Loader implementation guide and milestone |
 | [docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md) | In-game sprite browser |
+| [docs/INCREMENTAL_LOADING.md](docs/INCREMENTAL_LOADING.md) | Frame-sliced tileset load (`TilesetLoadSession`) |
 | [docs/tileset-loader/](docs/tileset-loader/README.md) | Full loader specification (unit docs) |
 
 ## Platforms

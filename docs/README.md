@@ -4,6 +4,7 @@
 | --- | --- |
 | [TILESET_LOADER.md](./TILESET_LOADER.md) | Loader implementation guide, milestone checklist, Java package map |
 | [SPRITE_VIEWER.md](./SPRITE_VIEWER.md) | In-game sprite browser (`TileDisplayScreen`) |
+| [INCREMENTAL_LOADING.md](./INCREMENTAL_LOADING.md) | Frame-sliced loading (`TilesetLoadSession`) — render thread, not background workers |
 | [tileset-loader/README.md](./tileset-loader/README.md) | Loader specification index (ported from Cataclysm-BN) |
 | [tileset-loader/implementation-plan.md](./tileset-loader/implementation-plan.md) | Module map, API contract, acceptance tests |
 

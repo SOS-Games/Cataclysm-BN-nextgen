@@ -71,6 +71,36 @@ public final class TilesetLoadContext {
         return offset;
     }
 
+    public void addOffset(final int spriteCount) {
+        offset += spriteCount;
+    }
+
+    public void registerSheetAfterUpload(
+        final JsonValue sheetConfig,
+        final int spriteIdOffset,
+        final boolean legacySheet
+    ) throws IOException {
+        if (legacySheet) {
+            TileRegistrar.registerFromConfig(
+                sheetConfig,
+                tiles,
+                TileRegistrar.SheetContext.legacyDefaults(),
+                spriteIdOffset
+            );
+            return;
+        }
+        if (sheetConfig.has("tiles")) {
+            TileRegistrar.registerFromConfig(
+                sheetConfig,
+                tiles,
+                TileRegistrar.SheetContext.fromSheet(sheetConfig),
+                spriteIdOffset
+            );
+        }
+        final TileRegistrar.SheetContext sheetContext = TileRegistrar.SheetContext.fromSheet(sheetConfig);
+        StateModifierParser.loadFromSheet(sheetConfig, stateModifiers, spriteIdOffset, sheetContext);
+    }
+
     public void loadInternal(
         final JsonValue config,
         final Path tilesetRoot,
@@ -98,7 +128,7 @@ public final class TilesetLoadContext {
         final Path imagePath = tilesetRoot.resolve(fileName).normalize();
         final int spriteWidth = sheet.getInt("sprite_width", tileInfo.getWidth());
         final int spriteHeight = sheet.getInt("sprite_height", tileInfo.getHeight());
-        final TransparencyKey transparencyKey = parseTransparency(sheet);
+        final TransparencyKey transparencyKey = transparencyForSheet(sheet);
         final int size = loadSheetImage(imagePath, spriteWidth, spriteHeight, transparencyKey, offset);
         if (sheet.has("tiles")) {
             TileRegistrar.registerFromConfig(
@@ -172,7 +202,7 @@ public final class TilesetLoadContext {
         }
     }
 
-    private static TransparencyKey parseTransparency(final JsonValue sheet) {
+    static TransparencyKey transparencyForSheet(final JsonValue sheet) {
         if (!sheet.has("transparency")) {
             return TransparencyKey.disabled();
         }

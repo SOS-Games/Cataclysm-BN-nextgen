@@ -10,9 +10,11 @@ import com.badlogic.gdx.utils.ScreenUtils;
 
 import io.gdx.cdda.bn.nextgen.tileset.GfxPaths;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetDiscovery;
+import io.gdx.cdda.bn.nextgen.tileset.TilesetOption;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetRegistry;
-import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoader;
 import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadOptions;
+import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadSession;
+import io.gdx.cdda.bn.nextgen.tileset.mod.ModTilesetRegistry;
 import io.gdx.cdda.bn.nextgen.tileset.model.LoadedTileset;
 import io.gdx.cdda.bn.nextgen.tileset.model.TileDefinition;
 import io.gdx.cdda.bn.nextgen.tileset.model.TilesetFxType;
@@ -58,7 +60,7 @@ public final class TileDisplayScreen {
     };
 
     private static final int MARGIN = 8;
-    private static final int HUD_HEIGHT = 40;
+    private static final int HUD_HEIGHT = 56;
     private static final int CELL_GUTTER = 4;
     private static final int CELL_PADDING = 4;
     private static final int FONT_EXTRA_PIXELS = 2;
@@ -66,10 +68,18 @@ public final class TileDisplayScreen {
     private final SpriteBatch batch;
     private final BitmapFont font;
     private final GlyphLayout glyphLayout = new GlyphLayout();
+    private final LoadingSpinner loadingSpinner = new LoadingSpinner();
+
+    private TilesetLoadSession loadSession;
 
     private LoadedTileset tileset;
+    private TilesetRegistry registry;
+    private List<String> tilesetIds = Collections.emptyList();
+    private int tilesetIndex;
     private List<String> previewTileIds = Collections.emptyList();
     private String statusMessage = "Loading…";
+    private boolean loadingTileset;
+    private String loadingTilesetId;
     private TilesetFxType fxType = TilesetFxType.NONE;
     private int page;
     private int tilesPerPage = 1;
@@ -95,45 +105,57 @@ public final class TileDisplayScreen {
         labelColumnWidth = measurePreferredLabelWidth();
     }
 
-    public void loadFromRegistry(final TilesetRegistry registry) {
+    public void loadFromRegistry(final TilesetRegistry newRegistry) {
+        final String preserveId = currentTilesetId();
+        registry = newRegistry;
+        tilesetIds = buildTilesetIds(newRegistry);
         disposeTileset();
         previewTileIds = Collections.emptyList();
         page = 0;
 
-        if (registry.getDirectoriesById().isEmpty()) {
+        if (tilesetIds.isEmpty()) {
+            cancelLoadSession();
+            loadingTileset = false;
             statusMessage = "No gfx roots. Set -Dcdda.gfx.roots=… or run from repo with ../Cataclysm-BN/gfx";
             Gdx.app.log("tileset", statusMessage);
             return;
         }
 
-        final String tilesetId = resolveTilesetId(registry);
-        try {
-            tileset = TilesetLoader.load(registry, tilesetId, TilesetLoadOptions.defaults());
-            previewTileIds = buildPreviewList(tileset);
-            statusMessage = tilesetId + " — " + previewTileIds.size() + " preview tiles, "
-                + tileset.getSpriteCount() + " sprites";
-            Gdx.app.log("tileset", "Preview: " + statusMessage);
-            recomputeCellMetrics();
-            refreshViewportLayout();
-        } catch (final Exception e) {
-            statusMessage = "Failed to load " + tilesetId + ": " + e.getMessage();
-            Gdx.app.error("tileset", statusMessage, e);
+        int index = indexOfTileset(preserveId);
+        if (index < 0) {
+            index = indexOfTileset(resolvePreferredTilesetId(newRegistry));
         }
+        loadTilesetAtIndex(index);
     }
 
     public void render() {
+        advanceLoadSession();
         ensureGridFresh();
         ScreenUtils.clear(0.12f, 0.12f, 0.16f, 1f);
         applyBatchProjection();
         batch.begin();
         drawHud();
-        if (tileset != null && !previewTileIds.isEmpty()) {
+        if (loadingTileset) {
+            loadingSpinner.update(Gdx.graphics.getDeltaTime());
+            drawLoadingOverlay();
+        } else if (tileset != null && !previewTileIds.isEmpty()) {
             drawGrid();
         }
         batch.end();
     }
 
     public boolean onKeyDown(final int keycode) {
+        if (loadingTileset) {
+            if (keycode == Keys.LEFT_BRACKET || keycode == Keys.RIGHT_BRACKET) {
+                if (keycode == Keys.LEFT_BRACKET) {
+                    requestTilesetAtIndex((tilesetIndex - 1 + tilesetIds.size()) % tilesetIds.size());
+                } else {
+                    requestTilesetAtIndex((tilesetIndex + 1) % tilesetIds.size());
+                }
+                return true;
+            }
+            return false;
+        }
         if (keycode == Keys.LEFT || keycode == Keys.A) {
             previousPage();
             return true;
@@ -153,23 +175,34 @@ public final class TileDisplayScreen {
         if (keycode == Keys.EQUALS || keycode == Keys.PLUS) {
             zoom = Math.min(zoom + 1, 6);
             recomputeCellMetrics();
-            refreshViewportLayout();
+            recomputeLayoutForViewport();
             return true;
         }
         if (keycode == Keys.MINUS) {
             zoom = Math.max(zoom - 1, 1);
             recomputeCellMetrics();
-            refreshViewportLayout();
+            recomputeLayoutForViewport();
             return true;
         }
         if (keycode == Keys.R) {
             loadFromRegistry(TilesetDiscovery.build());
             return true;
         }
+        if (keycode == Keys.LEFT_BRACKET) {
+            previousTileset();
+            return true;
+        }
+        if (keycode == Keys.RIGHT_BRACKET) {
+            nextTileset();
+            return true;
+        }
         return false;
     }
 
     public boolean onScroll(final float amountY) {
+        if (loadingTileset) {
+            return true;
+        }
         if (amountY > 0f) {
             nextPage();
         } else if (amountY < 0f) {
@@ -183,7 +216,9 @@ public final class TileDisplayScreen {
     }
 
     public void dispose() {
+        cancelLoadSession();
         disposeTileset();
+        loadingSpinner.dispose();
         font.dispose();
     }
 
@@ -192,6 +227,9 @@ public final class TileDisplayScreen {
     }
 
     private void refreshViewportLayout() {
+        if (tileset == null) {
+            return;
+        }
         final int width = viewportPixelWidth();
         final int height = viewportPixelHeight();
         if (width != lastViewportWidth || height != lastViewportHeight) {
@@ -199,6 +237,14 @@ public final class TileDisplayScreen {
             lastViewportHeight = height;
             recomputeGridLayout(width, height);
         }
+    }
+
+    private void recomputeLayoutForViewport() {
+        final int width = viewportPixelWidth();
+        final int height = viewportPixelHeight();
+        lastViewportWidth = width;
+        lastViewportHeight = height;
+        recomputeGridLayout(width, height);
     }
 
     private static int viewportPixelWidth() {
@@ -220,13 +266,56 @@ public final class TileDisplayScreen {
 
     private void drawHud() {
         final int pageCount = Math.max(1, pageCount());
+        final String tilesetLine = formatTilesetPickerLine();
         final String hud = statusMessage
             + "  |  FX: " + fxType.name()
             + "  |  page " + (page + 1) + "/" + pageCount
-            + "  |  zoom " + zoom
-            + "x  |  [←/→] page  [F] FX  [1-8] FX  [+/-] zoom  [R] reload";
-        font.draw(batch, hud, MARGIN, screenHeight() - 8);
-        font.draw(batch, "Gfx: " + GfxPaths.gameGfxRoots(), MARGIN, screenHeight() - 24);
+            + "  |  zoom " + zoom + "x";
+        final String controls = loadingTileset
+            ? "Loading…  [[ ]] switch tileset"
+            : "[←/→] page  [[ ]] tileset  [F] FX  [1-8] FX  [+/-] zoom  [R] reload";
+        font.draw(batch, tilesetLine, MARGIN, screenHeight() - 8);
+        font.draw(batch, hud, MARGIN, screenHeight() - 24);
+        font.draw(batch, "Gfx: " + GfxPaths.gameGfxRoots() + "  |  " + controls, MARGIN, screenHeight() - 40);
+    }
+
+    private void drawLoadingOverlay() {
+        final int centerX = viewportPixelWidth() / 2;
+        final int centerY = viewportPixelHeight() / 2;
+        loadingSpinner.draw(batch, centerX, centerY);
+        final String label = loadSession != null ? loadSession.getProgressLabel() : "Loading…";
+        glyphLayout.setText(font, label);
+        font.draw(
+            batch,
+            label,
+            centerX - Math.round(glyphLayout.width) / 2,
+            centerY - 48
+        );
+    }
+
+    private void advanceLoadSession() {
+        if (loadSession == null || !loadSession.isActive()) {
+            return;
+        }
+        loadSession.step();
+        if (loadSession.isComplete()) {
+            applyLoadedTileset(loadSession.getResult());
+            loadSession = null;
+        } else if (loadSession.isFailed()) {
+            loadingTileset = false;
+            statusMessage = loadSession.getErrorMessage();
+            Gdx.app.error("tileset", statusMessage);
+            loadSession = null;
+        } else if (loadSession.isCancelled()) {
+            loadSession = null;
+        }
+    }
+
+    private void cancelLoadSession() {
+        if (loadSession != null) {
+            loadSession.cancel();
+            loadSession = null;
+        }
     }
 
     private static int screenHeight() {
@@ -479,13 +568,109 @@ public final class TileDisplayScreen {
         fxType = FX_CYCLE[(index + 1) % FX_CYCLE.length];
     }
 
-    private static String resolveTilesetId(final TilesetRegistry registry) {
+    private void nextTileset() {
+        if (tilesetIds.size() <= 1) {
+            return;
+        }
+        requestTilesetAtIndex((tilesetIndex + 1) % tilesetIds.size());
+    }
+
+    private void previousTileset() {
+        if (tilesetIds.size() <= 1) {
+            return;
+        }
+        requestTilesetAtIndex((tilesetIndex - 1 + tilesetIds.size()) % tilesetIds.size());
+    }
+
+    private void requestTilesetAtIndex(final int index) {
+        if (tilesetIds.isEmpty()) {
+            return;
+        }
+        loadTilesetAtIndex(index);
+    }
+
+    private void loadTilesetAtIndex(final int index) {
+        tilesetIndex = index;
+        page = 0;
+        disposeTileset();
+        previewTileIds = Collections.emptyList();
+
+        loadingTilesetId = tilesetIds.get(tilesetIndex);
+        loadingTileset = true;
+        statusMessage = "Loading " + loadingTilesetId + "…";
+        cancelLoadSession();
+        loadSession = TilesetLoadSession.start(
+            registry,
+            loadingTilesetId,
+            TilesetLoadOptions.defaults(),
+            ModTilesetRegistry.empty()
+        );
+    }
+
+    private void applyLoadedTileset(final LoadedTileset loaded) {
+        loadingTileset = false;
+        tileset = loaded;
+        previewTileIds = buildPreviewList(tileset);
+        statusMessage = previewTileIds.size() + " preview tiles, " + tileset.getSpriteCount() + " sprites";
+        Gdx.app.log("tileset", "Preview: " + loadingTilesetId + " — " + statusMessage);
+        recomputeCellMetrics();
+        recomputeLayoutForViewport();
+    }
+
+    private String currentTilesetId() {
+        if (tilesetIds.isEmpty() || tilesetIndex < 0 || tilesetIndex >= tilesetIds.size()) {
+            return null;
+        }
+        return tilesetIds.get(tilesetIndex);
+    }
+
+    private String formatTilesetPickerLine() {
+        if (tilesetIds.isEmpty()) {
+            return "Tileset: (none)";
+        }
+        final String id = loadingTileset ? loadingTilesetId : tilesetIds.get(tilesetIndex);
+        final String displayName = findDisplayName(id);
+        final String suffix = loadingTileset ? "  (loading)" : "";
+        return "Tileset: " + id + " (\"" + displayName + "\")  "
+            + (tilesetIndex + 1) + "/" + tilesetIds.size() + suffix;
+    }
+
+    private String findDisplayName(final String tilesetId) {
+        if (registry == null) {
+            return tilesetId;
+        }
+        for (final TilesetOption option : registry.getOptions()) {
+            if (option.getId().equals(tilesetId)) {
+                return option.getDisplayName();
+            }
+        }
+        return tilesetId;
+    }
+
+    private static List<String> buildTilesetIds(final TilesetRegistry tilesetRegistry) {
+        final List<String> ids = new ArrayList<>();
+        for (final TilesetOption option : tilesetRegistry.getOptions()) {
+            if (tilesetRegistry.contains(option.getId())) {
+                ids.add(option.getId());
+            }
+        }
+        return ids;
+    }
+
+    private int indexOfTileset(final String tilesetId) {
+        if (tilesetId == null) {
+            return -1;
+        }
+        return tilesetIds.indexOf(tilesetId);
+    }
+
+    private static String resolvePreferredTilesetId(final TilesetRegistry tilesetRegistry) {
         for (final String preferred : PREFERRED_TILESET_IDS) {
-            if (registry.contains(preferred)) {
+            if (tilesetRegistry.contains(preferred)) {
                 return preferred;
             }
         }
-        return registry.getOptions().get(0).getId();
+        return tilesetRegistry.getOptions().get(0).getId();
     }
 
     private static List<String> buildPreviewList(final LoadedTileset loaded) {

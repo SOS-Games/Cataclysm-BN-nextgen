@@ -23,6 +23,7 @@ Cataclysm-BN). BN C++ files cited in each unit doc are the authority for ambiguo
 | Docs index | `docs/README.md` |
 | Loader guide | `docs/TILESET_LOADER.md` |
 | Sprite viewer | `docs/SPRITE_VIEWER.md` |
+| Incremental loading | `docs/INCREMENTAL_LOADING.md` |
 | Spec index | `docs/tileset-loader/README.md` |
 | **Implementation plan** | `docs/tileset-loader/implementation-plan.md` |
 | Unit specs | `docs/tileset-loader/01-…` through `09-…`, `appendix-dynamic-atlas.md` |
@@ -61,10 +62,12 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
   tileset/
     GfxPaths.java
     TilesetDiscovery.java
-    TilesetLoader.java
-    load/ parse/ atlas/ mod/ model/ validate/
+    TilesetLoader.java          # blocking load (tests, tools)
+    load/TilesetLoadSession.java  # incremental UI load — docs/INCREMENTAL_LOADING.md
+    parse/ atlas/ mod/ model/ validate/
   view/
-    TileDisplayScreen.java    # sprite viewer — see docs/SPRITE_VIEWER.md
+    TileDisplayScreen.java    # sprite viewer — docs/SPRITE_VIEWER.md
+    LoadingSpinner.java
   Main.java                   # currently boots into sprite viewer
 ```
 
@@ -89,8 +92,11 @@ gradlew.bat test
 
 See **Suggested first PR slices** in `docs/tileset-loader/implementation-plan.md`.
 
-v1 loader slices are complete. Future work: sprite viewer features (search, tileset picker),
+v1 loader slices are complete. Future work: sprite viewer features (search, detail pane),
 game rendering, draw-time seasonal/tint/warp support.
+
+**Loading:** use `TilesetLoadSession` for UI; never `TilesetLoader.load` on a worker thread
+(see `docs/INCREMENTAL_LOADING.md`).
 
 Each unit doc ends with **Verification** — turn those into JUnit tests where practical.
 
@@ -100,3 +106,4 @@ Each unit doc ends with **Verification** — turn those into JUnit tests where p
 - Prefer small focused classes over large god-objects.
 - LibGDX: `Texture`, `TextureRegion` for GPU; `Pixmap` for PNG decode during load.
 - Sprite viewer: pixel-aligned rendering (`HdpiMode.Pixels`), fixed cell size on window resize.
+- Incremental load: `TilesetLoadSession.step()` once per frame on the render thread.
