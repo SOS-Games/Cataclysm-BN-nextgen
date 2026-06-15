@@ -1,0 +1,15 @@
+{
+  "type": "mod_tileset",
+  "compatibility": ["hoder"],
+  "tiles-new": [
+    {
+      "file": "mod_sheet.png",
+      "sprite_width": 16,
+      "sprite_height": 16,
+      "tiles": [
+        { "id": "mod_slice4_tile", "fg": 0 },
+        { "id": "t_dirt", "fg": 1 }
+      ]
+    }
+  ]
+}

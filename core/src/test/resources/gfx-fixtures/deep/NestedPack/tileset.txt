@@ -1,0 +1,4 @@
+NAME: nestedpack
+VIEW: Nested Pack
+JSON: tile_config.json
+TILESET: tiles.png

@@ -1,0 +1,34 @@
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+eclipse.project.name = appName + '-core'
+
+dependencies {
+  api "com.badlogicgames.box2dlights:box2dlights:$box2dlightsVersion"
+  api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
+  api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+  api "com.badlogicgames.gdx:gdx:$gdxVersion"
+
+  testImplementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+  testImplementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+  testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+  testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+
+  if(enableGraalNative == 'true') {
+    implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
+  }
+}
+
+test {
+  useJUnitPlatform()
+  final File bnGfx = new File(rootProject.projectDir, "../Cataclysm-BN/gfx")
+  if (bnGfx.isDirectory()) {
+    systemProperty "cdda.gfx.roots", bnGfx.absolutePath
+  }
+  final File bnMods = new File(rootProject.projectDir, "../Cataclysm-BN/data/mods")
+  if (bnMods.isDirectory()) {
+    systemProperty "cdda.mod.roots", bnMods.absolutePath
+  }
+}
+
+jar {
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

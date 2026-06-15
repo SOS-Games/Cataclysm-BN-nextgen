@@ -1,0 +1,12 @@
+[
+  {
+    "type": "mod_tileset",
+    "compatibility": ["tileset_a"],
+    "tiles-new": []
+  },
+  {
+    "type": "mod_tileset",
+    "compatibility": ["tileset_b"],
+    "tiles-new": []
+  }
+]
