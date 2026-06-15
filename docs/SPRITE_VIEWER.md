@@ -51,10 +51,20 @@ sprites and labels stay the same size when the window is resized; extra space sh
 | `1`–`8` | Jump to FX table directly |
 | `+` / `-` | Zoom (integer scale 1–6, multiplied by tileset `pixelscale`) |
 | `R` | Rescan gfx roots and reload current tileset |
+| `M` | Cycle tile filter: **all** → **animated** → **static** (non-animated) |
+| `P` | Toggle animation playback (on by default) |
+
+## Animation preview
+
+Tiles with JSON `"animated": true` cycle through weighted sprite variants automatically,
+matching BN idle animation timing (`~17 ms` per frame). Each tile is phase-offset by its id
+so water and similar tiles do not blink in sync.
+
+Weighted variant selection uses the same `pick(loc_rand)` rule as BN
+(`WeightedSpriteList.pickByIndex`). Rotation frames within a variant are shown at index 0
+(north); only weighted multi-frame animations advance over time.
 
 ## Loading UX
-
-While a tileset loads:
 
 - Centered **spinner** and progress text (`Loading hoder: … upload 3/12`)
 - **`[`** / **`]`** cancel the in-flight session and start another pack

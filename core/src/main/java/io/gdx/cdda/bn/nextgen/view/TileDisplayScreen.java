@@ -16,8 +16,10 @@ import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadOptions;
 import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadSession;
 import io.gdx.cdda.bn.nextgen.tileset.mod.ModTilesetRegistry;
 import io.gdx.cdda.bn.nextgen.tileset.model.LoadedTileset;
+import io.gdx.cdda.bn.nextgen.tileset.model.SpriteVariant;
 import io.gdx.cdda.bn.nextgen.tileset.model.TileDefinition;
 import io.gdx.cdda.bn.nextgen.tileset.model.TilesetFxType;
+import io.gdx.cdda.bn.nextgen.tileset.model.WeightedSpriteList;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,6 +66,14 @@ public final class TileDisplayScreen {
     private static final int CELL_GUTTER = 4;
     private static final int CELL_PADDING = 4;
     private static final int FONT_EXTRA_PIXELS = 2;
+    /** BN idle animation tick (~60 fps game time compressed to ~17 ms per frame). */
+    private static final long ANIMATION_TICK_MS = 17L;
+
+    private enum PreviewFilter {
+        ALL,
+        ANIMATED,
+        NON_ANIMATED
+    }
 
     private final SpriteBatch batch;
     private final BitmapFont font;
@@ -77,6 +87,10 @@ public final class TileDisplayScreen {
     private List<String> tilesetIds = Collections.emptyList();
     private int tilesetIndex;
     private List<String> previewTileIds = Collections.emptyList();
+    private List<String> allPreviewTileIds = Collections.emptyList();
+    private PreviewFilter previewFilter = PreviewFilter.ALL;
+    private boolean animationPlayback = true;
+    private long animationTick;
     private String statusMessage = "Loading…";
     private boolean loadingTileset;
     private String loadingTilesetId;
@@ -111,6 +125,7 @@ public final class TileDisplayScreen {
         tilesetIds = buildTilesetIds(newRegistry);
         disposeTileset();
         previewTileIds = Collections.emptyList();
+        allPreviewTileIds = Collections.emptyList();
         page = 0;
 
         if (tilesetIds.isEmpty()) {
@@ -130,6 +145,7 @@ public final class TileDisplayScreen {
 
     public void render() {
         advanceLoadSession();
+        updateAnimationFrame();
         ensureGridFresh();
         ScreenUtils.clear(0.12f, 0.12f, 0.16f, 1f);
         applyBatchProjection();
@@ -194,6 +210,14 @@ public final class TileDisplayScreen {
         }
         if (keycode == Keys.RIGHT_BRACKET) {
             nextTileset();
+            return true;
+        }
+        if (keycode == Keys.M) {
+            cyclePreviewFilter();
+            return true;
+        }
+        if (keycode == Keys.P) {
+            animationPlayback = !animationPlayback;
             return true;
         }
         return false;
@@ -269,11 +293,13 @@ public final class TileDisplayScreen {
         final String tilesetLine = formatTilesetPickerLine();
         final String hud = statusMessage
             + "  |  FX: " + fxType.name()
+            + "  |  filter: " + previewFilterLabel()
+            + "  |  anim: " + (animationPlayback ? "on" : "off")
             + "  |  page " + (page + 1) + "/" + pageCount
             + "  |  zoom " + zoom + "x";
         final String controls = loadingTileset
             ? "Loading…  [[ ]] switch tileset"
-            : "[←/→] page  [[ ]] tileset  [F] FX  [1-8] FX  [+/-] zoom  [R] reload";
+            : "[←/→] page  [[ ]] tileset  [M] filter  [P] anim  [F] FX  [1-8] FX  [+/-] zoom  [R] reload";
         font.draw(batch, tilesetLine, MARGIN, screenHeight() - 8);
         font.draw(batch, hud, MARGIN, screenHeight() - 24);
         font.draw(batch, "Gfx: " + GfxPaths.gameGfxRoots() + "  |  " + controls, MARGIN, screenHeight() - 40);
@@ -355,8 +381,39 @@ public final class TileDisplayScreen {
             return;
         }
 
-        drawLayer(tile.getBackgroundSpriteIndex(), tile, tileScale, spriteCenterX, spriteAnchorY);
-        drawLayer(tile.getForegroundSpriteIndex(), tile, tileScale, spriteCenterX, spriteAnchorY);
+        final int locRand = animationPickIndex(tile);
+        drawLayer(resolveSpriteIndex(tile.getSprites().getBackground(), locRand), tile, tileScale, spriteCenterX, spriteAnchorY);
+        drawLayer(resolveSpriteIndex(tile.getSprites().getForeground(), locRand), tile, tileScale, spriteCenterX, spriteAnchorY);
+    }
+
+    private void updateAnimationFrame() {
+        animationTick = System.currentTimeMillis() / ANIMATION_TICK_MS;
+    }
+
+    private int animationPickIndex(final TileDefinition tile) {
+        if (!animationPlayback || !tile.isAnimated()) {
+            return 0;
+        }
+        int framesInLoop = tile.getSprites().getForeground().getTotalWeight();
+        if (framesInLoop <= 1) {
+            framesInLoop = tile.getSprites().getBackground().getTotalWeight();
+        }
+        if (framesInLoop <= 1) {
+            return 0;
+        }
+        final long seed = tile.getId().hashCode() & 0xffffffffL;
+        return (int) Math.floorMod(animationTick + seed, framesInLoop);
+    }
+
+    private static int resolveSpriteIndex(final WeightedSpriteList layer, final int locRand) {
+        if (layer.isEmpty()) {
+            return -1;
+        }
+        final SpriteVariant variant = layer.pickByIndex(locRand);
+        if (variant == null || variant.isEmpty()) {
+            return -1;
+        }
+        return variant.getFrame(0);
     }
 
     private void drawLayer(
@@ -456,8 +513,8 @@ public final class TileDisplayScreen {
             return 0;
         }
         int max = 0;
-        max = Math.max(max, layerDrawWidth(tile.getBackgroundSpriteIndex(), tile, tileScale));
-        max = Math.max(max, layerDrawWidth(tile.getForegroundSpriteIndex(), tile, tileScale));
+        max = Math.max(max, layerMaxDrawWidth(tile.getSprites().getBackground(), tile, tileScale));
+        max = Math.max(max, layerMaxDrawWidth(tile.getSprites().getForeground(), tile, tileScale));
         return max;
     }
 
@@ -467,8 +524,36 @@ public final class TileDisplayScreen {
             return 0;
         }
         int max = 0;
-        max = Math.max(max, layerDrawHeight(tile.getBackgroundSpriteIndex(), tile, tileScale));
-        max = Math.max(max, layerDrawHeight(tile.getForegroundSpriteIndex(), tile, tileScale));
+        max = Math.max(max, layerMaxDrawHeight(tile.getSprites().getBackground(), tile, tileScale));
+        max = Math.max(max, layerMaxDrawHeight(tile.getSprites().getForeground(), tile, tileScale));
+        return max;
+    }
+
+    private int layerMaxDrawWidth(
+        final WeightedSpriteList layer,
+        final TileDefinition tile,
+        final int tileScale
+    ) {
+        int max = 0;
+        for (final SpriteVariant variant : layer.getVariants()) {
+            for (final int spriteIndex : variant.getFrames()) {
+                max = Math.max(max, layerDrawWidth(spriteIndex, tile, tileScale));
+            }
+        }
+        return max;
+    }
+
+    private int layerMaxDrawHeight(
+        final WeightedSpriteList layer,
+        final TileDefinition tile,
+        final int tileScale
+    ) {
+        int max = 0;
+        for (final SpriteVariant variant : layer.getVariants()) {
+            for (final int spriteIndex : variant.getFrames()) {
+                max = Math.max(max, layerDrawHeight(spriteIndex, tile, tileScale));
+            }
+        }
         return max;
     }
 
@@ -568,6 +653,56 @@ public final class TileDisplayScreen {
         fxType = FX_CYCLE[(index + 1) % FX_CYCLE.length];
     }
 
+    private void cyclePreviewFilter() {
+        if (previewFilter == PreviewFilter.ALL) {
+            previewFilter = PreviewFilter.ANIMATED;
+        } else if (previewFilter == PreviewFilter.ANIMATED) {
+            previewFilter = PreviewFilter.NON_ANIMATED;
+        } else {
+            previewFilter = PreviewFilter.ALL;
+        }
+        refreshPreviewFilter();
+    }
+
+    private void refreshPreviewFilter() {
+        if (tileset == null) {
+            return;
+        }
+        page = 0;
+        previewTileIds = applyPreviewFilter(allPreviewTileIds, tileset);
+        recomputeLayoutForViewport();
+    }
+
+    private String previewFilterLabel() {
+        if (previewFilter == PreviewFilter.ALL) {
+            return "all";
+        }
+        if (previewFilter == PreviewFilter.ANIMATED) {
+            return "animated";
+        }
+        return "static";
+    }
+
+    private List<String> applyPreviewFilter(final List<String> ids, final LoadedTileset loaded) {
+        if (previewFilter == PreviewFilter.ALL) {
+            return new ArrayList<>(ids);
+        }
+        final List<String> filtered = new ArrayList<>();
+        for (final String tileId : ids) {
+            final TileDefinition tile = loaded.findTile(tileId).orElse(null);
+            if (tile == null) {
+                continue;
+            }
+            final boolean animated = tile.isAnimated();
+            if (previewFilter == PreviewFilter.ANIMATED && animated) {
+                filtered.add(tileId);
+            } else if (previewFilter == PreviewFilter.NON_ANIMATED && !animated) {
+                filtered.add(tileId);
+            }
+        }
+        return filtered;
+    }
+
     private void nextTileset() {
         if (tilesetIds.size() <= 1) {
             return;
@@ -594,6 +729,7 @@ public final class TileDisplayScreen {
         page = 0;
         disposeTileset();
         previewTileIds = Collections.emptyList();
+        allPreviewTileIds = Collections.emptyList();
 
         loadingTilesetId = tilesetIds.get(tilesetIndex);
         loadingTileset = true;
@@ -610,7 +746,8 @@ public final class TileDisplayScreen {
     private void applyLoadedTileset(final LoadedTileset loaded) {
         loadingTileset = false;
         tileset = loaded;
-        previewTileIds = buildPreviewList(tileset);
+        allPreviewTileIds = buildPreviewList(tileset);
+        previewTileIds = applyPreviewFilter(allPreviewTileIds, tileset);
         statusMessage = previewTileIds.size() + " preview tiles, " + tileset.getSpriteCount() + " sprites";
         Gdx.app.log("tileset", "Preview: " + loadingTilesetId + " — " + statusMessage);
         recomputeCellMetrics();

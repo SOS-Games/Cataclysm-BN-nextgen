@@ -73,6 +73,28 @@ public final class WeightedSpriteList {
         return variants.get(variants.size() - 1);
     }
 
+    /** BN {@code weighted_int_list::pick(unsigned int)} — {@code picked = (randi % totalWeight) + 1}. */
+    public SpriteVariant pickByIndex(final int randi) {
+        if (variants.isEmpty() || totalWeight <= 0) {
+            return null;
+        }
+        if (variants.size() == 1) {
+            return variants.get(0);
+        }
+        final int picked = Math.floorMod(randi, totalWeight) + 1;
+        if (!precalc.isEmpty()) {
+            return variants.get(precalc.get(picked - 1));
+        }
+        int accumulated = 0;
+        for (int i = 0; i < variants.size(); i++) {
+            accumulated += variants.get(i).getWeight();
+            if (accumulated >= picked) {
+                return variants.get(i);
+            }
+        }
+        return variants.get(variants.size() - 1);
+    }
+
     public int getFirstSpriteIndex() {
         if (variants.isEmpty()) {
             return -1;
