@@ -9,26 +9,46 @@ Instructions for AI coding agents working in **Cataclysm-BN-nextgen** (LibGDX Ja
 
 ## Project role
 
-This repo implements the **Cataclysm-BN tileset loader**, an **in-game sprite viewer**, and
-(eventually) the game client on LibGDX. It loads **existing BN tileset packs** from disk
-(`gfx/<pack>/`); it does not ship those assets.
+This repo implements the **Cataclysm-BN tileset loader**, an **in-game sprite viewer**, a
+**map editor** (planned), and (eventually) the full game client on LibGDX. It loads
+**existing BN packs** from disk (`gfx/<pack>/`, `data/json/`); it does not ship those assets.
 
 ## Specification (read first)
 
-Canonical loader specs live in **`docs/tileset-loader/`** in this repository (ported from
-Cataclysm-BN). BN C++ files cited in each unit doc are the authority for ambiguous behavior.
+### Gfx (tileset loader — done)
+
+Canonical specs: **`docs/tileset-loader/`**. BN C++ in `src/cata_tiles.cpp`.
 
 | Doc | Path |
 | --- | --- |
-| Docs index | `docs/README.md` |
 | Loader guide | `docs/TILESET_LOADER.md` |
 | Sprite viewer | `docs/SPRITE_VIEWER.md` |
 | Incremental loading | `docs/INCREMENTAL_LOADING.md` |
 | Spec index | `docs/tileset-loader/README.md` |
-| **Implementation plan** | `docs/tileset-loader/implementation-plan.md` |
-| Unit specs | `docs/tileset-loader/01-…` through `09-…`, `appendix-dynamic-atlas.md` |
+| Implementation plan | `docs/tileset-loader/implementation-plan.md` |
 
-Follow the plan’s **v1 milestones** unless the user requests full BN parity.
+### Game data loader (in progress)
+
+Specs: **`docs/game-data-loader/`**. BN C++ in `src/init.cpp`, `src/mapdata.cpp`.
+
+| Doc | Path |
+| --- | --- |
+| Guide | `docs/GAME_DATA_LOADER.md` |
+| Spec index | `docs/game-data-loader/README.md` |
+| Implementation plan | `docs/game-data-loader/implementation-plan.md` |
+
+### Map editor (planned)
+
+Specs: **`docs/map-editor/`**. Consumes game data + tileset loaders.
+
+| Doc | Path |
+| --- | --- |
+| Guide | `docs/MAP_EDITOR.md` |
+| Spec index | `docs/map-editor/README.md` |
+
+| Docs index | `docs/README.md` |
+
+Follow each plan’s **v1 milestones** unless the user requests full BN parity.
 
 **Sprites-only scope:** skip ASCII / `fallback.png` (units 04d, 07c). State modifiers (07d)
 and dynamic atlas (A1) are implemented; draw-time UV warps are optional.
@@ -59,26 +79,25 @@ docs/     Loader specs, implementation guide, sprite viewer docs
 
 ```text
 core/src/main/java/io/gdx/cdda/bn/nextgen/
-  tileset/
-    GfxPaths.java
-    TilesetDiscovery.java
-    TilesetLoader.java          # blocking load (tests, tools)
-    load/TilesetLoadSession.java  # incremental UI load — docs/INCREMENTAL_LOADING.md
-    parse/ atlas/ mod/ model/ validate/
+  tileset/                    # gfx loader — done
+  gamedata/                   # game JSON — docs/game-data-loader/
+  map/                        # MapGrid, MapFileIO — docs/map-editor/
   view/
-    TileDisplayScreen.java    # sprite viewer — docs/SPRITE_VIEWER.md
-    LoadingSpinner.java
-  Main.java                   # currently boots into sprite viewer
+    TileDisplayScreen.java    # sprite viewer
+    MapEditorScreen.java      # planned
+  Main.java
 ```
 
 ## Gfx / BN data paths
 
 ```text
-../Cataclysm-BN/gfx/              # game gfx root (auto-detected by lwjgl3:run)
+../Cataclysm-BN/gfx/              # tilesets (GfxPaths / cdda.gfx.roots)
+../Cataclysm-BN/data/             # game JSON (DataPaths / cdda.data.roots — planned)
 ../CDDA-Tilesets/gfx/             # optional external tilesets repo
 ```
 
-`GfxPaths` resolves roots from `cdda.gfx.roots` and common relative paths.
+`GfxPaths` resolves gfx roots from `cdda.gfx.roots` and common relative paths.
+`DataPaths` (planned) mirrors this for `data/`.
 
 ## Run & build
 
@@ -90,10 +109,13 @@ gradlew.bat test
 
 ## Implementation order
 
-See **Suggested first PR slices** in `docs/tileset-loader/implementation-plan.md`.
+**Tileset loader:** complete — see `docs/tileset-loader/implementation-plan.md`.
 
-v1 loader slices are complete. Future work: sprite viewer features (search, detail pane),
-game rendering, draw-time seasonal/tint/warp support.
+**Game data loader:** `docs/game-data-loader/implementation-plan.md` — start at units 02, 04, 06.
+
+**Map editor:** after game data v1 — `docs/map-editor/implementation-plan.md`.
+
+Sprite viewer follow-ups: search, detail pane. Gfx: draw-time seasonal/tint/warp.
 
 **Loading:** use `TilesetLoadSession` for UI; never `TilesetLoader.load` on a worker thread
 (see `docs/INCREMENTAL_LOADING.md`).
