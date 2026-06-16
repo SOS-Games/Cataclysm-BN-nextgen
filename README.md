@@ -7,11 +7,22 @@ Generated from [gdx-liftoff](https://github.com/libgdx/gdx-liftoff); desktop tar
 
 ## Related repositories
 
-| Repo | Role |
-| --- | --- |
-| [Cataclysm-BN](../Cataclysm-BN) | C++ source of truth for loader behavior (`src/cata_tiles.cpp`) |
-| [CDDA-Tilesets](../CDDA-Tilesets) | Optional external `gfx/` packs |
-| [cygnus-engine](../../Documents/cygnus-engine) | LibGDX **reference project** (paths, JSON I/O, Gradle layout) |
+This project reads assets and mirrors behavior from BN; it does not vendor those trees.
+
+| Repository | GitHub | Typical local clone | Role |
+| --- | --- | --- | --- |
+| **Cataclysm: Bright Nights** | [cataclysmbn/Cataclysm-BN](https://github.com/cataclysmbn/Cataclysm-BN) | `../Cataclysm-BN` | C++ source of truth (`src/cata_tiles.cpp`, `src/mapdata.cpp`); ships `data/` and `gfx/` |
+| **CDDA-Tilesets** | [I-am-Erk/CDDA-Tilesets](https://github.com/I-am-Erk/CDDA-Tilesets) | `../CDDA-Tilesets` | Community tileset packs under `gfx/` ([master tileset repo](https://github.com/I-am-Erk/CDDA-Tilesets)) |
+| **cygnus-engine** | [SOS-Games/cygnus-engine](https://github.com/SOS-Games/cygnus-engine) | `../../Documents/cygnus-engine` (or sibling) | LibGDX reference — Gradle layout, path resolution, JSON I/O (not game logic) |
+
+Recommended layout when developing all three:
+
+```text
+games/
+  Cataclysm-BN/          # git clone cataclysmbn/Cataclysm-BN
+  CDDA-Tilesets/         # git clone I-am-Erk/CDDA-Tilesets (optional)
+  Cataclysm-BN-nextgen/  # this repo
+```
 
 ## Documentation
 
@@ -20,6 +31,8 @@ Generated from [gdx-liftoff](https://github.com/libgdx/gdx-liftoff); desktop tar
 | [docs/README.md](docs/README.md) | Documentation index |
 | [AGENTS.md](AGENTS.md) | Instructions for AI coding agents |
 | [docs/TILESET_LOADER.md](docs/TILESET_LOADER.md) | Loader implementation guide and milestone |
+| [docs/GAME_DATA_LOADER.md](docs/GAME_DATA_LOADER.md) | Game JSON loader (terrain, furniture) |
+| [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Map editor |
 | [docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md) | In-game sprite browser |
 | [docs/INCREMENTAL_LOADING.md](docs/INCREMENTAL_LOADING.md) | Frame-sliced tileset load (`TilesetLoadSession`) |
 | [docs/tileset-loader/](docs/tileset-loader/README.md) | Full loader specification (unit docs) |
@@ -65,6 +78,8 @@ Use `./gradlew` or `gradlew.bat` from the project root.
 
 ## Status
 
-- **Tileset loader** — v1 milestone complete (see [docs/TILESET_LOADER.md](docs/TILESET_LOADER.md))
-- **Sprite viewer** — `TileDisplayScreen` grid browser; long-term in-game reference tool
-- **Game client** — not started
+- **Tileset loader** — v1 complete ([docs/TILESET_LOADER.md](docs/TILESET_LOADER.md))
+- **Sprite viewer** — `TileDisplayScreen` ([docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md))
+- **Map editor** — v1 complete ([docs/MAP_EDITOR.md](docs/MAP_EDITOR.md))
+- **Game data loader** — G1–G3 done; G4/G5 remain ([docs/GAME_DATA_LOADER.md](docs/GAME_DATA_LOADER.md))
+- **Full game client** — not started

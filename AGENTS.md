@@ -13,6 +13,16 @@ This repo implements the **Cataclysm-BN tileset loader**, an **in-game sprite vi
 **map editor** (v1), and (eventually) the full game client on LibGDX. It loads
 **existing BN packs** from disk (`gfx/<pack>/`, `data/json/`); it does not ship those assets.
 
+## Related repositories
+
+| Repository | GitHub | Typical local clone |
+| --- | --- | --- |
+| Cataclysm: Bright Nights | [cataclysmbn/Cataclysm-BN](https://github.com/cataclysmbn/Cataclysm-BN) | `../Cataclysm-BN` |
+| CDDA-Tilesets | [I-am-Erk/CDDA-Tilesets](https://github.com/I-am-Erk/CDDA-Tilesets) | `../CDDA-Tilesets` |
+| cygnus-engine (LibGDX patterns) | [SOS-Games/cygnus-engine](https://github.com/SOS-Games/cygnus-engine) | `../../Documents/cygnus-engine` |
+
+See [README.md](README.md#related-repositories) for roles and suggested directory layout.
+
 ## Specification (read first)
 
 ### Gfx (tileset loader — done)
@@ -57,7 +67,7 @@ and dynamic atlas (A1) are implemented; draw-time UV warps are optional.
 
 ## Reference implementation (patterns, not porting game logic)
 
-Use **cygnus-engine** as a LibGDX/Java style reference:
+Use **[cygnus-engine](https://github.com/SOS-Games/cygnus-engine)** as a LibGDX/Java style reference:
 
 | Path | Use for |
 | --- | --- |
@@ -96,6 +106,9 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
 ```
 
 ## Gfx / BN data paths
+
+Clone [Cataclysm-BN](https://github.com/cataclysmbn/Cataclysm-BN) and optionally
+[CDDA-Tilesets](https://github.com/I-am-Erk/CDDA-Tilesets) as siblings:
 
 ```text
 ../Cataclysm-BN/gfx/              # tilesets (GfxPaths / cdda.gfx.roots)
