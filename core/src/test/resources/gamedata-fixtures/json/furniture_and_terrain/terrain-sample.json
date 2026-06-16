@@ -1,0 +1,21 @@
+[
+  {
+    "type": "terrain",
+    "id": "t_fixture_floor",
+    "name": "fixture floor"
+  },
+  {
+    "type": "furniture",
+    "id": "f_fixture_chair",
+    "name": "fixture chair"
+  },
+  {
+    "type": "GUN",
+    "id": "gun_fixture",
+    "name": "unknown type for later slices"
+  },
+  {
+    "id": "no_type_field",
+    "name": "skipped"
+  }
+]

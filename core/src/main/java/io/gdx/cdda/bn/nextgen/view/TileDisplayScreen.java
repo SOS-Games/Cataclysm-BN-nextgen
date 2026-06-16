@@ -299,7 +299,7 @@ public final class TileDisplayScreen {
             + "  |  zoom " + zoom + "x";
         final String controls = loadingTileset
             ? "Loading…  [[ ]] switch tileset"
-            : "[←/→] page  [[ ]] tileset  [M] filter  [P] anim  [F] FX  [1-8] FX  [+/-] zoom  [R] reload";
+            : "[←/→] page  [[ ]] tileset  [M] filter  [P] anim  [F] FX  [1-8] FX  [+/-] zoom  [R] reload  [E] editor";
         font.draw(batch, tilesetLine, MARGIN, screenHeight() - 8);
         font.draw(batch, hud, MARGIN, screenHeight() - 24);
         font.draw(batch, "Gfx: " + GfxPaths.gameGfxRoots() + "  |  " + controls, MARGIN, screenHeight() - 40);
@@ -381,52 +381,24 @@ public final class TileDisplayScreen {
             return;
         }
 
-        final int locRand = animationPickIndex(tile);
-        drawLayer(resolveSpriteIndex(tile.getSprites().getBackground(), locRand), tile, tileScale, spriteCenterX, spriteAnchorY);
-        drawLayer(resolveSpriteIndex(tile.getSprites().getForeground(), locRand), tile, tileScale, spriteCenterX, spriteAnchorY);
+        final int locRand = TileSpriteResolver.animationPickIndex(tile, animationTick, animationPlayback);
+        final TextureRegion bg = TileSpriteResolver.resolveBackground(tileset, tile, locRand, fxType);
+        final TextureRegion fg = TileSpriteResolver.resolveForeground(tileset, tile, locRand, fxType);
+        drawLayer(bg, tile, tileScale, spriteCenterX, spriteAnchorY);
+        drawLayer(fg, tile, tileScale, spriteCenterX, spriteAnchorY);
     }
 
     private void updateAnimationFrame() {
         animationTick = System.currentTimeMillis() / ANIMATION_TICK_MS;
     }
 
-    private int animationPickIndex(final TileDefinition tile) {
-        if (!animationPlayback || !tile.isAnimated()) {
-            return 0;
-        }
-        int framesInLoop = tile.getSprites().getForeground().getTotalWeight();
-        if (framesInLoop <= 1) {
-            framesInLoop = tile.getSprites().getBackground().getTotalWeight();
-        }
-        if (framesInLoop <= 1) {
-            return 0;
-        }
-        final long seed = tile.getId().hashCode() & 0xffffffffL;
-        return (int) Math.floorMod(animationTick + seed, framesInLoop);
-    }
-
-    private static int resolveSpriteIndex(final WeightedSpriteList layer, final int locRand) {
-        if (layer.isEmpty()) {
-            return -1;
-        }
-        final SpriteVariant variant = layer.pickByIndex(locRand);
-        if (variant == null || variant.isEmpty()) {
-            return -1;
-        }
-        return variant.getFrame(0);
-    }
-
     private void drawLayer(
-        final int spriteIndex,
+        final TextureRegion region,
         final TileDefinition tile,
         final int tileScale,
         final int centerX,
         final int centerY
     ) {
-        if (spriteIndex < 0) {
-            return;
-        }
-        final TextureRegion region = tileset.getTexture(spriteIndex, fxType);
         if (region == null) {
             return;
         }
@@ -813,14 +785,15 @@ public final class TileDisplayScreen {
     private static List<String> buildPreviewList(final LoadedTileset loaded) {
         final List<String> ids = new ArrayList<>();
         for (final String preferred : PREFERRED_TILE_IDS) {
-            if (loaded.findTile(preferred).isPresent()) {
+            if (loaded.findTile(preferred).isPresent()
+                && TileSpriteResolver.hasDrawableArt(loaded, preferred)) {
                 ids.add(preferred);
             }
         }
         final List<String> remaining = new ArrayList<>(loaded.getTiles().keySet());
         Collections.sort(remaining);
         for (final String tileId : remaining) {
-            if (!ids.contains(tileId)) {
+            if (!ids.contains(tileId) && TileSpriteResolver.hasDrawableArt(loaded, tileId)) {
                 ids.add(tileId);
             }
         }

@@ -1,0 +1,5 @@
+{
+  "type": "terrain",
+  "id": "t_outside_subdir",
+  "name": "not scanned when subdir filter is active"
+}

@@ -64,6 +64,10 @@ run {
   if (bnGfx.isDirectory()) {
     systemProperty "cdda.gfx.roots", bnGfx.absolutePath
   }
+  final File bnData = new File(rootProject.projectDir, "../Cataclysm-BN/data")
+  if (bnData.isDirectory()) {
+    systemProperty "cdda.data.roots", bnData.absolutePath
+  }
 }
 
 jar {

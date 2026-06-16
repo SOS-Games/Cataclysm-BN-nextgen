@@ -10,7 +10,7 @@ Instructions for AI coding agents working in **Cataclysm-BN-nextgen** (LibGDX Ja
 ## Project role
 
 This repo implements the **Cataclysm-BN tileset loader**, an **in-game sprite viewer**, a
-**map editor** (planned), and (eventually) the full game client on LibGDX. It loads
+**map editor** (v1), and (eventually) the full game client on LibGDX. It loads
 **existing BN packs** from disk (`gfx/<pack>/`, `data/json/`); it does not ship those assets.
 
 ## Specification (read first)
@@ -31,13 +31,15 @@ Canonical specs: **`docs/tileset-loader/`**. BN C++ in `src/cata_tiles.cpp`.
 
 Specs: **`docs/game-data-loader/`**. BN C++ in `src/init.cpp`, `src/mapdata.cpp`.
 
+**G1–G3 done** (paths, terrain, furniture). **G4–G5** (validation, mod order) remain.
+
 | Doc | Path |
 | --- | --- |
 | Guide | `docs/GAME_DATA_LOADER.md` |
 | Spec index | `docs/game-data-loader/README.md` |
 | Implementation plan | `docs/game-data-loader/implementation-plan.md` |
 
-### Map editor (planned)
+### Map editor (v1 done)
 
 Specs: **`docs/map-editor/`**. Consumes game data + tileset loaders.
 
@@ -83,8 +85,13 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
   gamedata/                   # game JSON — docs/game-data-loader/
   map/                        # MapGrid, MapFileIO — docs/map-editor/
   view/
+    MainMenuScreen.java
     TileDisplayScreen.java    # sprite viewer
-    MapEditorScreen.java      # planned
+    MapEditorScreen.java
+    MapPalettePanel.java
+    MapEditorToolbar.java
+    TileSpriteResolver.java
+    ScreenInput.java
   Main.java
 ```
 
@@ -92,12 +99,12 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
 
 ```text
 ../Cataclysm-BN/gfx/              # tilesets (GfxPaths / cdda.gfx.roots)
-../Cataclysm-BN/data/             # game JSON (DataPaths / cdda.data.roots — planned)
+../Cataclysm-BN/data/             # game JSON (DataPaths / cdda.data.roots)
 ../CDDA-Tilesets/gfx/             # optional external tilesets repo
 ```
 
 `GfxPaths` resolves gfx roots from `cdda.gfx.roots` and common relative paths.
-`DataPaths` (planned) mirrors this for `data/`.
+`DataPaths` resolves data roots from `cdda.data.roots` and common relative paths.
 
 ## Run & build
 
@@ -111,9 +118,9 @@ gradlew.bat test
 
 **Tileset loader:** complete — see `docs/tileset-loader/implementation-plan.md`.
 
-**Game data loader:** `docs/game-data-loader/implementation-plan.md` — start at units 02, 04, 06.
+**Game data loader:** G1–G3 done — see `docs/game-data-loader/implementation-plan.md` for G4/G5.
 
-**Map editor:** after game data v1 — `docs/map-editor/implementation-plan.md`.
+**Map editor:** M1–M4 done — `docs/map-editor/implementation-plan.md`.
 
 Sprite viewer follow-ups: search, detail pane. Gfx: draw-time seasonal/tint/warp.
 

@@ -294,11 +294,13 @@ this loader. Game data loader supplies terrain/furniture registries; map editor 
 
 | Phase | Units | Goal |
 | --- | --- | --- |
-| 1 — Frame | 01, 02, 04, 06 | Trace load order; open and scan `data/json` |
-| 2 — Schema | 05a, 05b | Document terrain/furniture JSON contract |
-| 3 — Parse | 07a, 07b | Populate registries from real files |
-| 4 — Model | 08, 10 | Public API for map editor |
-| 5 — Mods | 03, 09 | Multi-mod load and overrides |
+| 1 — Frame | 01, 02, 04, 06 | Trace load order; open and scan `data/json` → **PR G1** |
+| 2 — Schema | 05a, 05b | Document terrain/furniture JSON contract (done) |
+| 3 — Parse | 07a, 07b | Populate registries → **PR G2, G3** |
+| 4 — Model | 08, 10 | Public API + validation → **PR G4** |
+| 5 — Mods | 03, 09 | Multi-mod load → **PR G5** |
+
+**PR slices (canonical):** [GAME_DATA_LOADER.md](../GAME_DATA_LOADER.md#suggested-pr-slices-game-data).
 
 ---
 

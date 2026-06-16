@@ -190,13 +190,18 @@ Run against `../Cataclysm-BN/data/json` when available.
 
 ## Suggested first PR slices
 
-| PR | Units | Done when |
-| --- | --- | --- |
-| 1 | 02, 04, 06 (scan only) | Lists JSON files under `furniture_and_terrain/` |
-| 2 | 05a, 07a, 08 | `TerrainRegistry` populated from core data |
-| 3 | 05b, 07b | `FurnitureRegistry` added |
-| 4 | 10 | Validation + tileset id cross-check helper |
-| 5 | 03, 09 | Mod list load |
+Each slice adds tests under `core/src/test/java/io/gdx/cdda/bn/nextgen/gamedata/`.
+Canonical copy with end-to-end timeline: [GAME_DATA_LOADER.md](../GAME_DATA_LOADER.md).
+
+| PR | Classes | Units | Done when |
+| --- | --- | --- | --- |
+| **G1** | `DataPaths`, `JsonDataScanner`, `GameDataLoadOptions` | 02, 04, 06 | Resolves `data/json`; lists `furniture_and_terrain/*.json`; parses array fixture |
+| **G2** | `TerrainDefinition`, `TerrainRegistry`, `TerrainParser`, `LoadedGameData`, `GameDataLoader.loadCore` | 05a, 07a, 08 | `find("t_dirt")` name `"dirt"`; count > 500 on BN data |
+| **G3** | `FurnitureDefinition`, `FurnitureRegistry`, `FurnitureParser` | 05b, 07b, 08 | Furniture registry on `LoadedGameData` |
+| **G4** | `GameDataValidator`, `ValidationReport` | 10 | `looks_like` warnings; optional tileset cross-check |
+| **G5** | `ModDiscovery`, `ModRegistry`, `ModOrderResolver`, `loadMods` | 03, 09, 06 | Later mod overrides terrain id in fixture |
+
+Map editor slices (**M1–M4**): [MAP_EDITOR.md](../MAP_EDITOR.md).
 
 ---
 

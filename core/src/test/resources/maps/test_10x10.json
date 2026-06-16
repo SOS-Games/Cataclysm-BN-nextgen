@@ -1,0 +1,20 @@
+{
+  "format": "cdda-bn-nextgen-map",
+  "version": 1,
+  "width": 10,
+  "height": 10,
+  "default_terrain": "t_dirt",
+  "terrain": [
+    "t_grass", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt",
+    "t_dirt", "t_grass", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt",
+    "t_dirt", "t_dirt", "t_grass", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt",
+    "t_dirt", "t_dirt", "t_dirt", "t_grass", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt",
+    "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_grass", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt",
+    "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_grass", "t_dirt", "t_dirt", "t_dirt", "t_dirt",
+    "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_grass", "t_dirt", "t_dirt", "t_dirt",
+    "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_grass", "t_dirt", "t_dirt",
+    "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_grass", "t_dirt",
+    "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_dirt", "t_floor"
+  ],
+  "furniture": null
+}

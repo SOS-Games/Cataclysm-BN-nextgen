@@ -9,8 +9,9 @@ modders and developers — not a throwaway debug harness.
 | --- | --- |
 | Screen | `core/src/main/java/io/gdx/cdda/bn/nextgen/view/TileDisplayScreen.java` |
 | Loading spinner | `core/src/main/java/io/gdx/cdda/bn/nextgen/view/LoadingSpinner.java` |
+| Sprite helpers | `core/src/main/java/io/gdx/cdda/bn/nextgen/view/TileSpriteResolver.java` |
 | Incremental load session | `core/src/main/java/io/gdx/cdda/bn/nextgen/tileset/load/TilesetLoadSession.java` |
-| Entry (current) | `core/src/main/java/io/gdx/cdda/bn/nextgen/Main.java` |
+| Entry | `core/src/main/java/io/gdx/cdda/bn/nextgen/Main.java` → `MainMenuScreen` |
 | Desktop launcher | `lwjgl3/src/main/java/io/gdx/cdda/bn/nextgen/lwjgl3/Lwjgl3Launcher.java` |
 
 The viewer consumes **`LoadedTileset`** only — it does not parse JSON or PNGs itself. Any fix to
@@ -29,6 +30,9 @@ gradlew.bat lwjgl3:run
 ./gradlew lwjgl3:run
 ```
 
+Startup opens the **main menu** — choose **Sprite Viewer**, or open the map editor and press
+**`E`** from the viewer.
+
 When `../Cataclysm-BN/gfx` exists next to this repo, the `lwjgl3:run` Gradle task sets
 `-Dcdda.gfx.roots` automatically. Otherwise set the property manually:
 
@@ -43,8 +47,11 @@ sprites and labels stay the same size when the window is resized; extra space sh
 
 | Input | Action |
 | --- | --- |
+| **Main menu** | Click item or `↑`/`↓` + `Enter`; `1` / `2` shortcuts |
 | `←` / `→` or `A` / `D` | Previous / next page |
 | `[` / `]` | Previous / next tileset |
+| `E` | Open map editor |
+| `Esc` | Back to main menu |
 | Mouse wheel up | Next page |
 | Mouse wheel down | Previous page |
 | `F` | Cycle FX table (NONE → SHADOW → NIGHT → …) |
@@ -86,9 +93,13 @@ All packs discovered under the gfx roots appear in the picker (discovery order f
 ## Grid layout
 
 - Preferred tile ids (`t_dirt`, `t_grass`, `player`, …) appear first; remaining ids are alphabetical.
+- Tiles **without drawable art** (no resolved fg/bg texture) are **omitted** from the grid —
+  avoids purple-circle / `unknown` placeholder spam when browsing packs.
 - Each cell draws **background** then **foreground** layers with tile offsets applied.
 - Cell size is fixed for a given zoom level; resize only changes column/row count.
 - Labels truncate with `…` when the cell is too narrow.
+
+Filter logic: `TileSpriteResolver.hasDrawableArt(loaded, tileId)`.
 
 ## FX preview
 
@@ -101,10 +112,10 @@ Draws from the eight baked sprite tables ([06c](./tileset-loader/06c-filtered-va
 | --- | --- |
 | Search / filter | Jump to tile id, prefix filter |
 | Detail pane | Indices, offsets, seasonal variants, state modifiers |
-| Game entry point | Debug menu or keybind instead of booting straight into the viewer |
 
 ## Related
 
+- [MAP_EDITOR.md](./MAP_EDITOR.md) — paintable grid; shared `TileSpriteResolver` / `LoadingSpinner`
 - [INCREMENTAL_LOADING.md](./INCREMENTAL_LOADING.md) — frame-sliced load session (render thread)
 - [TILESET_LOADER.md](./TILESET_LOADER.md) — loader milestone and package layout
 - [tileset-loader/08-in-memory-model.md](./tileset-loader/08-in-memory-model.md) — `LoadedTileset` contract
