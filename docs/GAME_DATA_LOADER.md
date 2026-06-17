@@ -204,8 +204,8 @@ Full path from specs to paintable grid. Tileset loader **PR 1–3** is already d
 | 5 | **M2** | `MapEditorScreen` render | done |
 | 6 | **M3** | `MapPalettePanel` + paint | done |
 | 7 | **M4** | Editor polish | done |
-| 8 | **G4** | Validation | todo |
-| 9 | **G5** | Mod load order | todo |
+| 8 | **G4** | Validation | done |
+| 9 | **G5** | Mod load order | done |
 
 Map editor PR details: [MAP_EDITOR.md § Suggested PR slices](./MAP_EDITOR.md#suggested-pr-slices-map-editor).
 

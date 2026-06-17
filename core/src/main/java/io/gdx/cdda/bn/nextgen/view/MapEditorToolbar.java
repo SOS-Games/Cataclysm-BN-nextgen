@@ -28,6 +28,7 @@ public final class MapEditorToolbar {
         CENTER,
         SAVE,
         LOAD,
+        OPEN_MAPGEN,
         CYCLE_GRID,
         TILESET_PREV,
         TILESET_NEXT
@@ -54,6 +55,7 @@ public final class MapEditorToolbar {
         new ButtonDef("Center", Action.CENTER, null),
         new ButtonDef("Save", Action.SAVE, null),
         new ButtonDef("Load", Action.LOAD, null),
+        new ButtonDef("Mapgen", Action.OPEN_MAPGEN, null),
         new ButtonDef("Grid", Action.CYCLE_GRID, null),
         new ButtonDef("<", Action.TILESET_PREV, null),
         new ButtonDef(">", Action.TILESET_NEXT, null)

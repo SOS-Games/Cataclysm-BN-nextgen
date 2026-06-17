@@ -1,0 +1,11 @@
+{
+  "type": "palette",
+  "id": "palette_b",
+  "terrain": {
+    "#": "t_wall_b",
+    ".": "t_floor_b"
+  },
+  "furniture": {
+    "H": "f_sofa"
+  }
+}

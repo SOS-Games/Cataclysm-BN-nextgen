@@ -91,6 +91,8 @@ public final class TilesetLoadSession {
     private SheetTextureUploader.IncrementalUpload activeUpload;
     private int activeSheetTileCount;
     private int modIndex;
+    private int totalSheetCount;
+    private int completedSheetCount;
 
     private TilesetLoadSession(
         final TilesetRegistry registry,
@@ -118,11 +120,69 @@ public final class TilesetLoadSession {
         return new TilesetLoadSession(registry, tilesetId, options, modTilesets);
     }
 
+    public String getProgressTitle() {
+        return progressLabel;
+    }
+
+    public String getProgressDetail() {
+        return progressDetail;
+    }
+
     public String getProgressLabel() {
+        final String summary = getProgressSummary();
+        if (!summary.isEmpty()) {
+            return summary;
+        }
         if (progressDetail.isEmpty()) {
             return progressLabel;
         }
         return progressLabel + "  " + progressDetail;
+    }
+
+    /** User-facing load status: overall sheet progress, not per-GPU-chunk detail. */
+    public String getProgressSummary() {
+        switch (phase) {
+            case CONFIG:
+                return "Reading tileset config";
+            case FINALIZE:
+                return "Finalizing";
+            case MOD_NEXT:
+                return formatSheetProgress("Loading mod tilesets");
+            case SHEET_DECODE:
+            case SHEET_UPLOAD:
+            case SHEET_REGISTER:
+                return formatActiveSheetProgress();
+            default:
+                return "";
+        }
+    }
+
+    private String formatActiveSheetProgress() {
+        final StringBuilder summary = new StringBuilder(formatSheetProgress(null));
+        if (activeSheet != null && activeSheet.progressLabel != null && !activeSheet.progressLabel.isEmpty()) {
+            if (summary.length() > 0) {
+                summary.append(" — ");
+            }
+            summary.append(activeSheet.progressLabel);
+        }
+        if (phase == Phase.SHEET_UPLOAD
+            && activeUpload != null
+            && activeUpload.getTotalChunkCount() > 1) {
+            summary.append(" (GPU ")
+                .append(activeUpload.getUploadedChunkCount())
+                .append('/')
+                .append(activeUpload.getTotalChunkCount())
+                .append(')');
+        }
+        return summary.toString();
+    }
+
+    private String formatSheetProgress(final String fallback) {
+        if (totalSheetCount <= 0) {
+            return fallback != null ? fallback : "";
+        }
+        final int current = Math.min(completedSheetCount + 1, totalSheetCount);
+        return "Sheet " + current + "/" + totalSheetCount;
     }
 
     public boolean isComplete() {
@@ -205,6 +265,15 @@ public final class TilesetLoadSession {
         tileInfo = TilesetLoader.parseTileInfo(loadedConfig.getConfigRoot());
         context = TilesetLoadContext.create(tileInfo, options);
         final TilesetConfigLoader.ResolvedTilesetPaths paths = loadedConfig.getPaths();
+        progressLabel = "Loading " + tilesetId;
+        totalSheetCount = countSheets(loadedConfig.getConfigRoot());
+        for (final ModTilesetEntry entry : modEntries) {
+            final JsonValue modConfig = openModConfig(entry);
+            if (modConfig != null) {
+                totalSheetCount += countSheets(modConfig);
+            }
+        }
+        completedSheetCount = 0;
         sheetQueue = buildSheetWorks(
             loadedConfig.getConfigRoot(),
             paths.getTilesetRoot(),
@@ -272,6 +341,7 @@ public final class TilesetLoadSession {
             activeSheet.legacySheet
         );
         sheetIndex++;
+        completedSheetCount++;
         progressDetail = "";
         if (sheetIndex < sheetQueue.size()) {
             phase = Phase.SHEET_DECODE;
@@ -389,6 +459,20 @@ public final class TilesetLoadSession {
             ));
         }
         return works;
+    }
+
+    private static int countSheets(final JsonValue config) {
+        if (config.has("tiles-new")) {
+            int count = 0;
+            for (JsonValue sheet = config.get("tiles-new").child; sheet != null; sheet = sheet.next) {
+                count++;
+            }
+            return count;
+        }
+        if (config.has("tiles")) {
+            return 1;
+        }
+        return 0;
     }
 
     private static JsonValue openModConfig(final ModTilesetEntry entry) throws IOException {

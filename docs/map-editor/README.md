@@ -6,8 +6,9 @@ Specs for the **paintable terrain grid** — UI and local map files. Consumes:
 - [Tileset loader](../tileset-loader/README.md) — sprites via `LoadedTileset`
 - [Sprite viewer](../SPRITE_VIEWER.md) — reusable palette / draw patterns
 
-**Not in scope:** walkable player simulation, BN save format, mapgen execution, multitile
-neighbor autoconnect (v1 shows base tile sprite per cell).
+**Not in scope:** walkable player simulation, BN save format, full world/overmap generation,
+multitile neighbor autoconnect (v1 shows base tile sprite per cell). For JSON mapgen preview
+see [mapgen-preview](../mapgen-preview/README.md).
 
 **Status key:** `todo` · `draft` · `review` · `done`
 

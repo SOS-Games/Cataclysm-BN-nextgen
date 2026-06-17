@@ -41,7 +41,7 @@ Canonical specs: **`docs/tileset-loader/`**. BN C++ in `src/cata_tiles.cpp`.
 
 Specs: **`docs/game-data-loader/`**. BN C++ in `src/init.cpp`, `src/mapdata.cpp`.
 
-**G1–G3 done** (paths, terrain, furniture). **G4–G5** (validation, mod order) remain.
+**G1–G5 done** (paths, terrain, furniture, validation, mod order).
 
 | Doc | Path |
 | --- | --- |
@@ -57,6 +57,18 @@ Specs: **`docs/map-editor/`**. Consumes game data + tileset loaders.
 | --- | --- |
 | Guide | `docs/MAP_EDITOR.md` |
 | Spec index | `docs/map-editor/README.md` |
+
+### Mapgen preview (planned)
+
+Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (not full worldgen).
+
+| Doc | Path |
+| --- | --- |
+| Guide | `docs/MAPGEN_PREVIEW.md` |
+| Spec index | `docs/mapgen-preview/README.md` |
+| Implementation plan | `docs/mapgen-preview/implementation-plan.md` |
+
+**PR slices:** P1 palettes → P2 rows runner → P3 UI → P4 furniture render.
 
 | Docs index | `docs/README.md` |
 
@@ -94,6 +106,7 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
   tileset/                    # gfx loader — done
   gamedata/                   # game JSON — docs/game-data-loader/
   map/                        # MapGrid, MapFileIO — docs/map-editor/
+  mapgen/                     # P1–P3 done — docs/mapgen-preview/
   view/
     MainMenuScreen.java
     TileDisplayScreen.java    # sprite viewer
@@ -131,9 +144,11 @@ gradlew.bat test
 
 **Tileset loader:** complete — see `docs/tileset-loader/implementation-plan.md`.
 
-**Game data loader:** G1–G3 done — see `docs/game-data-loader/implementation-plan.md` for G4/G5.
+**Game data loader:** G1–G5 done — see `docs/game-data-loader/implementation-plan.md`.
 
 **Map editor:** M1–M4 done — `docs/map-editor/implementation-plan.md`.
+
+**Mapgen preview:** P1–P3 done — next **P4** in `docs/mapgen-preview/implementation-plan.md`.
 
 Sprite viewer follow-ups: search, detail pane. Gfx: draw-time seasonal/tint/warp.
 

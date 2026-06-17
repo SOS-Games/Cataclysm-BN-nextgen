@@ -1,0 +1,8 @@
+{
+  "type": "palette",
+  "id": "palette_a",
+  "terrain": {
+    "#": "t_wall_a",
+    ".": "t_floor_a"
+  }
+}

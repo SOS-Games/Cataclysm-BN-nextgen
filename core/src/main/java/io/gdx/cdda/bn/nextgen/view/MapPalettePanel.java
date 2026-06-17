@@ -187,7 +187,7 @@ public final class MapPalettePanel {
         if (visibleTerrainIds.isEmpty()) {
             return false;
         }
-        scrollOffset -= (int) amountY;
+        scrollOffset += (int) amountY;
         clampScroll(viewportHeight);
         return true;
     }

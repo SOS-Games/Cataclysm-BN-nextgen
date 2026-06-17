@@ -1,0 +1,7 @@
+{
+  "type": "MOD_INFO",
+  "id": "bn",
+  "name": "Mod Fixture Core",
+  "core": true,
+  "path": "../../json"
+}

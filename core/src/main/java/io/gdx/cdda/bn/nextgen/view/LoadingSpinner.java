@@ -6,6 +6,8 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 /** Simple rotating arc spinner drawn over the sprite batch. */
 final class LoadingSpinner {
 
+    static final float RADIUS = 28f;
+
     private final ShapeRenderer shapes = new ShapeRenderer();
     private float angle;
 
@@ -14,12 +16,13 @@ final class LoadingSpinner {
     }
 
     void draw(final SpriteBatch batch, final int centerX, final int centerY) {
-        batch.flush();
+        batch.end();
         shapes.setProjectionMatrix(batch.getProjectionMatrix());
         shapes.begin(ShapeRenderer.ShapeType.Line);
         shapes.setColor(0.45f, 0.68f, 1f, 1f);
-        shapes.arc(centerX, centerY, 28f, angle, 300f);
+        shapes.arc(centerX, centerY, RADIUS, angle, 300f);
         shapes.end();
+        batch.begin();
         batch.setColor(1f, 1f, 1f, 1f);
     }
 

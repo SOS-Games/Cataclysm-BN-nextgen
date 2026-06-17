@@ -1,0 +1,19 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_override",
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "terrain": {
+        "#": "t_custom_wall"
+      },
+      "rows": [
+        "###",
+        "#.#",
+        "###"
+      ]
+    }
+  }
+]

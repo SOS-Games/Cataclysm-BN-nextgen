@@ -32,6 +32,7 @@ games/
 | [AGENTS.md](AGENTS.md) | Instructions for AI coding agents |
 | [docs/TILESET_LOADER.md](docs/TILESET_LOADER.md) | Loader implementation guide and milestone |
 | [docs/GAME_DATA_LOADER.md](docs/GAME_DATA_LOADER.md) | Game JSON loader (terrain, furniture) |
+| [docs/MAPGEN_PREVIEW.md](docs/MAPGEN_PREVIEW.md) | JSON mapgen preview (buildings → grid) |
 | [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Map editor |
 | [docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md) | In-game sprite browser |
 | [docs/INCREMENTAL_LOADING.md](docs/INCREMENTAL_LOADING.md) | Frame-sliced tileset load (`TilesetLoadSession`) |
@@ -81,5 +82,6 @@ Use `./gradlew` or `gradlew.bat` from the project root.
 - **Tileset loader** — v1 complete ([docs/TILESET_LOADER.md](docs/TILESET_LOADER.md))
 - **Sprite viewer** — `TileDisplayScreen` ([docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md))
 - **Map editor** — v1 complete ([docs/MAP_EDITOR.md](docs/MAP_EDITOR.md))
-- **Game data loader** — G1–G3 done; G4/G5 remain ([docs/GAME_DATA_LOADER.md](docs/GAME_DATA_LOADER.md))
+- **Game data loader** — G1–G5 done ([docs/GAME_DATA_LOADER.md](docs/GAME_DATA_LOADER.md))
+- **Mapgen preview** — spec done, P1–P4 todo ([docs/MAPGEN_PREVIEW.md](docs/MAPGEN_PREVIEW.md))
 - **Full game client** — not started

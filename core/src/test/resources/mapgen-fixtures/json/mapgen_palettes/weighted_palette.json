@@ -1,0 +1,20 @@
+[
+  {
+    "type": "palette",
+    "id": "weighted_palette",
+    "terrain": {
+      "+": [
+        [ "t_door_c", 5 ],
+        [ "t_door_o", 5 ],
+        "t_door_locked_interior"
+      ],
+      "|": {
+        "param": "interior_wall_type",
+        "fallback": "t_wall_w"
+      }
+    },
+    "furniture": {
+      "y": [ "f_indoor_plant", "f_indoor_plant_y" ]
+    }
+  }
+]

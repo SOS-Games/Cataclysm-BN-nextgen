@@ -10,18 +10,30 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
 
+import io.gdx.cdda.bn.nextgen.DefaultContent;
 import io.gdx.cdda.bn.nextgen.gamedata.GameDataLoader;
 import io.gdx.cdda.bn.nextgen.gamedata.load.GameDataLoadOptions;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
+import io.gdx.cdda.bn.nextgen.gamedata.validate.GameDataValidationException;
+import io.gdx.cdda.bn.nextgen.gamedata.validate.GameDataValidator;
+import io.gdx.cdda.bn.nextgen.gamedata.validate.ValidationOptions;
+import io.gdx.cdda.bn.nextgen.gamedata.validate.ValidationReport;
+import io.gdx.cdda.bn.nextgen.map.MapCell;
 import io.gdx.cdda.bn.nextgen.map.MapFileIO;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
+import io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions;
+import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
+import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetDiscovery;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetOption;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetRegistry;
 import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadOptions;
 import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadSession;
+import io.gdx.cdda.bn.nextgen.tileset.mod.ModTilesetDiscovery;
 import io.gdx.cdda.bn.nextgen.tileset.mod.ModTilesetRegistry;
 import io.gdx.cdda.bn.nextgen.tileset.model.LoadedTileset;
 import io.gdx.cdda.bn.nextgen.tileset.model.TileDefinition;
@@ -31,7 +43,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /** Map editor with terrain palette and paint gestures (M3). */
@@ -48,17 +62,21 @@ public final class MapEditorScreen {
         { 48, 48 },
         { 64, 64 }
     };
-    private static final String[] PREFERRED_TILESET_IDS = { "hoder", "retrodays", "UltimateCataclysm" };
+    private static final String[] PREFERRED_TILESET_IDS = DefaultContent.PREFERRED_TILESET_IDS;
 
     private static final int CLICK_DRAG_THRESHOLD_PX = 5;
     private static final long POINTER_DEBUG_LOG_INTERVAL_MS = 250L;
+    private static final float MIN_VIEW_ZOOM = 0.5f;
+    private static final float MAX_VIEW_ZOOM = 8f;
+    private static final float ZOOM_SCROLL_STEP = 0.24f;
+    private static final float ZOOM_KEY_STEP = 0.5f;
 
     private final SpriteBatch batch;
     private final BitmapFont font;
     private final MapGrid grid;
     private final MapPalettePanel palette = new MapPalettePanel();
     private final MapEditorToolbar toolbar = new MapEditorToolbar();
-    private final LoadingSpinner loadingSpinner = new LoadingSpinner();
+    private final LoadingOverlay loadingOverlay = new LoadingOverlay();
     private final GlyphLayout glyphLayout = new GlyphLayout();
     private final TextureRegion whitePixel;
 
@@ -66,6 +84,7 @@ public final class MapEditorScreen {
     private LoadedTileset tileset;
     private TilesetLoadSession loadSession;
     private TilesetRegistry tilesetRegistry;
+    private ModTilesetRegistry modTilesetRegistry = ModTilesetRegistry.empty();
     private List<String> tilesetIds = new ArrayList<>();
     private int tilesetIndex;
     private boolean loadingTileset;
@@ -73,7 +92,7 @@ public final class MapEditorScreen {
     private int gridPresetIndex = 1;
     private Path currentMapPath = DEFAULT_MAP_PATH;
     private String statusMessage;
-    private int zoom = 2;
+    private float viewZoom = 2f;
     private float cameraX;
     private float cameraY;
     private boolean animationPlayback = true;
@@ -100,9 +119,14 @@ public final class MapEditorScreen {
     private int lastPointerDebugCellX = -1;
     private int lastPointerDebugCellY = -1;
 
+    private final MapgenPreviewService mapgenPreviewService = new MapgenPreviewService();
+    private final MapgenPickerDialog mapgenPicker = new MapgenPickerDialog();
+    private boolean loadingMapgenCatalog;
+
     public MapEditorScreen(final SpriteBatch batch) {
         this.batch = batch;
         this.font = new BitmapFont();
+        this.font.setUseIntegerPositions(true);
         this.whitePixel = createWhitePixel();
         this.grid = createCheckerboardGrid();
         this.statusMessage = "Map editor";
@@ -121,16 +145,33 @@ public final class MapEditorScreen {
         applyProjection();
 
         batch.begin();
-        drawGrid();
-        drawHoverCell();
+        if (!loadingTileset) {
+            drawGrid();
+            drawHoverCell();
+        }
         drawPalette();
-        drawPaletteLoadingOverlay();
         drawToolbar();
         drawHud();
+        if (loadingTileset) {
+            drawTilesetLoadingOverlay();
+        }
+        if (loadingMapgenCatalog) {
+            drawMapgenCatalogLoadingOverlay();
+        }
+        mapgenPicker.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
+        pollMapgenPickerSelection();
         batch.end();
     }
 
     public boolean onEscape() {
+        if (mapgenPicker.isOpen()) {
+            if (mapgenPicker.isFilterEditing() && !mapgenPicker.getFilterQuery().isEmpty()) {
+                mapgenPicker.clearFilter();
+                return true;
+            }
+            mapgenPicker.cancel();
+            return true;
+        }
         if (palette.isFilterEditing()) {
             palette.cancelFilterEdit();
             return true;
@@ -143,6 +184,12 @@ public final class MapEditorScreen {
     }
 
     public boolean onKeyDown(final int keycode) {
+        if (mapgenPicker.isOpen()) {
+            if (mapgenPicker.onKeyDown(keycode)) {
+                return true;
+            }
+            return !mapgenPicker.isFilterEditing();
+        }
         if (palette.isFilterEditing() && palette.onKeyDown(keycode)) {
             return true;
         }
@@ -160,6 +207,10 @@ public final class MapEditorScreen {
             }
             if (keycode == Keys.O) {
                 loadMap();
+                return true;
+            }
+            if (keycode == Keys.G) {
+                openMapgenPicker();
                 return true;
             }
         }
@@ -182,11 +233,11 @@ public final class MapEditorScreen {
             return true;
         }
         if (keycode == Keys.EQUALS || keycode == Keys.PLUS) {
-            zoom = Math.min(zoom + 1, 6);
+            adjustViewZoom(-ZOOM_KEY_STEP, gridZoomAnchorX(), gridZoomAnchorY());
             return true;
         }
         if (keycode == Keys.MINUS) {
-            zoom = Math.max(zoom - 1, 1);
+            adjustViewZoom(ZOOM_KEY_STEP, gridZoomAnchorX(), gridZoomAnchorY());
             return true;
         }
         if (keycode == Keys.C) {
@@ -227,10 +278,16 @@ public final class MapEditorScreen {
     }
 
     public boolean onKeyTyped(final char character) {
+        if (mapgenPicker.isOpen() && mapgenPicker.onKeyTyped(character)) {
+            return true;
+        }
         return palette.onKeyTyped(character);
     }
 
     public boolean onScroll(final float amountY) {
+        if (mapgenPicker.isOpen()) {
+            return mapgenPicker.onScroll(amountY);
+        }
         final int mouseX = ScreenInput.pointerX();
         final int mouseY = ScreenInput.pointerY();
         if (palette.containsPoint(mouseX, viewportPixelWidth())) {
@@ -239,15 +296,21 @@ public final class MapEditorScreen {
         if (isToolbarPoint(mouseX, mouseY)) {
             return false;
         }
-        if (amountY > 0f) {
-            zoom = Math.max(zoom - 1, 1);
-        } else if (amountY < 0f) {
-            zoom = Math.min(zoom + 1, 6);
+        if (amountY != 0f) {
+            adjustViewZoom(amountY * ZOOM_SCROLL_STEP, mouseX, mouseY);
         }
         return true;
     }
 
     public boolean onTouchDown(final int screenX, final int screenY, final int button) {
+        if (mapgenPicker.isOpen()) {
+            return mapgenPicker.onTouchDown(
+                screenX,
+                ScreenInput.fromInputY(screenY),
+                viewportPixelWidth(),
+                viewportPixelHeight()
+            );
+        }
         final int y = ScreenInput.fromInputY(screenY);
         lastPointerX = screenX;
         lastPointerY = y;
@@ -297,6 +360,9 @@ public final class MapEditorScreen {
     }
 
     public boolean onTouchDragged(final int screenX, final int screenY) {
+        if (mapgenPicker.isOpen() || loadingMapgenCatalog) {
+            return true;
+        }
         final int y = ScreenInput.fromInputY(screenY);
         lastPointerX = screenX;
         lastPointerY = y;
@@ -322,6 +388,9 @@ public final class MapEditorScreen {
     }
 
     public boolean onTouchUp(final int screenX, final int screenY, final int button) {
+        if (mapgenPicker.isOpen() || loadingMapgenCatalog) {
+            return true;
+        }
         final int y = ScreenInput.fromInputY(screenY);
         lastPointerX = screenX;
         lastPointerY = y;
@@ -366,7 +435,7 @@ public final class MapEditorScreen {
             tileset.dispose();
             tileset = null;
         }
-        loadingSpinner.dispose();
+        loadingOverlay.dispose();
         whitePixel.getTexture().dispose();
         font.dispose();
     }
@@ -381,10 +450,10 @@ public final class MapEditorScreen {
                 statusMessage = "Tool: " + hit.getTool().name().toLowerCase();
                 break;
             case ZOOM_IN:
-                zoom = Math.min(zoom + 1, 6);
+                adjustViewZoom(-ZOOM_KEY_STEP, gridZoomAnchorX(), gridZoomAnchorY());
                 break;
             case ZOOM_OUT:
-                zoom = Math.max(zoom - 1, 1);
+                adjustViewZoom(ZOOM_KEY_STEP, gridZoomAnchorX(), gridZoomAnchorY());
                 break;
             case CENTER:
                 centerCamera();
@@ -395,6 +464,9 @@ public final class MapEditorScreen {
                 break;
             case LOAD:
                 loadMap();
+                break;
+            case OPEN_MAPGEN:
+                openMapgenPicker();
                 break;
             case CYCLE_GRID:
                 cycleGridPreset();
@@ -444,7 +516,7 @@ public final class MapEditorScreen {
         if (toolbar.getActiveTool() == MapEditorToolbar.Tool.PAN) {
             return;
         }
-        final int tilePx = tilePixelSize();
+        final float tilePx = tilePixelSize();
         final float x = cameraX + hoverCellX * tilePx;
         final float y = cellBottomY(hoverCellY);
         batch.setColor(1f, 1f, 1f, 0.28f);
@@ -466,14 +538,52 @@ public final class MapEditorScreen {
             gameData = GameDataLoader.loadCore(GameDataLoadOptions.defaults());
             palette.setTerrainRegistry(gameData.getTerrain());
             statusMessage = "Loaded " + gameData.getTerrain().size() + " terrain ids";
+            appendValidationSummary(runGameDataValidation(null));
         } catch (final IOException e) {
             statusMessage = "Game data load failed: " + e.getMessage();
             Gdx.app.error("map-editor", statusMessage, e);
         }
     }
 
+    private ValidationReport runGameDataValidation(final LoadedTileset withTileset) {
+        if (gameData == null) {
+            return new ValidationReport(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+        }
+        final ValidationOptions options = withTileset != null
+            ? ValidationOptions.withTileset(withTileset)
+            : ValidationOptions.defaults();
+        try {
+            final ValidationReport report = GameDataValidator.validate(gameData, options);
+            logValidationReport(report);
+            return report;
+        } catch (final GameDataValidationException e) {
+            logValidationReport(e.getReport());
+            Gdx.app.error("map-editor", "Game data validation failed", e);
+            return e.getReport();
+        }
+    }
+
+    private void logValidationReport(final ValidationReport report) {
+        for (final String error : report.getErrors()) {
+            Gdx.app.error("game-data", error);
+        }
+        for (final String warning : report.getWarnings()) {
+            Gdx.app.log("game-data", warning);
+        }
+        for (final String info : report.getInfos()) {
+            Gdx.app.log("game-data", info);
+        }
+    }
+
+    private void appendValidationSummary(final ValidationReport report) {
+        final int issues = report.getErrors().size() + report.getWarnings().size();
+        if (issues > 0) {
+            statusMessage += " | " + issues + " validation issue(s)";
+        }
+    }
+
     private void drawGrid() {
-        final int tilePx = tilePixelSize();
+        final float tilePx = tilePixelSize();
         final int canvasWidth = canvasWidth();
         final int viewH = viewportPixelHeight();
         final float baseY = gridBaseY();
@@ -504,16 +614,26 @@ public final class MapEditorScreen {
         );
     }
 
-    private void drawPaletteLoadingOverlay() {
-        if (!loadingTileset) {
-            return;
+    private void drawTilesetLoadingOverlay() {
+        loadingOverlay.update(Gdx.graphics.getDeltaTime());
+        loadingOverlay.draw(
+            batch,
+            font,
+            whitePixel,
+            0,
+            0,
+            canvasWidth(),
+            viewportPixelHeight(),
+            "Loading " + loadingTilesetId,
+            formatTilesetLoadDetail()
+        );
+    }
+
+    private String formatTilesetLoadDetail() {
+        if (loadSession == null) {
+            return "";
         }
-        loadingSpinner.update(Gdx.graphics.getDeltaTime());
-        final int centerX = palette.panelCenterX(viewportPixelWidth());
-        final int centerY = viewportPixelHeight() / 2;
-        loadingSpinner.draw(batch, centerX, centerY);
-        final String label = loadSession != null ? loadSession.getProgressLabel() : "Loading…";
-        font.draw(batch, fitHudLabel(label, MapPalettePanel.WIDTH - 16), centerX - (MapPalettePanel.WIDTH - 16) / 2f, centerY - 44);
+        return loadSession.getProgressSummary();
     }
 
     private void updatePaletteTilesetInfo() {
@@ -563,6 +683,7 @@ public final class MapEditorScreen {
         statusMessage = "Tileset: " + loadingTilesetId;
         if (gameData != null) {
             statusMessage += " | " + palette.getSelectedTerrainId() + " brush";
+            appendValidationSummary(runGameDataValidation(loaded));
         }
     }
 
@@ -589,7 +710,7 @@ public final class MapEditorScreen {
         return ellipsis;
     }
 
-    private void drawCellTerrain(final String terrainId, final float drawX, final float drawY, final int tilePx) {
+    private void drawCellTerrain(final String terrainId, final float drawX, final float drawY, final float tilePx) {
         if (tileset == null) {
             return;
         }
@@ -616,7 +737,7 @@ public final class MapEditorScreen {
         final TextureRegion region,
         final float drawX,
         final float drawY,
-        final int tilePx
+        final float tilePx
     ) {
         final float baseTileW = tileset.getTileInfo().getWidth();
         final float baseTileH = tileset.getTileInfo().getHeight();
@@ -651,8 +772,8 @@ public final class MapEditorScreen {
         final String line3 = "Grid " + grid.width() + "x" + grid.height()
             + "  |  brush " + brush + "  |  cursor " + cursor
             + "  |  tool " + toolbar.getActiveTool().name().toLowerCase()
-            + "  |  zoom " + zoom + "x";
-        final String line4 = "Toolbar: Paint / Pan / Pick — or Space+drag to pan temporarily";
+            + "  |  zoom " + formatViewZoom();
+        final String line4 = "Toolbar: Paint / Pan / Pick / Mapgen — Ctrl+G import json mapgen";
         final String line5 = pointerDebugLogging
             ? "F3 pointer debug ON — delta = mouse minus highlight center  |  Esc menu"
             : "Palette: click terrain, scroll wheel, click filter  |  F3 debug  |  Esc menu";
@@ -737,10 +858,10 @@ public final class MapEditorScreen {
             return null;
         }
 
-        final int tilePx = tilePixelSize();
-        final int cellX = (int) Math.floor((screenX - cameraX) / (float) tilePx);
+        final float tilePx = tilePixelSize();
+        final int cellX = (int) Math.floor((screenX - cameraX) / tilePx);
         final float rowOffset = gridTopY() - screenY;
-        final int cellY = (int) Math.floor(rowOffset / (float) tilePx);
+        final int cellY = (int) Math.floor(rowOffset / tilePx);
         if (cellX < 0 || cellY < 0 || cellX >= grid.width() || cellY >= grid.height()) {
             return null;
         }
@@ -788,12 +909,12 @@ public final class MapEditorScreen {
         lastPointerDebugCellX = cellX;
         lastPointerDebugCellY = cellY;
 
-        final int tilePx = tilePixelSize();
+        final float tilePx = tilePixelSize();
         final float baseY = gridBaseY();
         final float topY = gridTopY();
         final float rowOffset = topY - screenY;
-        final int rawCellX = (int) Math.floor((screenX - cameraX) / (float) tilePx);
-        final int rawCellY = (int) Math.floor(rowOffset / (float) tilePx);
+        final int rawCellX = (int) Math.floor((screenX - cameraX) / tilePx);
+        final int rawCellY = (int) Math.floor(rowOffset / tilePx);
 
         final StringBuilder line = new StringBuilder();
         line.append(source);
@@ -883,10 +1004,109 @@ public final class MapEditorScreen {
         grid.setDefaultTerrainId(source.getDefaultTerrainId());
         for (int y = 0; y < source.height(); y++) {
             for (int x = 0; x < source.width(); x++) {
-                grid.setTerrain(x, y, source.get(x, y).getTerrainId());
+                final MapCell cell = source.get(x, y);
+                grid.setTerrain(x, y, cell.getTerrainId());
+                grid.setFurniture(x, y, cell.getFurnitureId());
             }
         }
     }
+
+    private void replaceGrid(final MapGrid source) {
+        copyGrid(source);
+    }
+
+    private void openMapgenPicker() {
+        if (mapgenPicker.isOpen() || loadingMapgenCatalog) {
+            return;
+        }
+        if (!mapgenPreviewService.hasDataRoots()) {
+            statusMessage = "No data roots (set -Dcdda.data.roots=...)";
+            return;
+        }
+        if (mapgenPreviewService.isLoaded()) {
+            showMapgenPicker();
+            return;
+        }
+        loadingMapgenCatalog = true;
+        statusMessage = "Loading mapgen catalog…";
+        new Thread(() -> {
+            try {
+                mapgenPreviewService.ensureLoaded(MapgenScanOptions.defaults());
+                Gdx.app.postRunnable(() -> {
+                    loadingMapgenCatalog = false;
+                    logMapgenLoadWarnings();
+                    showMapgenPicker();
+                });
+            } catch (final IOException e) {
+                Gdx.app.postRunnable(() -> {
+                    loadingMapgenCatalog = false;
+                    statusMessage = "Mapgen load failed: " + e.getMessage();
+                    Gdx.app.error("mapgen", statusMessage, e);
+                });
+            }
+        }, "mapgen-catalog-load").start();
+    }
+
+    private void showMapgenPicker() {
+        if (mapgenPreviewService.getCatalog().runnableOnly().isEmpty()) {
+            statusMessage = "No json mapgens found";
+            return;
+        }
+        mapgenPicker.open(mapgenPreviewService.getCatalog());
+    }
+
+    private void pollMapgenPickerSelection() {
+        final Optional<JsonMapgenDefinition> selection = mapgenPicker.takeSelection();
+        selection.ifPresent(this::applyMapgenSelection);
+    }
+
+    private void applyMapgenSelection(final JsonMapgenDefinition definition) {
+        if (!definition.isJsonPreviewSupported()) {
+            statusMessage = "Builtin mapgen not supported";
+            return;
+        }
+        try {
+            statusMessage = "Generating " + definition.displayName() + "…";
+            final MapgenPreviewService.MapgenPreviewResult result = mapgenPreviewService.generate(
+                definition,
+                gameData,
+                new JsonMapgenRunOptions()
+            );
+            replaceGrid(result.getGrid());
+            centerCamera();
+            statusMessage = "Mapgen: " + definition.displayName()
+                + " (" + grid.width() + "x" + grid.height() + ")";
+            for (final String warning : result.getRunWarnings()) {
+                Gdx.app.log("mapgen", warning);
+            }
+            appendValidationSummary(runGameDataValidation(tileset));
+        } catch (final RuntimeException e) {
+            statusMessage = "Mapgen failed: " + e.getMessage();
+            Gdx.app.error("mapgen", statusMessage, e);
+        }
+    }
+
+    private void logMapgenLoadWarnings() {
+        for (final String warning : mapgenPreviewService.getLoadWarnings()) {
+            Gdx.app.log("mapgen", warning);
+        }
+    }
+
+    private void drawMapgenCatalogLoadingOverlay() {
+        loadingOverlay.update(Gdx.graphics.getDeltaTime());
+        loadingOverlay.draw(
+            batch,
+            font,
+            whitePixel,
+            0,
+            0,
+            viewportPixelWidth(),
+            viewportPixelHeight(),
+            "Loading mapgen catalog",
+            "Scanning palettes and mapgen JSON"
+        );
+    }
+
 
     private void reloadTileset() {
         if (tilesetIds.isEmpty()) {
@@ -928,7 +1148,7 @@ public final class MapEditorScreen {
             tilesetRegistry,
             loadingTilesetId,
             TilesetLoadOptions.defaults(),
-            ModTilesetRegistry.empty()
+            modTilesetRegistry
         );
     }
 
@@ -949,6 +1169,7 @@ public final class MapEditorScreen {
         }
         try {
             tilesetRegistry = TilesetDiscovery.build();
+            modTilesetRegistry = ModTilesetDiscovery.build();
             tilesetIds = buildTilesetIds(tilesetRegistry);
             if (tilesetIds.isEmpty()) {
                 loadingTileset = false;
@@ -1003,7 +1224,7 @@ public final class MapEditorScreen {
     }
 
     private void centerCamera() {
-        final int tilePx = tilePixelSize();
+        final float tilePx = tilePixelSize();
         final float gridW = grid.width() * tilePx;
         final float gridH = grid.height() * tilePx;
         final float areaBottom = MapEditorToolbar.HEIGHT + 16;
@@ -1017,12 +1238,40 @@ public final class MapEditorScreen {
         return Math.max(1, viewportPixelWidth() - MapPalettePanel.WIDTH);
     }
 
-    private int tilePixelSize() {
+    private float tilePixelSize() {
         if (tileset == null) {
-            return Math.max(16, zoom * 16);
+            return Math.max(16f, viewZoom * 16f);
         }
         final int pixelScale = Math.max(1, Math.round(tileset.getTileInfo().getPixelScale()));
-        return Math.max(1, zoom * pixelScale * tileset.getTileInfo().getWidth());
+        return Math.max(1f, viewZoom * pixelScale * tileset.getTileInfo().getWidth());
+    }
+
+    private void adjustViewZoom(final float zoomDelta, final int anchorX, final int anchorY) {
+        final float oldTilePx = tilePixelSize();
+        final float mapX = (anchorX - cameraX) / oldTilePx;
+        final float gridTopOld = cameraY + hudHeight() + grid.height() * oldTilePx;
+        final float mapYFromTop = (gridTopOld - anchorY) / oldTilePx;
+
+        viewZoom = MathUtils.clamp(viewZoom - zoomDelta, MIN_VIEW_ZOOM, MAX_VIEW_ZOOM);
+
+        final float newTilePx = tilePixelSize();
+        cameraX = anchorX - mapX * newTilePx;
+        cameraY = anchorY - hudHeight() - grid.height() * newTilePx + mapYFromTop * newTilePx;
+    }
+
+    private int gridZoomAnchorX() {
+        return canvasWidth() / 2;
+    }
+
+    private int gridZoomAnchorY() {
+        return Math.round((gridBaseY() + gridTopY()) * 0.5f);
+    }
+
+    private String formatViewZoom() {
+        if (Math.abs(viewZoom - Math.round(viewZoom)) < 0.05f) {
+            return String.format(Locale.ROOT, "%.0fx", viewZoom);
+        }
+        return String.format(Locale.ROOT, "%.1fx", viewZoom);
     }
 
     private void applyProjection() {

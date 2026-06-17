@@ -118,8 +118,12 @@ v1 reader must reject unknown `version > 1` with clear message.
 
 ## BN mapgen relationship
 
-Mapgen JSON (`data/json/mapgen/`) uses different schema (`type: mapgen`, palette chars).
-**No import** in v1. Future converter is separate spec.
+Mapgen JSON (`data/json/mapgen/`) uses a different schema (`type: mapgen`, palette chars).
+Nextgen map JSON does **not** import mapgen directly.
+
+**Mapgen preview** ([mapgen-preview](../mapgen-preview/README.md)) runs json mapgen into a
+`MapGrid`; user may **save** the result as nextgen map JSON via `MapFileIO` — that is a
+one-way export, not BN mapgen format.
 
 ---
 

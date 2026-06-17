@@ -1,6 +1,9 @@
 package io.gdx.cdda.bn.nextgen.view;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -8,12 +11,14 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.utils.ScreenUtils;
 
+import io.gdx.cdda.bn.nextgen.DefaultContent;
 import io.gdx.cdda.bn.nextgen.tileset.GfxPaths;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetDiscovery;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetOption;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetRegistry;
 import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadOptions;
 import io.gdx.cdda.bn.nextgen.tileset.load.TilesetLoadSession;
+import io.gdx.cdda.bn.nextgen.tileset.mod.ModTilesetDiscovery;
 import io.gdx.cdda.bn.nextgen.tileset.mod.ModTilesetRegistry;
 import io.gdx.cdda.bn.nextgen.tileset.model.LoadedTileset;
 import io.gdx.cdda.bn.nextgen.tileset.model.SpriteVariant;
@@ -48,7 +53,7 @@ public final class TileDisplayScreen {
         "highlight_item"
     };
 
-    private static final String[] PREFERRED_TILESET_IDS = { "hoder", "retrodays", "UltimateCataclysm" };
+    private static final String[] PREFERRED_TILESET_IDS = DefaultContent.PREFERRED_TILESET_IDS;
 
     private static final TilesetFxType[] FX_CYCLE = {
         TilesetFxType.NONE,
@@ -78,12 +83,14 @@ public final class TileDisplayScreen {
     private final SpriteBatch batch;
     private final BitmapFont font;
     private final GlyphLayout glyphLayout = new GlyphLayout();
-    private final LoadingSpinner loadingSpinner = new LoadingSpinner();
+    private final LoadingOverlay loadingOverlay = new LoadingOverlay();
+    private final TextureRegion whitePixel;
 
     private TilesetLoadSession loadSession;
 
     private LoadedTileset tileset;
     private TilesetRegistry registry;
+    private ModTilesetRegistry modTilesetRegistry = ModTilesetRegistry.empty();
     private List<String> tilesetIds = Collections.emptyList();
     private int tilesetIndex;
     private List<String> previewTileIds = Collections.emptyList();
@@ -112,6 +119,7 @@ public final class TileDisplayScreen {
     public TileDisplayScreen(final SpriteBatch batch) {
         this.batch = batch;
         this.font = new BitmapFont();
+        this.whitePixel = createWhitePixel();
         final float baseLineHeight = font.getLineHeight();
         font.getData().setScale((baseLineHeight + FONT_EXTRA_PIXELS) / baseLineHeight);
         font.setUseIntegerPositions(true);
@@ -122,6 +130,7 @@ public final class TileDisplayScreen {
     public void loadFromRegistry(final TilesetRegistry newRegistry) {
         final String preserveId = currentTilesetId();
         registry = newRegistry;
+        modTilesetRegistry = ModTilesetDiscovery.build();
         tilesetIds = buildTilesetIds(newRegistry);
         disposeTileset();
         previewTileIds = Collections.emptyList();
@@ -152,7 +161,7 @@ public final class TileDisplayScreen {
         batch.begin();
         drawHud();
         if (loadingTileset) {
-            loadingSpinner.update(Gdx.graphics.getDeltaTime());
+            loadingOverlay.update(Gdx.graphics.getDeltaTime());
             drawLoadingOverlay();
         } else if (tileset != null && !previewTileIds.isEmpty()) {
             drawGrid();
@@ -242,7 +251,8 @@ public final class TileDisplayScreen {
     public void dispose() {
         cancelLoadSession();
         disposeTileset();
-        loadingSpinner.dispose();
+        loadingOverlay.dispose();
+        whitePixel.getTexture().dispose();
         font.dispose();
     }
 
@@ -306,17 +316,30 @@ public final class TileDisplayScreen {
     }
 
     private void drawLoadingOverlay() {
-        final int centerX = viewportPixelWidth() / 2;
-        final int centerY = viewportPixelHeight() / 2;
-        loadingSpinner.draw(batch, centerX, centerY);
-        final String label = loadSession != null ? loadSession.getProgressLabel() : "Loading…";
-        glyphLayout.setText(font, label);
-        font.draw(
+        String detail = "";
+        if (loadSession != null) {
+            detail = loadSession.getProgressSummary();
+        }
+        loadingOverlay.draw(
             batch,
-            label,
-            centerX - Math.round(glyphLayout.width) / 2,
-            centerY - 48
+            font,
+            whitePixel,
+            0,
+            0,
+            viewportPixelWidth(),
+            viewportPixelHeight(),
+            "Loading " + loadingTilesetId,
+            detail
         );
+    }
+
+    private static TextureRegion createWhitePixel() {
+        final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.WHITE);
+        pixmap.fill();
+        final Texture texture = new Texture(pixmap);
+        pixmap.dispose();
+        return new TextureRegion(texture);
     }
 
     private void advanceLoadSession() {
@@ -711,7 +734,7 @@ public final class TileDisplayScreen {
             registry,
             loadingTilesetId,
             TilesetLoadOptions.defaults(),
-            ModTilesetRegistry.empty()
+            modTilesetRegistry
         );
     }
 

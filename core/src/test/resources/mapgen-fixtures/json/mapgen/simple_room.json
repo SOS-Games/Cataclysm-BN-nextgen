@@ -1,0 +1,18 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_room",
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "#####",
+        "#...#",
+        "#.H.#",
+        "#...#",
+        "#####"
+      ]
+    }
+  }
+]
