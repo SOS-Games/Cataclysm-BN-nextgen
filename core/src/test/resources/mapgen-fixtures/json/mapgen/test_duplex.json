@@ -1,0 +1,31 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_duplex_ground",
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "#####",
+        "#...#",
+        "#.H.#",
+        "#...#",
+        "#####"
+      ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_duplex_roof",
+    "object": {
+      "fill_ter": "t_wall",
+      "rows": [
+        "###",
+        "###",
+        "###"
+      ]
+    }
+  }
+]

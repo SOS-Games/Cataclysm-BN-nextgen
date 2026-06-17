@@ -6,11 +6,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /** Parsed {@code type: mapgen} entry for catalog and preview run (P2). */
 public final class JsonMapgenDefinition {
 
     private final List<String> omTerrain;
+    private final OmTerrainGrid omTerrainGrid;
     private final String method;
     private final int weight;
     private final boolean disabled;
@@ -27,7 +29,21 @@ public final class JsonMapgenDefinition {
         final int indexInFile,
         final JsonValue objectRoot
     ) {
+        this(omTerrain, null, method, weight, disabled, sourceFile, indexInFile, objectRoot);
+    }
+
+    public JsonMapgenDefinition(
+        final List<String> omTerrain,
+        final OmTerrainGrid omTerrainGrid,
+        final String method,
+        final int weight,
+        final boolean disabled,
+        final Path sourceFile,
+        final int indexInFile,
+        final JsonValue objectRoot
+    ) {
         this.omTerrain = Collections.unmodifiableList(new ArrayList<>(omTerrain));
+        this.omTerrainGrid = omTerrainGrid;
         this.method = method;
         this.weight = weight;
         this.disabled = disabled;
@@ -38,6 +54,10 @@ public final class JsonMapgenDefinition {
 
     public List<String> getOmTerrain() {
         return omTerrain;
+    }
+
+    public Optional<OmTerrainGrid> getOmTerrainGrid() {
+        return Optional.ofNullable(omTerrainGrid);
     }
 
     public String getMethod() {

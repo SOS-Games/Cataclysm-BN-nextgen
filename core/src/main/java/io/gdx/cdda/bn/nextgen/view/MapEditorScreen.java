@@ -26,6 +26,9 @@ import io.gdx.cdda.bn.nextgen.map.MapFileIO;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.OmtPieceRect;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetDiscovery;
@@ -73,7 +76,7 @@ public final class MapEditorScreen {
 
     private final SpriteBatch batch;
     private final BitmapFont font;
-    private final MapGrid grid;
+    private MapGrid grid;
     private final MapPalettePanel palette = new MapPalettePanel();
     private final MapEditorToolbar toolbar = new MapEditorToolbar();
     private final LoadingOverlay loadingOverlay = new LoadingOverlay();
@@ -97,6 +100,7 @@ public final class MapEditorScreen {
     private float cameraY;
     private boolean animationPlayback = true;
     private long animationTick;
+    private boolean showFurnitureLayer = true;
 
     private boolean painting;
     private boolean panning;
@@ -121,6 +125,7 @@ public final class MapEditorScreen {
 
     private final MapgenPreviewService mapgenPreviewService = new MapgenPreviewService();
     private final MapgenPickerDialog mapgenPicker = new MapgenPickerDialog();
+    private MapVolume mapVolume;
     private boolean loadingMapgenCatalog;
 
     public MapEditorScreen(final SpriteBatch batch) {
@@ -147,6 +152,7 @@ public final class MapEditorScreen {
         batch.begin();
         if (!loadingTileset) {
             drawGrid();
+            drawOmtPieceBorders();
             drawHoverCell();
         }
         drawPalette();
@@ -192,6 +198,16 @@ public final class MapEditorScreen {
         }
         if (palette.isFilterEditing() && palette.onKeyDown(keycode)) {
             return true;
+        }
+        if (mapVolume != null) {
+            if (keycode == Keys.PAGE_UP || keycode == Keys.LEFT_BRACKET) {
+                switchBuildingFloor(true);
+                return true;
+            }
+            if (keycode == Keys.PAGE_DOWN || keycode == Keys.RIGHT_BRACKET) {
+                switchBuildingFloor(false);
+                return true;
+            }
         }
         if (keycode == Keys.SLASH) {
             palette.beginFilterEdit();
@@ -246,6 +262,11 @@ public final class MapEditorScreen {
         }
         if (keycode == Keys.P) {
             animationPlayback = !animationPlayback;
+            return true;
+        }
+        if (keycode == Keys.F) {
+            showFurnitureLayer = !showFurnitureLayer;
+            statusMessage = "Furniture layer: " + (showFurnitureLayer ? "on" : "off");
             return true;
         }
         if (keycode == Keys.R) {
@@ -524,6 +545,43 @@ public final class MapEditorScreen {
         batch.setColor(Color.WHITE);
     }
 
+    private void drawOmtPieceBorders() {
+        if (mapVolume == null) {
+            return;
+        }
+        final List<OmtPieceRect> layouts = mapVolume.getActivePieceLayouts();
+        if (layouts.size() < 2) {
+            return;
+        }
+        final float tilePx = tilePixelSize();
+        final float lineW = Math.max(1f, tilePx * 0.1f);
+        batch.setColor(0.95f, 0.55f, 0.15f, 0.85f);
+        for (final OmtPieceRect piece : layouts) {
+            drawRectOutline(
+                cameraX + piece.getOriginX() * tilePx,
+                gridTopY() - piece.getOriginY() * tilePx,
+                piece.getWidth() * tilePx,
+                piece.getHeight() * tilePx,
+                lineW
+            );
+        }
+        batch.setColor(Color.WHITE);
+    }
+
+    private void drawRectOutline(
+        final float left,
+        final float top,
+        final float width,
+        final float height,
+        final float lineW
+    ) {
+        final float bottom = top - height;
+        batch.draw(whitePixel, left, top - lineW, width, lineW);
+        batch.draw(whitePixel, left, bottom, width, lineW);
+        batch.draw(whitePixel, left, bottom, lineW, height);
+        batch.draw(whitePixel, left + width - lineW, bottom, lineW, height);
+    }
+
     private static TextureRegion createWhitePixel() {
         final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pixmap.setColor(Color.WHITE);
@@ -598,7 +656,11 @@ public final class MapEditorScreen {
             for (int x = firstCol; x < lastCol; x++) {
                 final float worldX = cameraX + x * tilePx;
                 final float worldY = cellBottomY(y);
-                drawCellTerrain(grid.get(x, y).getTerrainId(), worldX, worldY, tilePx);
+                final MapCell cell = grid.get(x, y);
+                drawCellTerrain(cell.getTerrainId(), worldX, worldY, tilePx);
+                if (showFurnitureLayer) {
+                    drawCellFurniture(cell.getFurnitureId(), worldX, worldY, tilePx);
+                }
             }
         }
     }
@@ -719,7 +781,20 @@ public final class MapEditorScreen {
         if (tile == null) {
             return;
         }
+        drawCellTile(tile, drawX, drawY, tilePx);
+    }
 
+    private void drawCellFurniture(final String furnitureId, final float drawX, final float drawY, final float tilePx) {
+        if (tileset == null || furnitureId == null || furnitureId.isEmpty()) {
+            return;
+        }
+        if (!TileSpriteResolver.hasDrawableArt(tileset, furnitureId)) {
+            return;
+        }
+        tileset.findTile(furnitureId).ifPresent(tile -> drawCellTile(tile, drawX, drawY, tilePx));
+    }
+
+    private void drawCellTile(final TileDefinition tile, final float drawX, final float drawY, final float tilePx) {
         final int pick = TileSpriteResolver.animationPickIndex(tile, animationTick, animationPlayback);
         final TextureRegion bg = TileSpriteResolver.resolveBackground(tileset, tile, pick, TilesetFxType.NONE);
         final TextureRegion fg = TileSpriteResolver.resolveForeground(tileset, tile, pick, TilesetFxType.NONE);
@@ -763,20 +838,22 @@ public final class MapEditorScreen {
     private void drawHud() {
         final String brush = palette.getSelectedTerrainId();
         final String cursor = hoverCellX >= 0
-            ? hoverCellX + "," + hoverCellY + " = " + grid.get(hoverCellX, hoverCellY).getTerrainId()
+            ? formatCursorCell(hoverCellX, hoverCellY)
             : "—";
         final String tilesetLine = formatTilesetLine();
         final String mapPath = currentMapPath.toAbsolutePath().normalize().toString();
         final String line1 = statusMessage;
         final String line2 = tilesetLine + "  |  map: " + mapPath;
         final String line3 = "Grid " + grid.width() + "x" + grid.height()
+            + buildingFloorHudSuffix()
             + "  |  brush " + brush + "  |  cursor " + cursor
+            + "  |  furniture " + (showFurnitureLayer ? "on" : "off")
             + "  |  tool " + toolbar.getActiveTool().name().toLowerCase()
             + "  |  zoom " + formatViewZoom();
         final String line4 = "Toolbar: Paint / Pan / Pick / Mapgen — Ctrl+G import json mapgen";
         final String line5 = pointerDebugLogging
             ? "F3 pointer debug ON — delta = mouse minus highlight center  |  Esc menu"
-            : "Palette: click terrain, scroll wheel, click filter  |  F3 debug  |  Esc menu";
+            : "[F] furniture  [P] anim  [G] grid  [[ ]] tileset  |  [/] floor  |  F3 debug  |  Esc menu";
 
         final int top = viewportPixelHeight() - HUD_MARGIN;
         font.draw(batch, line1, HUD_MARGIN, top);
@@ -784,6 +861,24 @@ public final class MapEditorScreen {
         font.draw(batch, line3, HUD_MARGIN, top - 32);
         font.draw(batch, line4, HUD_MARGIN, top - 48);
         font.draw(batch, line5, HUD_MARGIN, top - 64);
+    }
+
+    private String buildingFloorHudSuffix() {
+        if (mapVolume == null) {
+            return "";
+        }
+        return "  |  building " + mapVolume.getBuildingId()
+            + "  floor z=" + mapVolume.getActiveZ()
+            + " (" + (mapVolume.activeFloorIndex() + 1) + "/" + mapVolume.floorCount() + ")";
+    }
+
+    private String formatCursorCell(final int x, final int y) {
+        final MapCell cell = grid.get(x, y);
+        final String furnitureId = cell.getFurnitureId();
+        if (furnitureId != null && !furnitureId.isEmpty()) {
+            return x + "," + y + " = " + cell.getTerrainId() + " + " + furnitureId;
+        }
+        return x + "," + y + " = " + cell.getTerrainId();
     }
 
     private String formatTilesetLine() {
@@ -1012,7 +1107,30 @@ public final class MapEditorScreen {
     }
 
     private void replaceGrid(final MapGrid source) {
+        mapVolume = null;
+        grid = new MapGrid(source.width(), source.height(), source.getDefaultTerrainId());
         copyGrid(source);
+    }
+
+    private void setMapVolume(final MapVolume volume) {
+        mapVolume = volume;
+        grid = volume.getActiveGrid();
+        centerCamera();
+    }
+
+    private void switchBuildingFloor(final boolean higher) {
+        if (mapVolume == null) {
+            return;
+        }
+        final Optional<Integer> nextZ = higher ? mapVolume.nextZ() : mapVolume.previousZ();
+        if (!nextZ.isPresent()) {
+            return;
+        }
+        mapVolume.setActiveZ(nextZ.get());
+        grid = mapVolume.getActiveGrid();
+        statusMessage = "Building " + mapVolume.getBuildingId()
+            + " — floor z=" + mapVolume.getActiveZ()
+            + " (" + (mapVolume.activeFloorIndex() + 1) + "/" + mapVolume.floorCount() + ")";
     }
 
     private void openMapgenPicker() {
@@ -1052,12 +1170,45 @@ public final class MapEditorScreen {
             statusMessage = "No json mapgens found";
             return;
         }
-        mapgenPicker.open(mapgenPreviewService.getCatalog());
+        mapgenPicker.open(
+            mapgenPreviewService.getCatalog(),
+            mapgenPreviewService.getCityBuildings(),
+            mapgenPreviewService.getPickerIndex()
+        );
     }
 
     private void pollMapgenPickerSelection() {
+        final Optional<CityBuildingDefinition> buildingImport = mapgenPicker.takeBuildingImport();
+        if (buildingImport.isPresent()) {
+            applyBuildingImport(buildingImport.get());
+            return;
+        }
         final Optional<JsonMapgenDefinition> selection = mapgenPicker.takeSelection();
         selection.ifPresent(this::applyMapgenSelection);
+    }
+
+    private void applyBuildingImport(final CityBuildingDefinition building) {
+        try {
+            statusMessage = "Generating building " + building.getId() + "…";
+            final MapgenPreviewService.MapgenBuildingResult result = mapgenPreviewService.generateBuilding(
+                building,
+                new JsonMapgenRunOptions()
+            );
+            setMapVolume(result.getVolume());
+            statusMessage = "Building: " + building.getId()
+                + " — floor z=" + mapVolume.getActiveZ()
+                + " (" + mapVolume.floorCount() + " floors loaded)";
+            if (!result.getRunWarnings().isEmpty()) {
+                statusMessage += " | " + result.getRunWarnings().size() + " warning(s)";
+            }
+            for (final String warning : result.getRunWarnings()) {
+                Gdx.app.log("mapgen", warning);
+            }
+            logMapgenLoadWarnings();
+        } catch (final RuntimeException e) {
+            statusMessage = "Building import failed: " + e.getMessage();
+            Gdx.app.error("mapgen", statusMessage, e);
+        }
     }
 
     private void applyMapgenSelection(final JsonMapgenDefinition definition) {
@@ -1153,6 +1304,10 @@ public final class MapEditorScreen {
     }
 
     private void cycleGridPreset() {
+        if (mapVolume != null) {
+            statusMessage = "Grid resize disabled while viewing a building bundle";
+            return;
+        }
         gridPresetIndex = (gridPresetIndex + 1) % GRID_PRESETS.length;
         final int width = GRID_PRESETS[gridPresetIndex][0];
         final int height = GRID_PRESETS[gridPresetIndex][1];

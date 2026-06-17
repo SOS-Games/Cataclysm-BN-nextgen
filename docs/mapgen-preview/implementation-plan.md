@@ -72,6 +72,37 @@ furniture after P4) with RetroDays or similar tileset beside BN data.
 
 **Tests:** Manual visual
 
+### P5 — Building floors
+
+| Class | Responsibility |
+| --- | --- |
+| `CityBuildingLoader` | Scan `multitile_city_buildings.json` |
+| `CityBuildingDefinition` / `CityBuildingPiece` | Layout metadata |
+| `OvermapTerrainResolver` | Strip rotation; catalog lookup |
+| `MapVolume` | z-level → `MapGrid` |
+| `MapVolumeBuilder` | Run mapgen per floor |
+| `MapgenPreviewService.generateBuilding` | Orchestrate bundle |
+| `MapEditorScreen` | PageUp/PageDown floor switch |
+| `MapgenPickerDialog` | **Import building** action |
+
+**Tests:** `CityBuildingLoaderTest`, `MapVolumeBuilderTest`, fixture duplex
+
+**Spec:** [09](./09-building-bundles-overview.md), [10](./10-city-building-loader.md), [11](./11-map-volume-and-floors.md)
+
+### P6 — OMT stitch
+
+| Class | Responsibility |
+| --- | --- |
+| `OmtStitchComposer` | Blit multiple pieces per z |
+| `MapGrid.blit` or compose helper | Copy ter/furn into canvas |
+| `MapVolumeBuilder` | Call stitch when multi-OMT |
+
+**Tests:** `OmtStitchComposerTest` with two fixture mapgens at offset
+
+**Spec:** [12](./12-omt-stitch-composer.md)
+
+**Success criterion:** `2StoryModern04` ground floor pan-able at 48×24 (sibling BN data).
+
 ---
 
 ## PR checklist
@@ -82,6 +113,8 @@ furniture after P4) with RetroDays or similar tileset beside BN data.
 | P2 | ✓ | room 5×5 grid asserts | — |
 | P3 | ✓ | `MapgenPreviewServiceTest` | `Ctrl+G` + toolbar Mapgen |
 | P4 | ✓ | — | furniture visible |
+| P5 | ✓ | city building + volume fixtures ✓ | `house_09` floor switch |
+| P6 | ✓ | stitch fixture | `2StoryModern04` 2×2 pan |
 
 Each PR: `gradlew.bat compileJava` && `gradlew.bat :core:test`
 
@@ -148,7 +181,7 @@ Match [AGENTS.md](../../AGENTS.md):
 1. Read [MAPGEN_PREVIEW.md](../MAPGEN_PREVIEW.md)
 2. Implement current PR only
 3. Turn unit **Verification** sections into tests
-4. Do not start overmap / worldgen code in P1–P4 branches
+4. Do not start overmap / worldgen code in P1–P6 branches
 
 ---
 
@@ -156,3 +189,4 @@ Match [AGENTS.md](../../AGENTS.md):
 
 - [MAPGEN_PREVIEW.md](../MAPGEN_PREVIEW.md)
 - [08-v2-parity-roadmap.md](./08-v2-parity-roadmap.md)
+- [09-building-bundles-overview.md](./09-building-bundles-overview.md)

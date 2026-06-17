@@ -1,0 +1,55 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_farm_6" ] ],
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "#####",
+        "#...#",
+        "#.H.#",
+        "#...#",
+        "#####"
+      ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_farm_6_1" ] ],
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "###",
+        "#.#",
+        "###"
+      ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_farm_6_2" ] ],
+    "object": {
+      "fill_ter": "t_wall",
+      "rows": [
+        "###",
+        "###"
+      ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_farm_field" ] ],
+    "object": {
+      "fill_ter": "t_grass",
+      "rows": [
+        "..."
+      ]
+    }
+  }
+]

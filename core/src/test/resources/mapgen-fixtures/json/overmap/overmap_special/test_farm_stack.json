@@ -1,0 +1,12 @@
+[
+  {
+    "type": "overmap_special",
+    "id": "test_farm_stack",
+    "overmaps": [
+      { "point": [ 2, 1, 0 ], "overmap": "test_farm_6_north" },
+      { "point": [ 2, 1, 1 ], "overmap": "test_farm_6_1_north" },
+      { "point": [ 2, 1, 2 ], "overmap": "test_farm_6_2_north" },
+      { "point": [ 0, 0, 0 ], "overmap": "test_farm_field_north" }
+    ]
+  }
+]

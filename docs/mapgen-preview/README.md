@@ -30,6 +30,14 @@ without full world/overmap simulation.
 - `MapgenCatalog` + editor import UI
 - Furniture sprites on map editor canvas
 
+### In scope (v1.5 — P5–P6 building bundles)
+
+- `city_building` metadata from `multitile_city_buildings.json`
+- `overmap_special` vertical stacks (e.g. `2farm_6` floors)
+- `MapVolume` — one grid per z-level, floor switch in editor
+- OMT stitch — multi-tile same floor into one canvas ([09](./09-building-bundles-overview.md))
+- Bundle source inventory + gaps — [13](./13-building-bundle-sources.md)
+
 ### Out of scope (v1)
 
 | Topic | See |
@@ -47,6 +55,9 @@ without full world/overmap simulation.
 | Row formatting | `src/mapgenformat.cpp` |
 | Palettes | `src/mapgen.cpp` — `mapgen_palette` |
 | Data | `data/json/mapgen/`, `data/json/mapgen_palettes/` |
+| City buildings | `data/json/overmap/multitile_city_buildings.json` |
+| Special stacks | `data/json/overmap/overmap_special/`, `overmap_mutable/` |
+| Bundle inventory | [13-building-bundle-sources.md](./13-building-bundle-sources.md) |
 | Author docs | `docs/en/mod/json/reference/mapgen.md` |
 
 ---
@@ -63,6 +74,11 @@ flowchart TD
     U06[06 preview UI]
     U07[07 furniture render]
     U08[08 v2 parity]
+    U09[09 building bundles]
+    U10[10 city building loader]
+    U11[11 map volume floors]
+    U12[12 omt stitch]
+    U13[13 bundle sources]
 
     U01 --> U02
     U02 --> U03
@@ -71,6 +87,13 @@ flowchart TD
     U04 --> U05
     U05 --> U06
     U05 --> U07
+    U05 --> U09
+    U09 --> U10
+    U10 --> U11
+    U10 --> U12
+    U09 --> U13
+    U10 --> U13
+    U11 --> U12
     U01 --> U08
 ```
 
@@ -86,8 +109,13 @@ flowchart TD
 | 04 | [04-json-mapgen-format.md](./04-json-mapgen-format.md) | draft | `type: mapgen`, `object` fields |
 | 05 | [05-rows-runner.md](./05-rows-runner.md) | draft | `JsonMapgenRunner` algorithm |
 | 06 | [06-preview-ui.md](./06-preview-ui.md) | draft | Picker, service, editor hook |
-| 07 | [07-furniture-render.md](./07-furniture-render.md) | draft | Furniture draw layer |
+| 07 | [07-furniture-render.md](./07-furniture-render.md) | done | Furniture draw layer |
 | 08 | [08-v2-parity-roadmap.md](./08-v2-parity-roadmap.md) | draft | Deferred BN parity |
+| 09 | [09-building-bundles-overview.md](./09-building-bundles-overview.md) | done | Multi-floor + multi-OMT scope |
+| 10 | [10-city-building-loader.md](./10-city-building-loader.md) | done | `city_building` scan + resolver |
+| 11 | [11-map-volume-and-floors.md](./11-map-volume-and-floors.md) | done | `MapVolume`, floor UI (P5) |
+| 12 | [12-omt-stitch-composer.md](./12-omt-stitch-composer.md) | done | Stitch OMT pieces (P6) |
+| 13 | [13-building-bundle-sources.md](./13-building-bundle-sources.md) | draft | BN bundle types + gaps (P7 roadmap) |
 
 ---
 
@@ -98,7 +126,10 @@ flowchart TD
 | 1 — Palettes | 02, 03 | **P1** | done |
 | 2 — Runner | 04, 05 | **P2** | done |
 | 3 — UI | 06 | **P3** | done |
-| 4 — Furniture draw | 07 | **P4** | todo |
+| 4 — Furniture draw | 07 | **P4** | done |
+| 5 — Building floors | 09, 10, 11 | **P5** | done |
+| 6 — OMT stitch | 12 | **P6** | done |
+| 7 — Bundle discovery | 13 | **P7** | todo |
 
 **PR slices:** [MAPGEN_PREVIEW.md](../MAPGEN_PREVIEW.md#suggested-pr-slices)
 
@@ -132,3 +163,5 @@ Each unit includes:
 | --- | --- |
 | 2026-06-16 | Initial spec tree (units 01–07) |
 | 2026-06-16 | Expanded all units; added 08 v2 parity roadmap |
+| 2026-06-16 | Added 09–12 building bundles (P5 floor switch, P6 OMT stitch) |
+| 2026-06-17 | Added 13 building bundle sources inventory (P7 gaps) |

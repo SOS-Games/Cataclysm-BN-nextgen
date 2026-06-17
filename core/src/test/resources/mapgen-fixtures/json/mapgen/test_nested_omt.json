@@ -1,0 +1,20 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [
+      [ "test_nested_ne", "test_nested_nw" ],
+      [ "test_nested_se", "test_nested_sw" ]
+    ],
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "######",
+        "#.H..#",
+        "#....#",
+        "######"
+      ]
+    }
+  }
+]

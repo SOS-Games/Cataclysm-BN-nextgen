@@ -2,6 +2,12 @@ package io.gdx.cdda.bn.nextgen.mapgen;
 
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingLoader;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingRegistry;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolumeBuilder;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolumeBuilder.MapVolumeBuildResult;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenLoader;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
@@ -21,6 +27,8 @@ public final class MapgenPreviewService {
 
     private PaletteRegistry palettes;
     private MapgenCatalog catalog;
+    private CityBuildingRegistry cityBuildings = CityBuildingRegistry.empty();
+    private MapgenPickerIndex pickerIndex = MapgenPickerIndex.build(null, CityBuildingRegistry.empty());
     private List<String> loadWarnings = Collections.emptyList();
     private boolean loaded;
 
@@ -43,6 +51,20 @@ public final class MapgenPreviewService {
         return loadWarnings;
     }
 
+    public CityBuildingRegistry getCityBuildings() {
+        if (!loaded) {
+            throw new IllegalStateException("call ensureLoaded before getCityBuildings");
+        }
+        return cityBuildings;
+    }
+
+    public MapgenPickerIndex getPickerIndex() {
+        if (!loaded) {
+            throw new IllegalStateException("call ensureLoaded before getPickerIndex");
+        }
+        return pickerIndex;
+    }
+
     public synchronized void ensureLoaded(final MapgenScanOptions options) throws IOException {
         if (loaded) {
             return;
@@ -57,6 +79,11 @@ public final class MapgenPreviewService {
         final MapgenCatalogResult catalogResult = JsonMapgenLoader.load(scanOptions);
         catalog = catalogResult.getCatalog();
         warnings.addAll(catalogResult.getWarnings());
+
+        cityBuildings = CityBuildingLoader.load(scanOptions).withOmTerrainIndex(catalog);
+        warnings.addAll(cityBuildings.getWarnings());
+
+        pickerIndex = MapgenPickerIndex.build(catalog, cityBuildings);
 
         loadWarnings = Collections.unmodifiableList(warnings);
         loaded = true;
@@ -80,6 +107,39 @@ public final class MapgenPreviewService {
         final JsonMapgenRunOptions options = runOptions == null ? new JsonMapgenRunOptions() : runOptions;
         final MapGrid grid = JsonMapgenRunner.run(definition, palettes, options);
         return new MapgenPreviewResult(grid, options.getWarnings());
+    }
+
+    public MapgenBuildingResult generateBuilding(
+        final CityBuildingDefinition building,
+        final JsonMapgenRunOptions runOptions
+    ) {
+        if (!loaded || palettes == null || catalog == null) {
+            throw new IllegalStateException("call ensureLoaded before generateBuilding");
+        }
+        if (building == null) {
+            throw new IllegalArgumentException("building is required");
+        }
+        final JsonMapgenRunOptions options = runOptions == null ? new JsonMapgenRunOptions() : runOptions;
+        final MapVolumeBuildResult built = MapVolumeBuilder.build(building, catalog, palettes, options);
+        return new MapgenBuildingResult(built.getVolume(), built.getWarnings());
+    }
+
+    public static final class MapgenBuildingResult {
+        private final MapVolume volume;
+        private final List<String> runWarnings;
+
+        public MapgenBuildingResult(final MapVolume volume, final List<String> runWarnings) {
+            this.volume = volume;
+            this.runWarnings = Collections.unmodifiableList(new ArrayList<>(runWarnings));
+        }
+
+        public MapVolume getVolume() {
+            return volume;
+        }
+
+        public List<String> getRunWarnings() {
+            return runWarnings;
+        }
     }
 
     public static final class MapgenPreviewResult {

@@ -16,11 +16,13 @@ sooner.
 | Full worldgen | Mapgen preview |
 | --- | --- |
 | `overmap.cpp` + `mapbuffer` | `JsonMapgenRunner` |
-| Weighted `oter_mapgen` pick | User picks one definition |
-| 24×24×Z submaps | One 2D `MapGrid` per run |
+| Weighted `oter_mapgen` pick | User picks one definition or **building bundle** |
+| 24×24×Z submaps | `MapVolume` per z (P5); stitched OMT (P6) |
 | Regional terrain resolve | Literal `t_region_*` ids |
 
-Detail: [01-overview-and-scope](./mapgen-preview/01-overview-and-scope.md).
+Detail: [01-overview-and-scope](./mapgen-preview/01-overview-and-scope.md). Building bundles:
+[09-building-bundles-overview](./mapgen-preview/09-building-bundles-overview.md).
+Bundle types and gaps: [13-building-bundle-sources](./mapgen-preview/13-building-bundle-sources.md).
 
 ---
 
@@ -34,6 +36,11 @@ Detail: [01-overview-and-scope](./mapgen-preview/01-overview-and-scope.md).
 User picks JsonMapgenDefinition (e.g. house_09)
   JsonMapgenRunner        ──► MapGrid (terrain + furniture per cell)
   MapEditorScreen         ──► LoadedTileset sprites
+
+Optional (P5–P6): city_building bundle
+  CityBuildingLoader      ──► CityBuildingDefinition
+  MapVolumeBuilder        ──► MapVolume (z → MapGrid)
+  OmtStitchComposer       ──► stitched grid per floor (P6)
 ```
 
 ---
@@ -45,6 +52,11 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
   mapgen/
     MapgenScanOptions.java
     MapgenPreviewService.java
+    building/                   # P5 — city_building
+      CityBuildingLoader.java
+      MapVolume.java
+    compose/                    # P6 — stitch
+      OmtStitchComposer.java
     palette/
       PaletteLoader.java
       PaletteRegistry.java
@@ -78,7 +90,9 @@ Package root: `io.gdx.cdda.bn.nextgen.mapgen`
 | Palette scan + char resolver | **P1** | done |
 | JSON mapgen rows runner | **P2** | done |
 | Preview UI (picker → editor) | **P3** | done |
-| Furniture layer render | **P4** | todo |
+| Furniture layer render | **P4** | done |
+| Building bundle + floor switch | **P5** | done |
+| Multi-OMT stitch per floor | **P6** | done |
 | Full overmap / worldgen | — | out of scope ([08](./mapgen-preview/08-v2-parity-roadmap.md)) |
 
 ---
@@ -91,8 +105,10 @@ Package root: `io.gdx.cdda.bn.nextgen.mapgen`
 | 2 | **P2** | `JsonMapgenLoader`, `JsonMapgenRunner`, fixtures | [04](./mapgen-preview/04-json-mapgen-format.md), [05](./mapgen-preview/05-rows-runner.md) |
 | 3 | **P3** | `MapgenPreviewService`, picker, toolbar hook | [06](./mapgen-preview/06-preview-ui.md) |
 | 4 | **P4** | `drawCellFurniture` in `MapEditorScreen` | [07](./mapgen-preview/07-furniture-render.md) |
+| 5 | **P5** | `CityBuildingLoader`, `MapVolume`, floor UI | [09](./mapgen-preview/09-building-bundles-overview.md)–[11](./mapgen-preview/11-map-volume-and-floors.md) |
+| 6 | **P6** | `OmtStitchComposer` | [12](./mapgen-preview/12-omt-stitch-composer.md) |
 
-**Prerequisites:** game data **G1–G5**, map editor **M1–M4**, tileset loader v1.
+**Prerequisites:** game data **G1–G5**, map editor **M1–M4**, tileset loader v1, **P1–P4**.
 
 ---
 
@@ -137,7 +153,9 @@ gradlew.bat lwjgl3:run
 Main menu → **Map Editor** → toolbar **Mapgen** (or **`Ctrl+G`**) → filter `house_09` →
 **Generate**.
 
-Roof: pick `house_09_roof` from same file’s second entry.
+Roof: pick `house_09_roof` from same file’s second entry — or **Import building** (P5) for all floors.
+
+After P5: **PageUp** / **PageDown** switch z-level. After P6: pan across multi-OMT footprints.
 
 ---
 
@@ -149,6 +167,8 @@ Roof: pick `house_09_roof` from same file’s second entry.
 | P2 | `JsonMapgenRunnerTest` + `core/src/test/resources/mapgen-fixtures/` |
 | P3 | Manual: `house09` from sibling BN data |
 | P4 | Manual: furniture visible; optional `F` toggle |
+| P5 | Manual: `house_09` 3 floors; `MapVolumeBuilderTest` |
+| P6 | Manual: `2StoryModern04` 48×24 pan; `OmtStitchComposerTest` |
 
 ```bash
 gradlew.bat :core:test --tests "io.gdx.cdda.bn.nextgen.mapgen.*"

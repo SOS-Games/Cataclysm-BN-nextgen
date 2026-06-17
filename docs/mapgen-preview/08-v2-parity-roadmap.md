@@ -55,7 +55,7 @@ behavior and suggested nextgen approach.
 | --- | --- |
 | Overmap generation | New spec tree `docs/worldgen/` |
 | `overmap_terrain` loader | Prerequisite for OMT typing |
-| Submap buffer 24×24×Z | Align `MapGrid` with z-layers or `MapVolume` |
+| Submap buffer 24×24×Z | **P5–P6:** `MapVolume` + stitch without full worldgen — [09](./09-building-bundles-overview.md) |
 | Regional `t_region_*` resolve | Needs `region_settings` / region id |
 
 ---

@@ -1,0 +1,19 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [
+      [ "test_west_first_west", "test_west_first_east" ]
+    ],
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "WWWWWWEEEEEE",
+        "W....E......",
+        "W....E......",
+        "WWWWWWEEEEEE"
+      ]
+    }
+  }
+]

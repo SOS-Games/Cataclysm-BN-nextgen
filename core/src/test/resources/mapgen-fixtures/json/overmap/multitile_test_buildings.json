@@ -1,0 +1,36 @@
+[
+  {
+    "type": "city_building",
+    "id": "test_duplex",
+    "overmaps": [
+      { "point": [ 0, 0, 0 ], "overmap": "test_duplex_ground_north" },
+      { "point": [ 0, 0, 1 ], "overmap": "test_duplex_roof_north" }
+    ]
+  },
+  {
+    "type": "city_building",
+    "id": "test_multitile",
+    "overmaps": [
+      { "point": [ 0, 0, 0 ], "overmap": "test_multitile_west_north" },
+      { "point": [ 1, 0, 0 ], "overmap": "test_multitile_east_north" }
+    ]
+  },
+  {
+    "type": "city_building",
+    "id": "test_nested_omt",
+    "overmaps": [
+      { "point": [ 0, 0, 0 ], "overmap": "test_nested_sw_south" },
+      { "point": [ 1, 0, 0 ], "overmap": "test_nested_se_south" },
+      { "point": [ 0, 1, 0 ], "overmap": "test_nested_nw_south" },
+      { "point": [ 1, 1, 0 ], "overmap": "test_nested_ne_south" }
+    ]
+  },
+  {
+    "type": "city_building",
+    "id": "test_west_first_row",
+    "overmaps": [
+      { "point": [ 0, 0, 0 ], "overmap": "test_west_first_west_north" },
+      { "point": [ 1, 0, 0 ], "overmap": "test_west_first_east_north" }
+    ]
+  }
+]

@@ -5,7 +5,7 @@
 | [TILESET_LOADER.md](./TILESET_LOADER.md) | Gfx loader — implementation guide, milestone checklist |
 | [GAME_DATA_LOADER.md](./GAME_DATA_LOADER.md) | Game JSON loader — **PR slices G1–G5** + end-to-end timeline |
 | [MAP_EDITOR.md](./MAP_EDITOR.md) | Paintable grid — **M1–M4 done**; controls and run guide |
-| [MAPGEN_PREVIEW.md](./MAPGEN_PREVIEW.md) | JSON mapgen → grid preview — **P1–P4 todo** |
+| [MAPGEN_PREVIEW.md](./MAPGEN_PREVIEW.md) | JSON mapgen → grid preview — **P1–P6 done** (building bundles + OMT stitch) |
 | [SPRITE_VIEWER.md](./SPRITE_VIEWER.md) | In-game sprite browser (`TileDisplayScreen`) |
 | [INCREMENTAL_LOADING.md](./INCREMENTAL_LOADING.md) | Frame-sliced tileset load (`TilesetLoadSession`) |
 | [tileset-loader/README.md](./tileset-loader/README.md) | Gfx loader specification index |

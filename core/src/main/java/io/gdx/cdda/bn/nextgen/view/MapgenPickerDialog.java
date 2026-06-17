@@ -7,20 +7,21 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
+import io.gdx.cdda.bn.nextgen.mapgen.MapgenPickerIndex;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingRegistry;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 /** Modal text picker for json mapgen preview (P3). */
 public final class MapgenPickerDialog {
 
-    private static final int PANEL_WIDTH = 520;
+    private static final int PANEL_WIDTH = 660;
     private static final int PANEL_HEIGHT = 420;
     private static final int MARGIN = 12;
     private static final int ROW_HEIGHT = 20;
@@ -28,12 +29,10 @@ public final class MapgenPickerDialog {
     private static final long DOUBLE_CLICK_MS = 400L;
 
     private final GlyphLayout glyphLayout = new GlyphLayout();
-    private final Comparator<JsonMapgenDefinition> sortOrder = Comparator
-        .comparing((JsonMapgenDefinition def) -> primaryLabel(def).toLowerCase(Locale.ROOT))
-        .thenComparing(def -> def.getSourceFile().toString())
-        .thenComparingInt(JsonMapgenDefinition::getIndexInFile);
 
     private MapgenCatalog catalog;
+    private CityBuildingRegistry buildingRegistry = CityBuildingRegistry.empty();
+    private MapgenPickerIndex pickerIndex = MapgenPickerIndex.build(null, CityBuildingRegistry.empty());
     private List<JsonMapgenDefinition> visibleEntries = Collections.emptyList();
     private String filterQuery = "";
     private boolean filterEditing;
@@ -41,6 +40,7 @@ public final class MapgenPickerDialog {
     private int scrollOffset;
     private boolean open;
     private JsonMapgenDefinition pendingSelection;
+    private CityBuildingDefinition pendingBuilding;
     private long lastRowClickMs;
     private int lastRowClickIndex = -1;
 
@@ -48,13 +48,22 @@ public final class MapgenPickerDialog {
         return open;
     }
 
-    public void open(final MapgenCatalog catalog) {
+    public void open(
+        final MapgenCatalog catalog,
+        final CityBuildingRegistry buildingRegistry,
+        final MapgenPickerIndex pickerIndex
+    ) {
         this.catalog = catalog;
+        this.buildingRegistry = buildingRegistry == null ? CityBuildingRegistry.empty() : buildingRegistry;
+        this.pickerIndex = pickerIndex == null
+            ? MapgenPickerIndex.build(catalog, this.buildingRegistry)
+            : pickerIndex;
         filterQuery = "";
         filterEditing = true;
         selectedIndex = 0;
         scrollOffset = 0;
         pendingSelection = null;
+        pendingBuilding = null;
         lastRowClickIndex = -1;
         rebuildVisibleEntries();
         open = true;
@@ -63,13 +72,25 @@ public final class MapgenPickerDialog {
     public void cancel() {
         open = false;
         pendingSelection = null;
+        pendingBuilding = null;
         filterEditing = false;
     }
 
     public Optional<JsonMapgenDefinition> takeSelection() {
         final JsonMapgenDefinition selection = pendingSelection;
         pendingSelection = null;
+        pendingBuilding = null;
         return Optional.ofNullable(selection);
+    }
+
+    public Optional<CityBuildingDefinition> takeBuildingImport() {
+        final CityBuildingDefinition building = pendingBuilding;
+        if (building == null) {
+            return Optional.empty();
+        }
+        pendingBuilding = null;
+        pendingSelection = null;
+        return Optional.of(building);
     }
 
     public boolean isFilterEditing() {
@@ -130,7 +151,11 @@ public final class MapgenPickerDialog {
             return true;
         }
         if (keycode == Keys.ENTER) {
-            confirmSelection();
+            if (selectedBuilding().isPresent()) {
+                confirmBuildingImport();
+            } else {
+                confirmSelection();
+            }
             return true;
         }
         return false;
@@ -165,6 +190,10 @@ public final class MapgenPickerDialog {
             return false;
         }
         final PanelLayout layout = layout(viewportWidth, viewportHeight);
+        if (hitBuilding(screenX, screenY, layout)) {
+            confirmBuildingImport();
+            return true;
+        }
         if (hitGenerate(screenX, screenY, layout)) {
             confirmSelection();
             return true;
@@ -183,7 +212,11 @@ public final class MapgenPickerDialog {
             clampSelection();
             final long now = System.currentTimeMillis();
             if (row == lastRowClickIndex && now - lastRowClickMs <= DOUBLE_CLICK_MS) {
-                confirmSelection();
+                if (selectedBuilding().isPresent()) {
+                    confirmBuildingImport();
+                } else {
+                    confirmSelection();
+                }
             }
             lastRowClickIndex = row;
             lastRowClickMs = now;
@@ -219,7 +252,25 @@ public final class MapgenPickerDialog {
         drawFilterRow(batch, font, whitePixel, layout);
         drawList(batch, font, whitePixel, layout);
         drawButtons(batch, font, whitePixel, layout);
+        drawBuildingHint(batch, font, layout);
         font.setColor(old);
+    }
+
+    private void drawBuildingHint(final SpriteBatch batch, final BitmapFont font, final PanelLayout layout) {
+        final Optional<CityBuildingDefinition> building = selectedBuilding();
+        if (!building.isPresent()) {
+            return;
+        }
+        final CityBuildingDefinition def = building.get();
+        font.setColor(0.72f, 0.78f, 0.88f, 1f);
+        final StringBuilder hint = new StringBuilder("Building: ");
+        hint.append(def.getId());
+        final String summary = def.buildingSummaryLabel();
+        if (!summary.isEmpty()) {
+            hint.append(" (").append(summary).append(')');
+        }
+        font.draw(batch, hint.toString(), layout.panelX + MARGIN, layout.buttonY + BUTTON_HEIGHT + 10);
+        font.setColor(0.92f, 0.94f, 0.98f, 1f);
     }
 
     private void drawFilterRow(
@@ -282,7 +333,12 @@ public final class MapgenPickerDialog {
         final TextureRegion whitePixel,
         final PanelLayout layout
     ) {
-        drawButton(batch, font, whitePixel, "Generate", layout.generateX, layout.buttonY, layout.generateW);
+        final boolean buildingEnabled = selectedBuilding().isPresent();
+        if (buildingEnabled) {
+            drawButton(batch, font, whitePixel, "Import building", layout.buildingX, layout.buttonY, layout.buildingW);
+        } else {
+            drawButton(batch, font, whitePixel, "Generate", layout.generateX, layout.buttonY, layout.generateW);
+        }
         drawButton(batch, font, whitePixel, "Cancel", layout.cancelX, layout.buttonY, layout.cancelW);
     }
 
@@ -300,6 +356,24 @@ public final class MapgenPickerDialog {
         batch.setColor(Color.WHITE);
         glyphLayout.setText(font, label);
         font.draw(batch, label, x + (width - glyphLayout.width) / 2f, y + BUTTON_HEIGHT - 7);
+    }
+
+    private void confirmBuildingImport() {
+        final Optional<CityBuildingDefinition> building = selectedBuilding();
+        if (!building.isPresent()) {
+            return;
+        }
+        pendingBuilding = building.get();
+        open = false;
+        filterEditing = false;
+    }
+
+    private Optional<CityBuildingDefinition> selectedBuilding() {
+        if (catalog == null || buildingRegistry == null || visibleEntries.isEmpty()) {
+            return Optional.empty();
+        }
+        final JsonMapgenDefinition definition = visibleEntries.get(selectedIndex);
+        return findBuildingForDefinition(definition).filter(CityBuildingDefinition::isBundledBuilding);
     }
 
     private void confirmSelection() {
@@ -324,18 +398,20 @@ public final class MapgenPickerDialog {
     }
 
     private void rebuildVisibleEntries() {
-        if (catalog == null) {
+        if (catalog == null || pickerIndex == null) {
             visibleEntries = Collections.emptyList();
             selectedIndex = 0;
             scrollOffset = 0;
             return;
         }
-        final List<JsonMapgenDefinition> filtered = new ArrayList<>(catalog.filter(filterQuery));
-        filtered.sort(sortOrder);
-        visibleEntries = filtered;
+        visibleEntries = new ArrayList<>(pickerIndex.filter(filterQuery, catalog));
         selectedIndex = Math.min(selectedIndex, Math.max(0, visibleEntries.size() - 1));
         clampScrollOffset();
         ensureSelectionVisible();
+    }
+
+    private Optional<CityBuildingDefinition> findBuildingForDefinition(final JsonMapgenDefinition definition) {
+        return MapgenPickerIndex.findBuildingForDefinition(definition, buildingRegistry);
     }
 
     private void ensureSelectionVisible() {
@@ -370,26 +446,8 @@ public final class MapgenPickerDialog {
         return Math.max(1, listHeight / ROW_HEIGHT);
     }
 
-    private static String primaryLabel(final JsonMapgenDefinition definition) {
-        if (!definition.getOmTerrain().isEmpty()) {
-            return definition.getOmTerrain().get(0);
-        }
-        return definition.displayName();
-    }
-
-    private static String formatRow(final JsonMapgenDefinition definition) {
-        final StringBuilder line = new StringBuilder();
-        line.append(primaryLabel(definition));
-        line.append("   ");
-        line.append(definition.getSourceFile().getFileName());
-        line.append(" #").append(definition.getIndexInFile());
-        if (definition.getWeight() != 1000) {
-            line.append("   w:").append(definition.getWeight());
-        }
-        if (!definition.isJsonPreviewSupported()) {
-            line.append("   (unsupported)");
-        }
-        return line.toString();
+    private String formatRow(final JsonMapgenDefinition definition) {
+        return MapgenPickerIndex.formatRow(definition, buildingRegistry);
     }
 
     private String fitText(final BitmapFont font, final String text, final int maxWidth) {
@@ -415,12 +473,27 @@ public final class MapgenPickerDialog {
         final float buttonY = panelY + MARGIN;
         final float generateW = 110f;
         final float cancelW = 90f;
+        final float buildingW = 124f;
         final float generateX = panelX + PANEL_WIDTH - MARGIN - generateW;
         final float cancelX = generateX - 8f - cancelW;
-        return new PanelLayout(panelX, panelY, listTop, buttonY, generateX, generateW, cancelX, cancelW);
+        final float buildingX = cancelX - 8f - buildingW;
+        return new PanelLayout(panelX, panelY, listTop, buttonY, buildingX, buildingW, generateX, generateW, cancelX, cancelW);
+    }
+
+    private boolean hitBuilding(final int x, final int y, final PanelLayout layout) {
+        if (!selectedBuilding().isPresent()) {
+            return false;
+        }
+        return x >= layout.buildingX
+            && x <= layout.buildingX + layout.buildingW
+            && y >= layout.buttonY
+            && y <= layout.buttonY + BUTTON_HEIGHT;
     }
 
     private boolean hitGenerate(final int x, final int y, final PanelLayout layout) {
+        if (selectedBuilding().isPresent()) {
+            return false;
+        }
         return x >= layout.generateX
             && x <= layout.generateX + layout.generateW
             && y >= layout.buttonY
@@ -461,6 +534,8 @@ public final class MapgenPickerDialog {
         private final float panelY;
         private final float listTop;
         private final float buttonY;
+        private final float buildingX;
+        private final float buildingW;
         private final float generateX;
         private final float generateW;
         private final float cancelX;
@@ -471,6 +546,8 @@ public final class MapgenPickerDialog {
             final float panelY,
             final float listTop,
             final float buttonY,
+            final float buildingX,
+            final float buildingW,
             final float generateX,
             final float generateW,
             final float cancelX,
@@ -480,6 +557,8 @@ public final class MapgenPickerDialog {
             this.panelY = panelY;
             this.listTop = listTop;
             this.buttonY = buttonY;
+            this.buildingX = buildingX;
+            this.buildingW = buildingW;
             this.generateX = generateX;
             this.generateW = generateW;
             this.cancelX = cancelX;

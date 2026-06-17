@@ -55,6 +55,36 @@ public final class MapGrid {
         }
     }
 
+    /** Copies terrain and furniture from {@code source} into this grid. Returns overlap count. */
+    public int blitFrom(
+        final MapGrid source,
+        final int destX,
+        final int destY,
+        final String unsetFillTer
+    ) {
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
+        }
+        int overlaps = 0;
+        for (int y = 0; y < source.height(); y++) {
+            for (int x = 0; x < source.width(); x++) {
+                final int targetX = destX + x;
+                final int targetY = destY + y;
+                if (targetX < 0 || targetY < 0 || targetX >= width || targetY >= height) {
+                    continue;
+                }
+                final MapCell src = source.get(x, y);
+                final MapCell dest = get(targetX, targetY);
+                if (!isUnsetCell(dest, unsetFillTer) && contentDiffers(dest, src)) {
+                    overlaps++;
+                }
+                dest.setTerrainId(src.getTerrainId());
+                dest.setFurnitureId(src.getFurnitureId());
+            }
+        }
+        return overlaps;
+    }
+
     public void resize(final int newWidth, final int newHeight, final String fillTerrainId) {
         validateDimensions(newWidth, newHeight);
         validateTerrainId(fillTerrainId);
@@ -91,6 +121,26 @@ public final class MapGrid {
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("width and height must be > 0");
         }
+    }
+
+    private static boolean contentDiffers(final MapCell dest, final MapCell src) {
+        return !dest.getTerrainId().equals(src.getTerrainId())
+            || !furnitureEquals(dest.getFurnitureId(), src.getFurnitureId());
+    }
+
+    private static boolean furnitureEquals(final String left, final String right) {
+        final String a = left == null || left.isEmpty() ? null : left;
+        final String b = right == null || right.isEmpty() ? null : right;
+        if (a == null) {
+            return b != null;
+        }
+        return !a.equals(b);
+    }
+
+    private static boolean isUnsetCell(final MapCell cell, final String unsetFillTer) {
+        final String furnitureId = cell.getFurnitureId();
+        return cell.getTerrainId().equals(unsetFillTer)
+            && (furnitureId == null || furnitureId.isEmpty());
     }
 
     private static void validateTerrainId(final String terrainId) {

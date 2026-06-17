@@ -86,6 +86,15 @@ public final class MapgenCatalog {
         return Optional.empty();
     }
 
+    public Optional<JsonMapgenDefinition> findFirstRunnableByOmTerrain(final String omTerrainId) {
+        for (final JsonMapgenDefinition definition : findByOmTerrain(omTerrainId)) {
+            if (definition.isJsonPreviewSupported()) {
+                return Optional.of(definition);
+            }
+        }
+        return Optional.empty();
+    }
+
     public int size() {
         return definitions.size();
     }

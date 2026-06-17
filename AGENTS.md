@@ -58,7 +58,7 @@ Specs: **`docs/map-editor/`**. Consumes game data + tileset loaders.
 | Guide | `docs/MAP_EDITOR.md` |
 | Spec index | `docs/map-editor/README.md` |
 
-### Mapgen preview (planned)
+### Mapgen preview (done)
 
 Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (not full worldgen).
 
@@ -68,7 +68,7 @@ Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (not full worldg
 | Spec index | `docs/mapgen-preview/README.md` |
 | Implementation plan | `docs/mapgen-preview/implementation-plan.md` |
 
-**PR slices:** P1 palettes → P2 rows runner → P3 UI → P4 furniture render.
+**PR slices:** P1–P6 done (… → furniture → building floors → OMT stitch). Next: v2 parity — [08-v2-parity-roadmap](docs/mapgen-preview/08-v2-parity-roadmap.md).
 
 | Docs index | `docs/README.md` |
 
@@ -106,7 +106,7 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
   tileset/                    # gfx loader — done
   gamedata/                   # game JSON — docs/game-data-loader/
   map/                        # MapGrid, MapFileIO — docs/map-editor/
-  mapgen/                     # P1–P3 done — docs/mapgen-preview/
+  mapgen/                     # P1–P4 done — docs/mapgen-preview/
   view/
     MainMenuScreen.java
     TileDisplayScreen.java    # sprite viewer
@@ -148,7 +148,7 @@ gradlew.bat test
 
 **Map editor:** M1–M4 done — `docs/map-editor/implementation-plan.md`.
 
-**Mapgen preview:** P1–P3 done — next **P4** in `docs/mapgen-preview/implementation-plan.md`.
+**Mapgen preview:** P1–P6 done; see `docs/mapgen-preview/implementation-plan.md` for v2 items.
 
 Sprite viewer follow-ups: search, detail pane. Gfx: draw-time seasonal/tint/warp.
 
