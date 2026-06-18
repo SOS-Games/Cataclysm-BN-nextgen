@@ -1,0 +1,54 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_wide_west", "test_wide_east" ] ],
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "WWWWWWWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEEEEEEEEE",
+        "WWWWWWWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEEEEEEEEE",
+        "WWWWWWWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEEEEEEEEE"
+      ],
+      "terrain": {
+        "W": "t_wall",
+        "E": "t_dirt"
+      }
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_wide_roof_west" ] ],
+    "object": {
+      "fill_ter": "t_open_air",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "RRRRRRRRRRRRRRRRRRRRRRRR",
+        "RRRRRRRRRRRRRRRRRRRRRRRR",
+        "RRRRRRRRRRRRRRRRRRRRRRRR"
+      ],
+      "terrain": {
+        "R": "t_shingle_flat_roof"
+      }
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_wide_roof_east" ] ],
+    "object": {
+      "fill_ter": "t_open_air",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "DDDDDDDDDDDDDDDDDDDDDDDD",
+        "DDDDDDDDDDDDDDDDDDDDDDDD",
+        "DDDDDDDDDDDDDDDDDDDDDDDD"
+      ],
+      "terrain": {
+        "D": "t_dirt"
+      }
+    }
+  }
+]

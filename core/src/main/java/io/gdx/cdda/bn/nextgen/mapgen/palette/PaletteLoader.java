@@ -20,8 +20,6 @@ import java.util.List;
 public final class PaletteLoader {
 
     private static final String PALETTE_TYPE = "palette";
-    private static final String MAPGEN_PALETTES_DIR = "mapgen_palettes";
-    private static final String MAPGEN_DIR = "mapgen";
 
     private PaletteLoader() {}
 
@@ -39,10 +37,11 @@ public final class PaletteLoader {
             }
             final Path contentRoot = modInfo.getResolvedContentPath();
             if (options.isIncludePaletteTree()) {
-                loadPalettesFromTree(contentRoot.resolve(MAPGEN_PALETTES_DIR), registry, warnings);
+                loadPalettesFromTree(contentRoot.resolve("mapgen_palettes"), registry, warnings);
+                loadPalettesFromTree(contentRoot.resolve("overmap_and_mapgen"), registry, warnings);
             }
             if (options.isIncludeInlinePalettes()) {
-                loadPalettesFromTree(contentRoot.resolve(MAPGEN_DIR), registry, warnings);
+                loadPalettesFromTree(contentRoot.resolve("mapgen"), registry, warnings);
             }
         }
 

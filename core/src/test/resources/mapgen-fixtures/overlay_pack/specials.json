@@ -1,0 +1,11 @@
+[
+  {
+    "type": "overmap_special",
+    "id": "test_mod_root_special",
+    "overmaps": [
+      { "point": [ 0, 0, 0 ], "overmap": "test_mod_root_base_north" },
+      { "point": [ 0, 0, 1 ], "overmap": "test_mod_root_upper_north" },
+      { "point": [ 0, 0, 2 ], "overmap": "test_mod_root_roof_north" }
+    ]
+  }
+]

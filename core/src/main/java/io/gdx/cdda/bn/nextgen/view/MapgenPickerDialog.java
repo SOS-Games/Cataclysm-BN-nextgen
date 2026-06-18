@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenPickerIndex;
+import io.gdx.cdda.bn.nextgen.mapgen.MapgenPickerRow;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingRegistry;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
@@ -33,7 +34,7 @@ public final class MapgenPickerDialog {
     private MapgenCatalog catalog;
     private CityBuildingRegistry buildingRegistry = CityBuildingRegistry.empty();
     private MapgenPickerIndex pickerIndex = MapgenPickerIndex.build(null, CityBuildingRegistry.empty());
-    private List<JsonMapgenDefinition> visibleEntries = Collections.emptyList();
+    private List<MapgenPickerRow> visibleEntries = Collections.emptyList();
     private String filterQuery = "";
     private boolean filterEditing;
     private int selectedIndex;
@@ -304,14 +305,15 @@ public final class MapgenPickerDialog {
             if (index >= visibleEntries.size()) {
                 break;
             }
-            final JsonMapgenDefinition definition = visibleEntries.get(index);
+            final MapgenPickerRow entry = visibleEntries.get(index);
             final float y = layout.listTop - (row + 1) * ROW_HEIGHT;
             if (index == selectedIndex) {
                 batch.setColor(0.24f, 0.28f, 0.38f, 1f);
                 batch.draw(whitePixel, layout.panelX + MARGIN, y, PANEL_WIDTH - MARGIN * 2, ROW_HEIGHT);
                 batch.setColor(Color.WHITE);
             }
-            final boolean runnable = definition.isJsonPreviewSupported();
+            final boolean runnable = entry.isWholeSpecialRow()
+                || entry.getDefinition().map(JsonMapgenDefinition::isJsonPreviewSupported).orElse(false);
             if (runnable) {
                 font.setColor(index == selectedIndex ? 0.95f : 0.88f, 0.9f, 0.94f, 1f);
             } else {
@@ -319,7 +321,7 @@ public final class MapgenPickerDialog {
             }
             font.draw(
                 batch,
-                fitText(font, formatRow(definition), PANEL_WIDTH - MARGIN * 2 - 8),
+                fitText(font, formatRow(entry), PANEL_WIDTH - MARGIN * 2 - 8),
                 layout.panelX + MARGIN + 4,
                 y + ROW_HEIGHT - 5
             );
@@ -369,19 +371,22 @@ public final class MapgenPickerDialog {
     }
 
     private Optional<CityBuildingDefinition> selectedBuilding() {
-        if (catalog == null || buildingRegistry == null || visibleEntries.isEmpty()) {
+        if (buildingRegistry == null || visibleEntries.isEmpty()) {
             return Optional.empty();
         }
-        final JsonMapgenDefinition definition = visibleEntries.get(selectedIndex);
-        return findBuildingForDefinition(definition).filter(CityBuildingDefinition::isBundledBuilding);
+        return visibleEntries.get(selectedIndex).bundledBuilding(buildingRegistry);
     }
 
     private void confirmSelection() {
         if (visibleEntries.isEmpty()) {
             return;
         }
-        final JsonMapgenDefinition definition = visibleEntries.get(selectedIndex);
-        if (!definition.isJsonPreviewSupported()) {
+        final MapgenPickerRow entry = visibleEntries.get(selectedIndex);
+        if (entry.isWholeSpecialRow()) {
+            return;
+        }
+        final JsonMapgenDefinition definition = entry.getDefinition().orElse(null);
+        if (definition == null || !definition.isJsonPreviewSupported()) {
             return;
         }
         pendingSelection = definition;
@@ -446,8 +451,8 @@ public final class MapgenPickerDialog {
         return Math.max(1, listHeight / ROW_HEIGHT);
     }
 
-    private String formatRow(final JsonMapgenDefinition definition) {
-        return MapgenPickerIndex.formatRow(definition, buildingRegistry);
+    private String formatRow(final MapgenPickerRow row) {
+        return MapgenPickerIndex.formatRow(row, buildingRegistry);
     }
 
     private String fitText(final BitmapFont font, final String text, final int maxWidth) {

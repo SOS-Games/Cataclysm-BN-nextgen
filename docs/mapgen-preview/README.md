@@ -115,7 +115,7 @@ flowchart TD
 | 10 | [10-city-building-loader.md](./10-city-building-loader.md) | done | `city_building` scan + resolver |
 | 11 | [11-map-volume-and-floors.md](./11-map-volume-and-floors.md) | done | `MapVolume`, floor UI (P5) |
 | 12 | [12-omt-stitch-composer.md](./12-omt-stitch-composer.md) | done | Stitch OMT pieces (P6) |
-| 13 | [13-building-bundle-sources.md](./13-building-bundle-sources.md) | draft | BN bundle types + gaps (P7 roadmap) |
+| 13 | [13-building-bundle-sources.md](./13-building-bundle-sources.md) | done | BN bundle types; P7a scan done |
 
 ---
 
@@ -129,7 +129,7 @@ flowchart TD
 | 4 — Furniture draw | 07 | **P4** | done |
 | 5 — Building floors | 09, 10, 11 | **P5** | done |
 | 6 — OMT stitch | 12 | **P6** | done |
-| 7 — Bundle discovery | 13 | **P7** | todo |
+| 7 — Bundle discovery | 13 | **P7a** | done |
 
 **PR slices:** [MAPGEN_PREVIEW.md](../MAPGEN_PREVIEW.md#suggested-pr-slices)
 
@@ -165,3 +165,4 @@ Each unit includes:
 | 2026-06-16 | Expanded all units; added 08 v2 parity roadmap |
 | 2026-06-16 | Added 09–12 building bundles (P5 floor switch, P6 OMT stitch) |
 | 2026-06-17 | Added 13 building bundle sources inventory (P7 gaps) |
+| 2026-06-17 | P7a `BuildingBundleScanner` — full mod JSON bundle discovery |

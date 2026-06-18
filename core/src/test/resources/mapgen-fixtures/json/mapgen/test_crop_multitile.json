@@ -1,0 +1,20 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ [ "test_crop_west", "test_crop_east" ] ],
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "WWWWWWWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEEEEEEEEE",
+        "WWWWWWWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEEEEEEEEE",
+        "WWWWWWWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEEEEEEEEE"
+      ],
+      "terrain": {
+        "W": "t_wall",
+        "E": "t_dirt"
+      }
+    }
+  }
+]

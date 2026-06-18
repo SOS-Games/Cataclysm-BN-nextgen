@@ -8,6 +8,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunner;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
+import io.gdx.cdda.bn.nextgen.mapgen.json.OmTerrainGrid;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 
 import java.util.ArrayList;
@@ -34,43 +35,134 @@ public final class MapVolumeBuilder {
         if (catalog == null || palettes == null) {
             throw new IllegalStateException("catalog and palettes are required");
         }
+        if (building.isWholeOvermapSpecial()) {
+            return SpecialLayoutFloorComposer.build(building, catalog, palettes, runOptions);
+        }
 
         final JsonMapgenRunOptions options = runOptions == null ? new JsonMapgenRunOptions() : runOptions;
         final List<String> warnings = new ArrayList<>(options.getWarnings());
-        final Map<Integer, MapGrid> gridsByZ = new LinkedHashMap<>();
-        final Map<Integer, List<OmtPieceRect>> pieceLayoutsByZ = new LinkedHashMap<>();
+        final List<Integer> zLevels = new ArrayList<>(building.distinctZLevels());
+        zLevels.sort(Integer::compareTo);
+        if (zLevels.isEmpty()) {
+            throw new IllegalArgumentException(
+                "building '" + building.getId() + "' produced no runnable floors"
+            );
+        }
 
-        for (final int zLevel : building.distinctZLevels()) {
-            final List<CityBuildingPiece> pieces = building.piecesAtZ(zLevel);
+        final int preferredZ = pickDefaultZ(zLevels);
+        final Map<Integer, FloorBuildResult> rawFloors = new LinkedHashMap<>();
+        for (final int zLevel : zLevels) {
             final Optional<FloorBuildResult> floor = buildFloorGrid(
-                pieces,
+                building.piecesAtZ(zLevel),
                 catalog,
                 palettes,
                 options,
                 warnings,
                 zLevel
             );
-            if (floor.isPresent()) {
-                gridsByZ.put(zLevel, floor.get().grid);
-                if (!floor.get().pieceLayouts.isEmpty()) {
-                    pieceLayoutsByZ.put(zLevel, floor.get().pieceLayouts);
-                }
-            }
+            floor.ifPresent(value -> rawFloors.put(zLevel, value));
         }
 
-        if (gridsByZ.isEmpty()) {
+        if (rawFloors.isEmpty()) {
             throw new IllegalArgumentException(
                 "building '" + building.getId() + "' produced no runnable floors"
             );
         }
 
-        final List<Integer> zLevels = new ArrayList<>(gridsByZ.keySet());
-        zLevels.sort(Integer::compareTo);
-        final int defaultZ = pickDefaultZ(zLevels);
+        final List<Integer> builtZLevels = builtZLevelsFrom(zLevels, rawFloors);
+        final int referenceZ = pickReferenceZ(builtZLevels, preferredZ);
+        if (!rawFloors.containsKey(preferredZ)) {
+            warnings.add("floor z=" + preferredZ + " could not be built; using z=" + referenceZ + " as reference");
+        }
+
+        final FloorBuildResult referenceFloor = rawFloors.get(referenceZ);
+        final Optional<OmTerrainGrid> referenceOmGrid = referenceFloor.referenceOmGrid;
+        final int canvasWidth = referenceFloor.grid.width();
+        final int canvasHeight = referenceFloor.grid.height();
+        final boolean alignFloors = builtZLevels.size() > 1 && referenceOmGrid.isPresent();
+        final String groundOvermapId = resolveGroundOvermapId(building, referenceZ);
+
+        final Map<Integer, MapGrid> gridsByZ = new LinkedHashMap<>();
+        final Map<Integer, List<OmtPieceRect>> pieceLayoutsByZ = new LinkedHashMap<>();
+        for (final int zLevel : zLevels) {
+            final FloorBuildResult raw = rawFloors.get(zLevel);
+            if (raw == null) {
+                continue;
+            }
+            final MapGrid grid = alignFloors && zLevel != referenceZ
+                ? placeFloorOnReferenceCanvas(
+                    raw,
+                    referenceOmGrid.get(),
+                    canvasWidth,
+                    canvasHeight,
+                    groundOvermapId,
+                    warnings,
+                    zLevel
+                )
+                : raw.grid;
+            gridsByZ.put(zLevel, grid);
+            if (!raw.pieceLayouts.isEmpty()) {
+                pieceLayoutsByZ.put(zLevel, raw.pieceLayouts);
+            }
+        }
+
+        final List<Integer> volumeZLevels = builtZLevelsFrom(zLevels, gridsByZ);
+        final int activeZ = pickReferenceZ(volumeZLevels, referenceZ);
+
         return new MapVolumeBuildResult(
-            new MapVolume(building.getId(), zLevels, gridsByZ, pieceLayoutsByZ, defaultZ),
+            new MapVolume(building.getId(), volumeZLevels, gridsByZ, pieceLayoutsByZ, activeZ),
             warnings
         );
+    }
+
+    private static MapGrid placeFloorOnReferenceCanvas(
+        final FloorBuildResult raw,
+        final OmTerrainGrid referenceOmGrid,
+        final int canvasWidth,
+        final int canvasHeight,
+        final String groundOvermapId,
+        final List<String> warnings,
+        final int zLevel
+    ) {
+        if (!raw.sourceOmGrid.isPresent() || raw.singlePiece == null) {
+            warnings.add("floor z=" + zLevel + " could not be aligned to reference canvas; using raw grid");
+            return raw.grid;
+        }
+
+        final Optional<OmTerrainMapgenPlacer.GridCell> anchor = OmTerrainMapgenPlacer.findCell(
+            referenceOmGrid,
+            groundOvermapId
+        );
+        final int anchorCol = anchor.map(cell -> cell.col).orElse(raw.singlePiece.getOffsetX());
+        final int anchorRow = anchor.map(cell -> cell.row).orElse(raw.singlePiece.getOffsetY());
+
+        final MapGrid canvas = new MapGrid(canvasWidth, canvasHeight, raw.grid.getDefaultTerrainId());
+        final Optional<OmTerrainMapgenPlacer.PlacementRect> placement = OmTerrainMapgenPlacer.blitAtReferenceCell(
+            canvas,
+            raw.grid,
+            raw.sourceOmGrid.get(),
+            raw.singlePiece.getOvermapId(),
+            referenceOmGrid,
+            anchorCol,
+            anchorRow,
+            raw.grid.getDefaultTerrainId()
+        );
+        if (!placement.isPresent()) {
+            warnings.add("floor z=" + zLevel + " could not be placed on reference canvas; using raw grid");
+            return raw.grid;
+        }
+        return canvas;
+    }
+
+    private static String resolveGroundOvermapId(
+        final CityBuildingDefinition building,
+        final int referenceZ
+    ) {
+        final List<CityBuildingPiece> groundPieces = building.piecesAtZ(referenceZ);
+        if (groundPieces.isEmpty()) {
+            return "";
+        }
+        return groundPieces.get(0).getOvermapId();
     }
 
     private static Optional<FloorBuildResult> buildFloorGrid(
@@ -95,7 +187,12 @@ public final class MapVolumeBuilder {
                     return Optional.empty();
                 }
                 final MapGrid grid = JsonMapgenRunner.run(definition, palettes, options);
-                return Optional.of(new FloorBuildResult(grid, combined.get().getPieceRects()));
+                return Optional.of(new FloorBuildResult(
+                    grid,
+                    combined.get().getPieceRects(),
+                    definition.getOmTerrainGrid(),
+                    Optional.empty()
+                ));
             }
             final OmtStitchComposer.StitchResult stitched = OmtStitchComposer.stitch(
                 pieces,
@@ -108,13 +205,17 @@ public final class MapVolumeBuilder {
                 warnings.add("stitch failed for z=" + zLevel);
                 return Optional.empty();
             }
-            return Optional.of(new FloorBuildResult(stitched.getGrid().get(), stitched.getPieceRects()));
+            return Optional.of(new FloorBuildResult(
+                stitched.getGrid().get(),
+                stitched.getPieceRects(),
+                Optional.empty(),
+                Optional.empty()
+            ));
         }
-        final Optional<MapGrid> grid = runSinglePiece(pieces.get(0), catalog, palettes, options, warnings, zLevel);
-        return grid.map(value -> new FloorBuildResult(value, Collections.emptyList()));
+        return runSinglePiece(pieces.get(0), catalog, palettes, options, warnings, zLevel);
     }
 
-    private static Optional<MapGrid> runSinglePiece(
+    private static Optional<FloorBuildResult> runSinglePiece(
         final CityBuildingPiece piece,
         final MapgenCatalog catalog,
         final PaletteRegistry palettes,
@@ -134,7 +235,13 @@ public final class MapVolumeBuilder {
             warnings.add("unsupported mapgen for overmap '" + piece.getOvermapId() + "' at z=" + zLevel);
             return Optional.empty();
         }
-        return Optional.of(JsonMapgenRunner.run(definition.get(), palettes, options));
+        final MapGrid grid = JsonMapgenRunner.run(definition.get(), palettes, options);
+        return Optional.of(new FloorBuildResult(
+            grid,
+            Collections.emptyList(),
+            definition.get().getOmTerrainGrid(),
+            Optional.of(piece)
+        ));
     }
 
     private static int pickDefaultZ(final List<Integer> zLevels) {
@@ -144,13 +251,47 @@ public final class MapVolumeBuilder {
         return zLevels.get(0);
     }
 
+    static List<Integer> builtZLevelsFrom(
+        final List<Integer> zLevels,
+        final Map<Integer, ?> builtByZ
+    ) {
+        final List<Integer> built = new ArrayList<>();
+        for (final int z : zLevels) {
+            if (builtByZ.containsKey(z)) {
+                built.add(z);
+            }
+        }
+        if (built.isEmpty()) {
+            throw new IllegalArgumentException("no floors were built");
+        }
+        return built;
+    }
+
+    static int pickReferenceZ(final List<Integer> builtZLevels, final int preferredZ) {
+        if (builtZLevels.contains(preferredZ)) {
+            return preferredZ;
+        }
+        return builtZLevels.get(0);
+    }
+
     private static final class FloorBuildResult {
         private final MapGrid grid;
         private final List<OmtPieceRect> pieceLayouts;
+        private final Optional<OmTerrainGrid> sourceOmGrid;
+        private final Optional<OmTerrainGrid> referenceOmGrid;
+        private final CityBuildingPiece singlePiece;
 
-        private FloorBuildResult(final MapGrid grid, final List<OmtPieceRect> pieceLayouts) {
+        private FloorBuildResult(
+            final MapGrid grid,
+            final List<OmtPieceRect> pieceLayouts,
+            final Optional<OmTerrainGrid> sourceOmGrid,
+            final Optional<CityBuildingPiece> singlePiece
+        ) {
             this.grid = grid;
             this.pieceLayouts = pieceLayouts;
+            this.sourceOmGrid = sourceOmGrid;
+            this.referenceOmGrid = sourceOmGrid;
+            this.singlePiece = singlePiece.orElse(null);
         }
     }
 

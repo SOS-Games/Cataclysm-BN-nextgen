@@ -1,0 +1,10 @@
+[
+  {
+    "type": "city_building",
+    "id": "test_nested_overmap_path",
+    "overmaps": [
+      { "point": [ 0, 0, 0 ], "overmap": "test_nested_overmap_west_north" },
+      { "point": [ 1, 0, 0 ], "overmap": "test_nested_overmap_east_north" }
+    ]
+  }
+]

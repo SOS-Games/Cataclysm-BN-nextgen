@@ -1,0 +1,15 @@
+[
+  {
+    "type": "region_overlay",
+    "regions": [ "all" ],
+    "city": { "houses": { "test_regional_house": 1 } }
+  },
+  {
+    "type": "city_building",
+    "id": "test_regional_house",
+    "overmaps": [
+      { "point": [ 0, 0, 0 ], "overmap": "test_regional_ground_north" },
+      { "point": [ 0, 0, 1 ], "overmap": "test_regional_roof_north" }
+    ]
+  }
+]

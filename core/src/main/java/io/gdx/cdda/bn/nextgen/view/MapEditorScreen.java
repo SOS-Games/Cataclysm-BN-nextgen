@@ -27,6 +27,7 @@ import io.gdx.cdda.bn.nextgen.map.MapGrid;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingPiece;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.OmtPieceRect;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
@@ -56,7 +57,7 @@ public final class MapEditorScreen {
 
     private static final long ANIMATION_TICK_MS = 17L;
     private static final int HUD_MARGIN = 8;
-    private static final int HUD_LINES = 5;
+    private static final int HUD_LINES = 6;
     private static final Path DEFAULT_MAP_PATH = Paths.get("maps/autosave.json");
     private static final int[][] GRID_PRESETS = {
         { 10, 10 },
@@ -125,7 +126,9 @@ public final class MapEditorScreen {
 
     private final MapgenPreviewService mapgenPreviewService = new MapgenPreviewService();
     private final MapgenPickerDialog mapgenPicker = new MapgenPickerDialog();
+    private final ImportFailedDialog importFailedDialog = new ImportFailedDialog();
     private MapVolume mapVolume;
+    private CityBuildingDefinition activeBuilding;
     private boolean loadingMapgenCatalog;
 
     public MapEditorScreen(final SpriteBatch batch) {
@@ -165,11 +168,16 @@ public final class MapEditorScreen {
             drawMapgenCatalogLoadingOverlay();
         }
         mapgenPicker.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
+        importFailedDialog.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
         pollMapgenPickerSelection();
         batch.end();
     }
 
     public boolean onEscape() {
+        if (importFailedDialog.isOpen()) {
+            importFailedDialog.dismiss();
+            return true;
+        }
         if (mapgenPicker.isOpen()) {
             if (mapgenPicker.isFilterEditing() && !mapgenPicker.getFilterQuery().isEmpty()) {
                 mapgenPicker.clearFilter();
@@ -190,6 +198,9 @@ public final class MapEditorScreen {
     }
 
     public boolean onKeyDown(final int keycode) {
+        if (importFailedDialog.isOpen()) {
+            return importFailedDialog.onKeyDown(keycode);
+        }
         if (mapgenPicker.isOpen()) {
             if (mapgenPicker.onKeyDown(keycode)) {
                 return true;
@@ -306,6 +317,9 @@ public final class MapEditorScreen {
     }
 
     public boolean onScroll(final float amountY) {
+        if (importFailedDialog.isOpen()) {
+            return true;
+        }
         if (mapgenPicker.isOpen()) {
             return mapgenPicker.onScroll(amountY);
         }
@@ -324,6 +338,14 @@ public final class MapEditorScreen {
     }
 
     public boolean onTouchDown(final int screenX, final int screenY, final int button) {
+        if (importFailedDialog.isOpen()) {
+            return importFailedDialog.onTouchDown(
+                screenX,
+                ScreenInput.fromInputY(screenY),
+                viewportPixelWidth(),
+                viewportPixelHeight()
+            );
+        }
         if (mapgenPicker.isOpen()) {
             return mapgenPicker.onTouchDown(
                 screenX,
@@ -652,16 +674,51 @@ public final class MapEditorScreen {
         final int firstRow = Math.max(0, (int) Math.floor((topY - viewH) / tilePx));
         final int lastRow = Math.min(grid.height(), (int) Math.ceil((topY - baseY) / tilePx));
 
-        for (int y = firstRow; y < lastRow; y++) {
-            for (int x = firstCol; x < lastCol; x++) {
-                final float worldX = cameraX + x * tilePx;
-                final float worldY = cellBottomY(y);
-                final MapCell cell = grid.get(x, y);
-                drawCellTerrain(cell.getTerrainId(), worldX, worldY, tilePx);
-                if (showFurnitureLayer) {
-                    drawCellFurniture(cell.getFurnitureId(), worldX, worldY, tilePx);
+        for (final GridDrawPass pass : GridDrawPass.values()) {
+            if (pass.isFurniture() && !showFurnitureLayer) {
+                continue;
+            }
+            for (int y = firstRow; y < lastRow; y++) {
+                for (int x = firstCol; x < lastCol; x++) {
+                    final float worldX = cameraX + x * tilePx;
+                    final float worldY = cellBottomY(y);
+                    final MapCell cell = grid.get(x, y);
+                    if (pass.isTerrain()) {
+                        drawCellTerrain(cell.getTerrainId(), worldX, worldY, tilePx, pass.drawBackground());
+                    } else {
+                        drawCellFurniture(cell.getFurnitureId(), worldX, worldY, tilePx, pass.drawBackground());
+                    }
                 }
             }
+        }
+    }
+
+    private enum GridDrawPass {
+        TERRAIN_BACKGROUND(true, false, true),
+        TERRAIN_FOREGROUND(true, false, false),
+        FURNITURE_BACKGROUND(false, true, true),
+        FURNITURE_FOREGROUND(false, true, false);
+
+        private final boolean terrain;
+        private final boolean furniture;
+        private final boolean background;
+
+        GridDrawPass(final boolean terrain, final boolean furniture, final boolean background) {
+            this.terrain = terrain;
+            this.furniture = furniture;
+            this.background = background;
+        }
+
+        boolean isTerrain() {
+            return terrain;
+        }
+
+        boolean isFurniture() {
+            return furniture;
+        }
+
+        boolean drawBackground() {
+            return background;
         }
     }
 
@@ -772,7 +829,13 @@ public final class MapEditorScreen {
         return ellipsis;
     }
 
-    private void drawCellTerrain(final String terrainId, final float drawX, final float drawY, final float tilePx) {
+    private void drawCellTerrain(
+        final String terrainId,
+        final float drawX,
+        final float drawY,
+        final float tilePx,
+        final boolean backgroundOnly
+    ) {
         if (tileset == null) {
             return;
         }
@@ -781,26 +844,41 @@ public final class MapEditorScreen {
         if (tile == null) {
             return;
         }
-        drawCellTile(tile, drawX, drawY, tilePx);
+        drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly);
     }
 
-    private void drawCellFurniture(final String furnitureId, final float drawX, final float drawY, final float tilePx) {
+    private void drawCellFurniture(
+        final String furnitureId,
+        final float drawX,
+        final float drawY,
+        final float tilePx,
+        final boolean backgroundOnly
+    ) {
         if (tileset == null || furnitureId == null || furnitureId.isEmpty()) {
             return;
         }
         if (!TileSpriteResolver.hasDrawableArt(tileset, furnitureId)) {
             return;
         }
-        tileset.findTile(furnitureId).ifPresent(tile -> drawCellTile(tile, drawX, drawY, tilePx));
+        tileset.findTile(furnitureId).ifPresent(tile -> drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly));
     }
 
-    private void drawCellTile(final TileDefinition tile, final float drawX, final float drawY, final float tilePx) {
+    private void drawCellTile(
+        final TileDefinition tile,
+        final float drawX,
+        final float drawY,
+        final float tilePx,
+        final boolean backgroundOnly
+    ) {
         final int pick = TileSpriteResolver.animationPickIndex(tile, animationTick, animationPlayback);
         final TextureRegion bg = TileSpriteResolver.resolveBackground(tileset, tile, pick, TilesetFxType.NONE);
         final TextureRegion fg = TileSpriteResolver.resolveForeground(tileset, tile, pick, TilesetFxType.NONE);
 
-        if (bg != null) {
-            drawLayer(tile, bg, drawX, drawY, tilePx);
+        if (backgroundOnly) {
+            if (bg != null) {
+                drawLayer(tile, bg, drawX, drawY, tilePx);
+            }
+            return;
         }
         if (fg != null) {
             drawLayer(tile, fg, drawX, drawY, tilePx);
@@ -814,16 +892,15 @@ public final class MapEditorScreen {
         final float drawY,
         final float tilePx
     ) {
-        final float baseTileW = tileset.getTileInfo().getWidth();
-        final float baseTileH = tileset.getTileInfo().getHeight();
-        final float tileScale = tilePx / Math.max(1f, baseTileW);
-        final float width = region.getRegionWidth() * tileScale;
-        final float height = region.getRegionHeight() * tileScale;
-        final float offsetX = tile.getOffsetX() * tileScale;
-        final float offsetY = tile.getOffsetY() * tileScale;
-        final float x = drawX + (baseTileW * tileScale - width) / 2f + offsetX;
-        final float y = drawY + (baseTileH * tileScale - height) / 2f + offsetY;
-        batch.draw(region, x, y, width, height);
+        final TileDrawMath.DrawRect rect = TileDrawMath.computeDrawRect(
+            tileset,
+            tile,
+            region,
+            drawX,
+            drawY,
+            tilePx
+        );
+        batch.draw(region, rect.x, rect.y, rect.width, rect.height);
     }
 
     private Optional<TileDefinition> findTileWithFallback(final String terrainId) {
@@ -840,27 +917,34 @@ public final class MapEditorScreen {
         final String cursor = hoverCellX >= 0
             ? formatCursorCell(hoverCellX, hoverCellY)
             : "—";
+        final String pieceLabel = formatHoveredPieceLabel();
         final String tilesetLine = formatTilesetLine();
         final String mapPath = currentMapPath.toAbsolutePath().normalize().toString();
         final String line1 = statusMessage;
         final String line2 = tilesetLine + "  |  map: " + mapPath;
-        final String line3 = "Grid " + grid.width() + "x" + grid.height()
+        final String line4 = "Grid " + grid.width() + "x" + grid.height()
             + buildingFloorHudSuffix()
-            + "  |  brush " + brush + "  |  cursor " + cursor
+            + "  |  brush " + brush
             + "  |  furniture " + (showFurnitureLayer ? "on" : "off")
             + "  |  tool " + toolbar.getActiveTool().name().toLowerCase()
             + "  |  zoom " + formatViewZoom();
-        final String line4 = "Toolbar: Paint / Pan / Pick / Mapgen — Ctrl+G import json mapgen";
-        final String line5 = pointerDebugLogging
+        final String line5 = "Toolbar: Paint / Pan / Pick / Mapgen — Ctrl+G import json mapgen";
+        final String line6 = pointerDebugLogging
             ? "F3 pointer debug ON — delta = mouse minus highlight center  |  Esc menu"
             : "[F] furniture  [P] anim  [G] grid  [[ ]] tileset  |  [/] floor  |  F3 debug  |  Esc menu";
 
         final int top = viewportPixelHeight() - HUD_MARGIN;
+        final float cursorLineY = top - 32;
         font.draw(batch, line1, HUD_MARGIN, top);
         font.draw(batch, line2, HUD_MARGIN, top - 16);
-        font.draw(batch, line3, HUD_MARGIN, top - 32);
+        font.draw(batch, "Cursor: " + cursor, HUD_MARGIN, cursorLineY);
+        if (!pieceLabel.isEmpty()) {
+            glyphLayout.setText(font, pieceLabel);
+            font.draw(batch, pieceLabel, canvasWidth() - HUD_MARGIN - glyphLayout.width, cursorLineY);
+        }
         font.draw(batch, line4, HUD_MARGIN, top - 48);
         font.draw(batch, line5, HUD_MARGIN, top - 64);
+        font.draw(batch, line6, HUD_MARGIN, top - 80);
     }
 
     private String buildingFloorHudSuffix() {
@@ -879,6 +963,52 @@ public final class MapEditorScreen {
             return x + "," + y + " = " + cell.getTerrainId() + " + " + furnitureId;
         }
         return x + "," + y + " = " + cell.getTerrainId();
+    }
+
+    private String formatHoveredPieceLabel() {
+        if (mapVolume == null || hoverCellX < 0 || hoverCellY < 0 || !isBuildingBundleView()) {
+            return "";
+        }
+        return resolveHoveredPieceId(hoverCellX, hoverCellY)
+            .map(id -> "Piece: " + id)
+            .orElse("");
+    }
+
+    private boolean isBuildingBundleView() {
+        if (mapVolume == null) {
+            return false;
+        }
+        if (mapVolume.floorCount() > 1) {
+            return true;
+        }
+        return mapVolume.getActivePieceLayouts().size() > 1;
+    }
+
+    private Optional<String> resolveHoveredPieceId(final int cellX, final int cellY) {
+        for (final OmtPieceRect piece : mapVolume.getActivePieceLayouts()) {
+            if (pieceContainsCell(piece, cellX, cellY)) {
+                return Optional.of(piece.getOvermapId());
+            }
+        }
+        if (activeBuilding == null) {
+            return Optional.empty();
+        }
+        final List<CityBuildingPiece> pieces = activeBuilding.piecesAtZ(mapVolume.getActiveZ());
+        if (pieces.size() == 1
+            && cellX >= 0
+            && cellY >= 0
+            && cellX < grid.width()
+            && cellY < grid.height()) {
+            return Optional.of(pieces.get(0).getOvermapId());
+        }
+        return Optional.empty();
+    }
+
+    private static boolean pieceContainsCell(final OmtPieceRect piece, final int cellX, final int cellY) {
+        return cellX >= piece.getOriginX()
+            && cellX < piece.getOriginX() + piece.getWidth()
+            && cellY >= piece.getOriginY()
+            && cellY < piece.getOriginY() + piece.getHeight();
     }
 
     private String formatTilesetLine() {
@@ -1108,12 +1238,18 @@ public final class MapEditorScreen {
 
     private void replaceGrid(final MapGrid source) {
         mapVolume = null;
+        activeBuilding = null;
         grid = new MapGrid(source.width(), source.height(), source.getDefaultTerrainId());
         copyGrid(source);
     }
 
     private void setMapVolume(final MapVolume volume) {
+        setMapVolume(volume, null);
+    }
+
+    private void setMapVolume(final MapVolume volume, final CityBuildingDefinition building) {
         mapVolume = volume;
+        activeBuilding = building;
         grid = volume.getActiveGrid();
         centerCamera();
     }
@@ -1127,7 +1263,12 @@ public final class MapEditorScreen {
             return;
         }
         mapVolume.setActiveZ(nextZ.get());
+        final int oldWidth = grid.width();
+        final int oldHeight = grid.height();
         grid = mapVolume.getActiveGrid();
+        if (grid.width() != oldWidth || grid.height() != oldHeight) {
+            centerCamera();
+        }
         statusMessage = "Building " + mapVolume.getBuildingId()
             + " — floor z=" + mapVolume.getActiveZ()
             + " (" + (mapVolume.activeFloorIndex() + 1) + "/" + mapVolume.floorCount() + ")";
@@ -1158,8 +1299,7 @@ public final class MapEditorScreen {
             } catch (final IOException e) {
                 Gdx.app.postRunnable(() -> {
                     loadingMapgenCatalog = false;
-                    statusMessage = "Mapgen load failed: " + e.getMessage();
-                    Gdx.app.error("mapgen", statusMessage, e);
+                    showImportFailed("Mapgen catalog load failed", "Could not load mapgen data.", e);
                 });
             }
         }, "mapgen-catalog-load").start();
@@ -1194,7 +1334,7 @@ public final class MapEditorScreen {
                 building,
                 new JsonMapgenRunOptions()
             );
-            setMapVolume(result.getVolume());
+            setMapVolume(result.getVolume(), building);
             statusMessage = "Building: " + building.getId()
                 + " — floor z=" + mapVolume.getActiveZ()
                 + " (" + mapVolume.floorCount() + " floors loaded)";
@@ -1206,9 +1346,14 @@ public final class MapEditorScreen {
             }
             logMapgenLoadWarnings();
         } catch (final RuntimeException e) {
-            statusMessage = "Building import failed: " + e.getMessage();
-            Gdx.app.error("mapgen", statusMessage, e);
+            showImportFailed("Building import failed", "Building: " + building.getId(), e);
         }
+    }
+
+    private void showImportFailed(final String title, final String headline, final Throwable error) {
+        statusMessage = title;
+        Gdx.app.error("mapgen", headline, error);
+        importFailedDialog.show(title, headline, error);
     }
 
     private void applyMapgenSelection(final JsonMapgenDefinition definition) {
@@ -1232,8 +1377,7 @@ public final class MapEditorScreen {
             }
             appendValidationSummary(runGameDataValidation(tileset));
         } catch (final RuntimeException e) {
-            statusMessage = "Mapgen failed: " + e.getMessage();
-            Gdx.app.error("mapgen", statusMessage, e);
+            showImportFailed("Mapgen import failed", "Mapgen: " + definition.displayName(), e);
         }
     }
 

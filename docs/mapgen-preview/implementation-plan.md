@@ -103,6 +103,37 @@ furniture after P4) with RetroDays or similar tileset beside BN data.
 
 **Success criterion:** `2StoryModern04` ground floor pan-able at 48×24 (sibling BN data).
 
+### P7a — Bundle discovery
+
+| Class | Responsibility |
+| --- | --- |
+| `BuildingBundleScanner` | Walk each mod content tree for `city_building` + static `overmap_special` |
+| `CityBuildingLoader` | Delegate to scanner; parse `city_building` objects |
+| `OvermapSpecialBuildingLoader` | Parse static specials; vertical stack grouping |
+
+**Tests:** `BuildingBundleScannerTest`, Arcana integration (`house_arcana` when mod present)
+
+### P7b — Implicit bundles — **done**
+
+| Class | Responsibility |
+| --- | --- |
+| `MapgenFileBundleInferrer` | Same-file mapgens with shared `om_terrain` prefix + floor suffixes |
+| `MapgenPreviewService` | `augment()` after explicit bundle scan |
+
+**Tests:** `MapgenFileBundleInferrerTest` (`implicit_cottage.json` fixture)
+
+**Spec:** [13](./13-building-bundle-sources.md) — P7b–P7c done
+
+### P7c — Whole static special — **done**
+
+| Class | Responsibility |
+| --- | --- |
+| `SpecialLayoutImporter` | Register multi-column `overmap_special` as one bundle (id = special id) |
+| `SpecialLayoutFloorComposer` | Combined ground mapgen + per-z placement via ground anchors |
+| `OmTerrainMapgenPlacer.blitAtReferenceCell` | Blit upper-floor mapgen at reference-grid cell |
+
+**Tests:** `SpecialLayoutFloorComposerTest` (`test_special_wide` fixture; `Farm_2side` integration)
+
 ---
 
 ## PR checklist

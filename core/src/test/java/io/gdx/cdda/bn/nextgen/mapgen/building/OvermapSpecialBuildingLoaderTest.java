@@ -39,7 +39,9 @@ class OvermapSpecialBuildingLoaderTest {
 
         assertEquals(3, volume.floorCount());
         assertEquals(5, volume.getGridAtZ(0).width());
-        assertEquals(3, volume.getGridAtZ(1).width());
+        assertEquals(5, volume.getGridAtZ(0).height());
+        assertEquals(5, volume.getGridAtZ(1).width());
+        assertEquals(5, volume.getGridAtZ(1).height());
     }
 
     @Test

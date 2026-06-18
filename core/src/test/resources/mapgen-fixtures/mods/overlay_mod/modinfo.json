@@ -1,0 +1,6 @@
+{
+  "type": "MOD_INFO",
+  "id": "overlay_mod",
+  "name": "Mapgen Fixture Overlay",
+  "path": "../../overlay_pack"
+}

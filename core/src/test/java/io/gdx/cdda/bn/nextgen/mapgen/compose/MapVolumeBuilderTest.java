@@ -5,6 +5,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenTestFixtures;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingPiece;
 
 import org.junit.jupiter.api.Test;
 
@@ -68,5 +69,28 @@ class MapVolumeBuilderTest {
         assertEquals(2, layouts.size());
         assertEquals(0, layouts.get(0).getOriginX());
         assertEquals(OmtStitchComposer.DEFAULT_OMT_SIZE, layouts.get(1).getOriginX());
+    }
+
+    @Test
+    void usesFirstBuiltZWhenReferenceFloorFails() throws Exception {
+        final MapgenPreviewService service = new MapgenPreviewService();
+        service.ensureLoaded(MapgenScanOptions.fromDataRoot(MapgenTestFixtures.fixtureDataRoot()));
+
+        final CityBuildingDefinition building = new CityBuildingDefinition(
+            "test_missing_ground",
+            null,
+            List.of(
+                new CityBuildingPiece(2, 1, 0, "nonexistent_ground_terrain"),
+                new CityBuildingPiece(0, 0, 1, "test_duplex_roof_north")
+            )
+        );
+
+        final MapgenPreviewService.MapgenBuildingResult result = service.generateBuilding(building, null);
+        final MapVolume volume = result.getVolume();
+
+        assertEquals(1, volume.floorCount());
+        assertEquals(1, volume.getActiveZ());
+        assertEquals("t_wall", volume.getActiveGrid().get(1, 1).getTerrainId());
+        assertTrue(result.getRunWarnings().stream().anyMatch(w -> w.contains("floor z=0 could not be built")));
     }
 }

@@ -68,7 +68,7 @@ Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (not full worldg
 | Spec index | `docs/mapgen-preview/README.md` |
 | Implementation plan | `docs/mapgen-preview/implementation-plan.md` |
 
-**PR slices:** P1–P6 done (… → furniture → building floors → OMT stitch). Next: v2 parity — [08-v2-parity-roadmap](docs/mapgen-preview/08-v2-parity-roadmap.md).
+**PR slices:** P1–P7c done (… → OMT stitch → bundle discovery → implicit bundles → whole special). Next: v2 mapgen parity — [08-v2-parity-roadmap](docs/mapgen-preview/08-v2-parity-roadmap.md).
 
 | Docs index | `docs/README.md` |
 
@@ -148,7 +148,7 @@ gradlew.bat test
 
 **Map editor:** M1–M4 done — `docs/map-editor/implementation-plan.md`.
 
-**Mapgen preview:** P1–P6 done; see `docs/mapgen-preview/implementation-plan.md` for v2 items.
+**Mapgen preview:** P1–P7c done; see `docs/mapgen-preview/implementation-plan.md` for v2 items.
 
 Sprite viewer follow-ups: search, detail pane. Gfx: draw-time seasonal/tint/warp.
 

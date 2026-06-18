@@ -1,0 +1,49 @@
+[
+  {
+    "type": "palette",
+    "id": "alt_layout_palette",
+    "terrain": {
+      ".": "t_floor",
+      "#": "t_wall"
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ "alt_layout_ground" ],
+    "object": {
+      "fill_ter": "t_floor",
+      "rows": [
+        ".....",
+        ".#.#.",
+        "....."
+      ],
+      "palettes": [ "alt_layout_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ "alt_layout_roof" ],
+    "object": {
+      "fill_ter": "t_shingle_flat_roof",
+      "rows": [
+        ".....",
+        ".###.",
+        "....."
+      ],
+      "palettes": [ "alt_layout_palette" ],
+      "terrain": { "#": "t_shingle_flat_roof" }
+    }
+  },
+  {
+    "type": "overmap_special",
+    "id": "alt_layout_duplex",
+    "overmaps": [
+      { "point": [ -1, 0, 0 ], "overmap": "alt_layout_ground_north" },
+      { "point": [ 0, 0, 0 ], "overmap": "alt_layout_ground_north" },
+      { "point": [ -1, 0, 1 ], "overmap": "alt_layout_roof_north" },
+      { "point": [ 0, 0, 1 ], "overmap": "alt_layout_roof_north" }
+    ]
+  }
+]

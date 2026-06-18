@@ -7,6 +7,7 @@ import io.gdx.cdda.bn.nextgen.gamedata.model.ModRegistry;
 import io.gdx.cdda.bn.nextgen.gamedata.parse.JsonDataObject;
 import io.gdx.cdda.bn.nextgen.gamedata.parse.JsonDataScanner;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions;
+import io.gdx.cdda.bn.nextgen.mapgen.MapgenScanRoots;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,7 +20,6 @@ import java.util.List;
 public final class JsonMapgenLoader {
 
     private static final String MAPGEN_TYPE = "mapgen";
-    private static final String MAPGEN_DIR = "mapgen";
 
     private JsonMapgenLoader() {}
 
@@ -36,7 +36,10 @@ public final class JsonMapgenLoader {
                 continue;
             }
             if (options.isIncludeMapgenTree()) {
-                loadFromTree(modInfo.getResolvedContentPath().resolve(MAPGEN_DIR), definitions, warnings);
+                final Path contentRoot = modInfo.getResolvedContentPath();
+                for (final String dir : MapgenScanRoots.mapgenDirs()) {
+                    loadFromTree(contentRoot.resolve(dir), definitions, warnings);
+                }
             }
         }
 

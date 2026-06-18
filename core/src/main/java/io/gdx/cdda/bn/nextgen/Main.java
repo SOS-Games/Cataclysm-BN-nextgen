@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetDiscovery;
 import io.gdx.cdda.bn.nextgen.view.MainMenuScreen;
 import io.gdx.cdda.bn.nextgen.view.MapEditorScreen;
+import io.gdx.cdda.bn.nextgen.view.ModConfigScreen;
 import io.gdx.cdda.bn.nextgen.view.TileDisplayScreen;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
@@ -16,12 +17,14 @@ public class Main extends ApplicationAdapter {
 
     private enum Mode {
         MENU,
+        MOD_CONFIG,
         VIEWER,
         EDITOR
     }
 
     private SpriteBatch batch;
     private MainMenuScreen menu;
+    private ModConfigScreen modConfig;
     private TileDisplayScreen tileDisplay;
     private MapEditorScreen mapEditor;
     private Mode mode = Mode.MENU;
@@ -29,7 +32,7 @@ public class Main extends ApplicationAdapter {
     @Override
     public void create() {
         batch = new SpriteBatch();
-        menu = new MainMenuScreen(batch, this::openSpriteViewer, this::openMapEditor);
+        menu = new MainMenuScreen(batch, this::openSpriteViewer, this::openMapEditor, this::openModConfig);
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
             public boolean keyDown(final int keycode) {
@@ -47,6 +50,9 @@ public class Main extends ApplicationAdapter {
                 if (mode == Mode.MENU) {
                     return menu.onKeyDown(keycode);
                 }
+                if (mode == Mode.MOD_CONFIG) {
+                    return modConfig.onKeyDown(keycode);
+                }
                 if (mode == Mode.EDITOR) {
                     return mapEditor.onKeyDown(keycode);
                 }
@@ -55,6 +61,9 @@ public class Main extends ApplicationAdapter {
 
             @Override
             public boolean keyTyped(final char character) {
+                if (mode == Mode.MOD_CONFIG) {
+                    return modConfig.onKeyTyped(character);
+                }
                 if (mode == Mode.EDITOR) {
                     return mapEditor.onKeyTyped(character);
                 }
@@ -63,6 +72,9 @@ public class Main extends ApplicationAdapter {
 
             @Override
             public boolean scrolled(final float amountX, final float amountY) {
+                if (mode == Mode.MOD_CONFIG) {
+                    return modConfig.onScroll(amountY);
+                }
                 if (mode == Mode.EDITOR) {
                     return mapEditor.onScroll(amountY);
                 }
@@ -76,6 +88,9 @@ public class Main extends ApplicationAdapter {
             public boolean touchDown(final int screenX, final int screenY, final int pointer, final int button) {
                 if (mode == Mode.MENU) {
                     return menu.onTouchDown(screenX, screenY);
+                }
+                if (mode == Mode.MOD_CONFIG) {
+                    return modConfig.onTouchDown(screenX, screenY);
                 }
                 if (mode == Mode.EDITOR) {
                     return mapEditor.onTouchDown(screenX, screenY, button);
@@ -117,6 +132,9 @@ public class Main extends ApplicationAdapter {
         switch (mode) {
             case MENU:
                 menu.render();
+                break;
+            case MOD_CONFIG:
+                modConfig.render();
                 break;
             case EDITOR:
                 mapEditor.render();
@@ -160,12 +178,22 @@ public class Main extends ApplicationAdapter {
         mode = Mode.EDITOR;
     }
 
+    private void openModConfig() {
+        disposeChildScreens();
+        modConfig = new ModConfigScreen(batch, this::returnToMenu);
+        mode = Mode.MOD_CONFIG;
+    }
+
     private void returnToMenu() {
         disposeChildScreens();
         mode = Mode.MENU;
     }
 
     private void disposeChildScreens() {
+        if (modConfig != null) {
+            modConfig.dispose();
+            modConfig = null;
+        }
         if (mapEditor != null) {
             mapEditor.dispose();
             mapEditor = null;

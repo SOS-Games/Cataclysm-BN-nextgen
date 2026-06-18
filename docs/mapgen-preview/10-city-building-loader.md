@@ -7,17 +7,21 @@ Load BN **`city_building`** metadata and resolve each piece to a `JsonMapgenDefi
 
 ## Purpose
 
-Bridge `multitile_city_buildings.json` → list of **pieces** (z, OMT offset, mapgen def) for
+Bridge BN **`city_building`** metadata → list of **pieces** (z, OMT offset, mapgen def) for
 `MapVolumeBuilder` ([11](./11-map-volume-and-floors.md)) and `OmtStitchComposer`
 ([12](./12-omt-stitch-composer.md)).
+
+**P7a:** `BuildingBundleScanner` walks **all** JSON under each mod content path (not only
+`multitile*.json`). See [13](./13-building-bundle-sources.md).
 
 ---
 
 ## On-disk input
 
 ```text
-data/json/overmap/multitile_city_buildings.json   # array of city_building objects
-data/json/overmap/overmap_terrain/*.json        # optional — mapgen / id lists
+data/json/overmap/multitile_city_buildings.json   # core multitile defs
+mods/**/regional_overlay.json                   # e.g. Arcana city_building
+mods/**/overmap/**/*.json                       # e.g. DinoMod zoo layout
 ```
 
 Only objects with `"type": "city_building"` are indexed. Other types in the same file (if any)

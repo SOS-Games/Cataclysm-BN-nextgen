@@ -1,0 +1,6 @@
+{
+  "type": "MOD_INFO",
+  "id": "alt_mapgen_mod",
+  "name": "Alt layout mapgen fixture",
+  "path": "."
+}

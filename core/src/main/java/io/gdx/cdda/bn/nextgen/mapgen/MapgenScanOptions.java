@@ -1,7 +1,7 @@
 package io.gdx.cdda.bn.nextgen.mapgen;
 
-import io.gdx.cdda.bn.nextgen.DefaultContent;
 import io.gdx.cdda.bn.nextgen.gamedata.DataPaths;
+import io.gdx.cdda.bn.nextgen.gamedata.mod.ModConfiguration;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -36,7 +36,7 @@ public final class MapgenScanOptions {
     public static MapgenScanOptions defaults() {
         return new MapgenScanOptions(
             DataPaths.gameDataRoots(),
-            DefaultContent.defaultModIds(),
+            ModConfiguration.activeModIds(),
             true,
             true,
             false

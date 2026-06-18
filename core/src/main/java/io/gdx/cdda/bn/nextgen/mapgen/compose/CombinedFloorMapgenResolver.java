@@ -39,32 +39,60 @@ public final class CombinedFloorMapgenResolver {
     }
 
     private static boolean gridMatchesPieces(final List<CityBuildingPiece> pieces, final OmTerrainGrid grid) {
+        final int minX = minOffsetX(pieces);
         final int maxX = maxOffsetX(pieces);
+        final int minY = minOffsetY(pieces);
         final int maxY = maxOffsetY(pieces);
-        if (grid.width() != maxX + 1 || grid.height() != maxY + 1) {
+        final int footprintW = maxX - minX + 1;
+        final int footprintH = maxY - minY + 1;
+        if (grid.width() != footprintW || grid.height() != footprintH) {
             return false;
         }
-        // BN om_terrain grids vary: some list west→east (2StoryModern04), others east→west (test_nested).
-        return gridMatchesPiecesWithAxis(pieces, grid, maxX, maxY, false)
-            || gridMatchesPiecesWithAxis(pieces, grid, maxX, maxY, true);
+        return gridMatchesPiecesWithAxis(pieces, grid, minX, maxX, minY, maxY, false)
+            || gridMatchesPiecesWithAxis(pieces, grid, minX, maxX, minY, maxY, true);
     }
 
     private static boolean gridMatchesPiecesWithAxis(
         final List<CityBuildingPiece> pieces,
         final OmTerrainGrid grid,
+        final int minX,
         final int maxX,
+        final int minY,
         final int maxY,
         final boolean flip
     ) {
         for (final CityBuildingPiece piece : pieces) {
             final String expected = OvermapTerrainResolver.stripRotation(piece.getOvermapId());
-            final int col = flip ? maxX - piece.getOffsetX() : piece.getOffsetX();
-            final int row = flip ? maxY - piece.getOffsetY() : piece.getOffsetY();
+            final int col = flip
+                ? maxX - piece.getOffsetX()
+                : piece.getOffsetX() - minX;
+            final int row = flip
+                ? maxY - piece.getOffsetY()
+                : piece.getOffsetY() - minY;
+            if (col < 0 || row < 0 || col >= grid.width() || row >= grid.height()) {
+                return false;
+            }
             if (!expected.equals(grid.get(row, col))) {
                 return false;
             }
         }
         return true;
+    }
+
+    private static int minOffsetX(final List<CityBuildingPiece> pieces) {
+        int min = Integer.MAX_VALUE;
+        for (final CityBuildingPiece piece : pieces) {
+            min = Math.min(min, piece.getOffsetX());
+        }
+        return min == Integer.MAX_VALUE ? 0 : min;
+    }
+
+    private static int minOffsetY(final List<CityBuildingPiece> pieces) {
+        int min = Integer.MAX_VALUE;
+        for (final CityBuildingPiece piece : pieces) {
+            min = Math.min(min, piece.getOffsetY());
+        }
+        return min == Integer.MAX_VALUE ? 0 : min;
     }
 
     private static int maxOffsetX(final List<CityBuildingPiece> pieces) {

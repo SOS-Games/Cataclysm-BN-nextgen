@@ -345,21 +345,21 @@ public final class MapPalettePanel {
         final SpriteBatch batch,
         final TileDefinition tile,
         final TextureRegion region,
-        final float x,
-        final float y
+        final float cellLeft,
+        final float cellBottom
     ) {
-        if (region == null) {
+        if (region == null || tileset == null) {
             return;
         }
-        final float baseTileW = tileset.getTileInfo().getWidth();
-        final float scale = PREVIEW_SIZE / Math.max(1f, baseTileW);
-        final float width = region.getRegionWidth() * scale;
-        final float height = region.getRegionHeight() * scale;
-        final float offsetX = tile.getOffsetX() * scale;
-        final float offsetY = tile.getOffsetY() * scale;
-        final float drawX = x + (PREVIEW_SIZE - width) / 2f + offsetX;
-        final float drawY = y + (PREVIEW_SIZE - height) / 2f + offsetY;
-        batch.draw(region, drawX, drawY, width, height);
+        final TileDrawMath.DrawRect rect = TileDrawMath.computeDrawRect(
+            tileset,
+            tile,
+            region,
+            cellLeft,
+            cellBottom,
+            PREVIEW_SIZE
+        );
+        batch.draw(region, rect.x, rect.y, rect.width, rect.height);
     }
 
     private String formatLabel(final String id) {

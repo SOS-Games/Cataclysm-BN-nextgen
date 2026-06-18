@@ -5,6 +5,7 @@ import io.gdx.cdda.bn.nextgen.map.MapGrid;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingLoader;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingRegistry;
+import io.gdx.cdda.bn.nextgen.mapgen.building.MapgenFileBundleInferrer;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolumeBuilder;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolumeBuilder.MapVolumeBuildResult;
@@ -80,7 +81,10 @@ public final class MapgenPreviewService {
         catalog = catalogResult.getCatalog();
         warnings.addAll(catalogResult.getWarnings());
 
-        cityBuildings = CityBuildingLoader.load(scanOptions).withOmTerrainIndex(catalog);
+        cityBuildings = MapgenFileBundleInferrer.augment(
+            CityBuildingLoader.load(scanOptions),
+            catalog
+        );
         warnings.addAll(cityBuildings.getWarnings());
 
         pickerIndex = MapgenPickerIndex.build(catalog, cityBuildings);

@@ -11,13 +11,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-/** Builds multi-floor bundles from BN {@code overmap_special} vertical stacks (P5 extension). */
+/** Builds multi-floor bundles from BN static {@code overmap_special} vertical stacks (P5 / P7a). */
 public final class OvermapSpecialBuildingLoader {
 
     private static final String OVERMAP_SPECIAL_TYPE = "overmap_special";
@@ -26,6 +25,8 @@ public final class OvermapSpecialBuildingLoader {
 
     private OvermapSpecialBuildingLoader() {}
 
+    /** @deprecated use {@link BuildingBundleScanner}; kept for narrow scans in tests if needed */
+    @Deprecated
     public static void loadFromOvermapTree(
         final Path overmapRoot,
         final Map<String, CityBuildingDefinition> byId,
@@ -70,7 +71,7 @@ public final class OvermapSpecialBuildingLoader {
         }
     }
 
-    private static void parseSpecial(
+    static void parseSpecial(
         final JsonValue root,
         final Path sourceFile,
         final Map<String, CityBuildingDefinition> byId,
@@ -102,6 +103,7 @@ public final class OvermapSpecialBuildingLoader {
         for (final List<CityBuildingPiece> stack : stacksByOmt.values()) {
             registerVerticalStack(stack, specialId, sourceFile, byId, warnings);
         }
+        SpecialLayoutImporter.registerIfMultiColumn(specialId, pieces, sourceFile, byId);
     }
 
     private static void registerVerticalStack(

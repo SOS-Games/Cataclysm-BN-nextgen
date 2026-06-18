@@ -54,10 +54,10 @@ BN does **not** use one JSON type for all of this. The game stitches pieces at *
 | `[1]` | OMT offset Y (south) |
 | `[2]` | Z-level |
 
-**Nextgen:** `CityBuildingLoader` → full bundle (multi-floor + multi-OMT stitch via P6).
+**Nextgen:** `BuildingBundleScanner` (P7a) walks each mod's content tree for `city_building` and static
+`overmap_special`. Previously only `overmap/multitile*.json` and `overmap_special/` subdirs were scanned.
 
-**Gap:** loader only scans `overmap/multitile*.json`. `city_building` in other paths (e.g. mod
-`regional_overlay.json`) is **not** indexed yet.
+**Gap (P7b+):** same-file / suffix heuristics for orphans without metadata.
 
 ---
 
@@ -77,15 +77,12 @@ Example — `Farm_2side` stack at one OMT column:
 …
 ```
 
-**Nextgen:** `OvermapSpecialBuildingLoader` groups pieces by `(offsetX, offsetY)`. If more than
-one **distinct z** at that column → synthetic bundle with id = ground-floor `om_terrain`
-(strip rotation), pieces normalized to `(0, 0, z)`.
+**Nextgen:** `BuildingBundleScanner` (P7a) indexes static specials from any mod JSON path. Vertical
+stacks at one `(x, y)` still become synthetic bundles (id = ground-floor `om_terrain`).
 
-**Does not import:** the whole special (e.g. entire `Farm_2side` grid). Only **one vertical
-column** per bundle id.
+**Does not import:** mutable / procedural specials. Multi-column static specials register **both** per-column stacks (e.g. `2farm_4`) **and** the whole special id (e.g. `Farm_2side`) when ≥2 OMT columns.
 
-**Gap:** specials outside `overmap/overmap_special/` and `overmap/overmap_mutable/` (e.g.
-`mods/innawoods/specials.json`) are **not** scanned.
+**Gap:** Innawoods-style `copy-from` stubs without `overmaps` arrays still produce no bundle.
 
 ---
 
@@ -126,10 +123,8 @@ floor (not per-wing stitch).
 Example: `house_2story.json` — `house_2story_base`, `_second`, `_roof`, `_basement` as separate
 entries in one array file.
 
-**Nextgen:** bundled only when also listed in `city_building` or a vertical `overmap_special`
-stack. **No** inference from file co-location alone.
-
-**Gap:** optional heuristic — “all json mapgens in this file with shared prefix → one bundle”.
+**Nextgen:** bundled when listed in `city_building` / vertical `overmap_special`, or inferred (P7b)
+from same-file shared-prefix mapgens with floor suffixes.
 
 ---
 
@@ -144,9 +139,8 @@ Common floor suffixes (not a JSON type):
 | `_basement` | `house_2story_basement` |
 | `_1`, `_2`, … | `2farm_6_1`, `2farm_6_2` |
 
-**Nextgen:** no suffix-based grouping unless tied by `city_building` / `overmap_special`.
-
-**Gap:** prefix/suffix heuristic for orphan mapgens (lower priority than broadening scans).
+**Nextgen:** suffix grouping via P7b when mapgens share a file and prefix; otherwise only via
+`city_building` / `overmap_special`.
 
 ---
 
@@ -180,13 +174,11 @@ See [01-overview-and-scope](./01-overview-and-scope.md) and [08-v2-parity-roadma
 ## What nextgen loads today
 
 ```text
-CityBuildingLoader.load()
-    scan overmap/multitile*.json
+BuildingBundleScanner.load()   # P7a
+    walk each mod content tree (*.json)
         → type: city_building
-    OvermapSpecialBuildingLoader.loadFromOvermapTree()
-        scan overmap/overmap_special/** , overmap/overmap_mutable/**
-        → static overmaps[] only
-        → per (x,y) column with |z| > 1 → synthetic CityBuildingDefinition
+        → type: overmap_special (static overmaps[] only)
+    OvermapSpecialBuildingLoader groups vertical stacks per (x,y)
 
 MapVolumeBuilder.build()
     per z:
@@ -202,31 +194,33 @@ MapVolumeBuilder.build()
 | `overmap_special` vertical stack | ✓ | — (single column) | — |
 | Nested `om_terrain` mapgen | — | ✓ (per floor) | — |
 | Mutable `overmap_special` | — | — | — |
-| Same-file / suffix heuristic | — | — | — |
+| Same-file / suffix heuristic | ✓ (P7b) | — | — |
 
 ---
 
 ## Known gaps (prioritized)
 
-### P7a — Broaden scans (high value)
+### P7a — Broaden scans (high value) — **done**
 
-| Gap | Example | Suggested fix |
+| Gap | Example | Fix |
 | --- | --- | --- |
-| `city_building` not in `multitile*.json` | Arcana `regional_overlay.json` | Scan all `overmap/**/*.json` for `type: city_building` |
-| `overmap_special` non-standard path | Innawoods `specials.json` | Scan all mod JSON for `type: overmap_special` or honor mod layout in modinfo |
+| `city_building` not in `multitile*.json` | Arcana `regional_overlay.json`, DinoMod zoo | `BuildingBundleScanner` walks mod content |
+| `overmap_special` non-standard path | Mod-root `specials.json` with `overmaps[]` | Same full-mod scan |
 
-### P7b — Implicit bundles (medium)
+### P7b — Implicit bundles (medium) — **done**
 
-| Gap | Suggested fix |
+| Gap | Fix |
 | --- | --- |
-| Mapgens in one file, shared prefix | `MapgenFileBundleInferrer` from catalog |
-| `base` + `base_roof` without metadata | Suffix rules with catalog validation |
+| Mapgens in one file, shared prefix | `MapgenFileBundleInferrer` groups runnable json mapgens per file |
+| `base` + `base_roof` without metadata | Floor suffix rules (`_base`, `_roof`, `_basement`, `_second`, …) |
 
-### P7c — Whole static special (large)
+Explicit `city_building` / claimed `om_terrain` always wins over inference.
 
-| Gap | Suggested fix |
+### P7c — Whole static special (large) — **done**
+
+| Gap | Fix |
 | --- | --- |
-| Import full `Farm_2side`, malls, labs | “Import special” — stitch all `(x,y,z)` pieces into one volume or per-floor mega-grid |
+| Import full `Farm_2side`, malls, labs | `SpecialLayoutImporter` + `SpecialLayoutFloorComposer` — combined ground mapgen, upper floors anchored to ground `om_terrain` cells |
 
 ### v2 — Mapgen + procedural
 
@@ -257,11 +251,12 @@ Row label: building id + `(N floors, multi-tile WxH)` from [10](./10-city-buildi
 
 ```text
 mapgen/building/
-  CityBuildingLoader.java           # multitile*.json today
-  OvermapSpecialBuildingLoader.java # vertical stacks
-  BuildingBundleScanner.java        # P7a — unified scan orchestration (optional)
-  MapgenFileBundleInferrer.java     # P7b — same-file / suffix (optional)
-  SpecialLayoutImporter.java        # P7c — full static special (optional)
+  BuildingBundleScanner.java        # P7a — full mod JSON scan
+  CityBuildingLoader.java           # parse city_building
+  OvermapSpecialBuildingLoader.java # vertical stacks from static specials
+  MapgenFileBundleInferrer.java     # P7b — same-file / suffix inference
+  SpecialLayoutImporter.java        # P7c — full static special bundles
+  SpecialLayoutFloorComposer.java   # P7c — per-floor mega-grid compose
 ```
 
 ---
@@ -285,7 +280,7 @@ mapgen/building/
 1. `house_09` — `city_building`, 3 floors, picker collapsed
 2. `2farm_6` — `overmap_special` stack, ≥4 floors, not in `city_building`
 3. `apartments_con_new` — nested `om_terrain`, multi-OMT + multi-floor
-4. Arcana / Innawoods bundles — **fail today**, pass after P7a scan broadening
+4. Arcana / mod-root specials — **pass** after P7a (`house_arcana`, `test_regional_house` fixtures)
 5. `Anthill` mutable special — remains unsupported (no false bundle)
 
 ---

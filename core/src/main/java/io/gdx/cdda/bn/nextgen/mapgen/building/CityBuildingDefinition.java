@@ -9,18 +9,34 @@ import java.util.TreeSet;
 /** Parsed {@code type: city_building} with OMT layout metadata (P5). */
 public final class CityBuildingDefinition {
 
+    public enum LayoutKind {
+        STANDARD,
+        OVERMAP_SPECIAL_WHOLE
+    }
+
     private final String id;
     private final Path sourceFile;
     private final List<CityBuildingPiece> pieces;
+    private final LayoutKind layoutKind;
 
     public CityBuildingDefinition(
         final String id,
         final Path sourceFile,
         final List<CityBuildingPiece> pieces
     ) {
+        this(id, sourceFile, pieces, LayoutKind.STANDARD);
+    }
+
+    public CityBuildingDefinition(
+        final String id,
+        final Path sourceFile,
+        final List<CityBuildingPiece> pieces,
+        final LayoutKind layoutKind
+    ) {
         this.id = id;
         this.sourceFile = sourceFile;
         this.pieces = Collections.unmodifiableList(new ArrayList<>(pieces));
+        this.layoutKind = layoutKind == null ? LayoutKind.STANDARD : layoutKind;
     }
 
     public String getId() {
@@ -33,6 +49,14 @@ public final class CityBuildingDefinition {
 
     public List<CityBuildingPiece> getPieces() {
         return pieces;
+    }
+
+    public LayoutKind getLayoutKind() {
+        return layoutKind;
+    }
+
+    public boolean isWholeOvermapSpecial() {
+        return layoutKind == LayoutKind.OVERMAP_SPECIAL_WHOLE;
     }
 
     public List<Integer> distinctZLevels() {

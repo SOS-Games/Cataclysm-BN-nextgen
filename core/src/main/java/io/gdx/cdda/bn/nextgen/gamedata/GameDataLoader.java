@@ -1,6 +1,6 @@
 package io.gdx.cdda.bn.nextgen.gamedata;
 
-import io.gdx.cdda.bn.nextgen.DefaultContent;
+import io.gdx.cdda.bn.nextgen.gamedata.mod.ModConfiguration;
 import io.gdx.cdda.bn.nextgen.gamedata.load.GameDataLoadOptions;
 import io.gdx.cdda.bn.nextgen.gamedata.model.FurnitureRegistry;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
@@ -54,7 +54,7 @@ public final class GameDataLoader {
 
     /** Core load plus BN {@code mods/default.json} when present (G5). */
     public static LoadedGameData loadCore(final GameDataLoadOptions options) throws IOException {
-        return loadMods(DefaultContent.defaultModIdsForRoots(options.getDataRoots()), options);
+        return loadMods(ModConfiguration.activeModIdsForRoots(options.getDataRoots()), options);
     }
 
     /** Loads terrain/furniture from an ordered mod list with BN override semantics (G5). */
