@@ -2,6 +2,7 @@ package io.gdx.cdda.bn.nextgen.mapgen.compose;
 
 import io.gdx.cdda.bn.nextgen.map.MapCell;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.map.MapGridRotator;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingPiece;
 import io.gdx.cdda.bn.nextgen.mapgen.building.OvermapTerrainResolver;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
@@ -76,7 +77,14 @@ public final class OmtStitchComposer {
                 warnings.add("unsupported mapgen for overmap '" + piece.getOvermapId() + "'");
                 continue;
             }
-            final MapGrid grid = JsonMapgenRunner.run(definition.get(), palettes, options);
+            final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
+                MapGridRotator.rotationForBuildingPiece(
+                    piece.getOvermapId(),
+                    definition.get().getOmTerrainGrid().isPresent()
+                )
+            );
+            final MapGrid grid = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
+            warnings.addAll(pieceOptions.getWarnings());
             resolvedPieces.add(new ResolvedPiece(piece, definition.get(), grid));
         }
 

@@ -1,0 +1,23 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_region_setmap",
+    "object": {
+      "fill_ter": "t_grass",
+      "rows": [
+        ".....",
+        ".....",
+        "....."
+      ],
+      "set": [
+        {
+          "point": "terrain",
+          "id": "t_region_groundcover_barren",
+          "x": 1,
+          "y": 1
+        }
+      ]
+    }
+  }
+]

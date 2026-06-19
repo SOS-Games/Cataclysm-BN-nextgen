@@ -1,0 +1,10 @@
+{
+  "type": "palette",
+  "id": "translate_palette",
+  "terrain": {
+    "a": "t_floor"
+  },
+  "translate": {
+    "A": "a"
+  }
+}

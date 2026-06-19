@@ -1,0 +1,35 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_rotation_asymmetric",
+    "object": {
+      "fill_ter": "t_floor",
+      "rotation": 1,
+      "rows": [
+        "L....",
+        ".....",
+        "....."
+      ],
+      "terrain": {
+        "L": "t_wall"
+      }
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_rotation_asymmetric_base",
+    "object": {
+      "fill_ter": "t_floor",
+      "rows": [
+        "L....",
+        ".....",
+        "....."
+      ],
+      "terrain": {
+        "L": "t_wall"
+      }
+    }
+  }
+]

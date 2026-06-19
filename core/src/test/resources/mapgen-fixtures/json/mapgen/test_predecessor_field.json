@@ -1,0 +1,50 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_field_bg",
+    "object": {
+      "fill_ter": "t_grass",
+      "rows": [
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        ",
+        "                        "
+      ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_house_on_field",
+    "object": {
+      "predecessor_mapgen": "test_field_bg",
+      "palettes": [ "minimal" ],
+      "rows": [
+        "#####",
+        "#...#",
+        "#####"
+      ]
+    }
+  }
+]

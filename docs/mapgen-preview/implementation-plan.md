@@ -219,5 +219,6 @@ Match [AGENTS.md](../../AGENTS.md):
 ## Related
 
 - [MAPGEN_PREVIEW.md](../MAPGEN_PREVIEW.md)
+- [v2-implementation-plan.md](./v2-implementation-plan.md)
 - [08-v2-parity-roadmap.md](./08-v2-parity-roadmap.md)
 - [09-building-bundles-overview.md](./09-building-bundles-overview.md)

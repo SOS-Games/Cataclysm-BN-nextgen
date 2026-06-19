@@ -68,7 +68,7 @@ Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (not full worldg
 | Spec index | `docs/mapgen-preview/README.md` |
 | Implementation plan | `docs/mapgen-preview/implementation-plan.md` |
 
-**PR slices:** P1–P7c done (… → OMT stitch → bundle discovery → implicit bundles → whole special). Next: v2 mapgen parity — [08-v2-parity-roadmap](docs/mapgen-preview/08-v2-parity-roadmap.md).
+**PR slices:** P1–P7c done (… → OMT stitch → bundle discovery → implicit bundles → whole special). **v2:** [v2-implementation-plan](docs/mapgen-preview/v2-implementation-plan.md) (P8 done → P9 setmap next). Index: [08-v2-parity-roadmap](docs/mapgen-preview/08-v2-parity-roadmap.md), units [14–21](docs/mapgen-preview/14-mod-scan-paths.md).
 
 | Docs index | `docs/README.md` |
 

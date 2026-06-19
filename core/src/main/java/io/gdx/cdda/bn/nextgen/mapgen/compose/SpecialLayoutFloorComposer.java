@@ -1,6 +1,7 @@
 package io.gdx.cdda.bn.nextgen.mapgen.compose;
 
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.map.MapGridRotator;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingPiece;
 import io.gdx.cdda.bn.nextgen.mapgen.building.OvermapTerrainResolver;
@@ -63,7 +64,7 @@ public final class SpecialLayoutFloorComposer {
 
         final JsonMapgenDefinition groundDefinition = combinedGround.get().definition;
         final OmTerrainGrid referenceOmGrid = combinedGround.get().grid;
-        final MapGrid referenceGrid = JsonMapgenRunner.run(groundDefinition, palettes, options);
+        final MapGrid referenceGrid = JsonMapgenRunner.run(groundDefinition, catalog, palettes, options);
         final Map<String, OmTerrainMapgenPlacer.GridCell> groundAnchors =
             buildGroundAnchors(groundPieces, referenceOmGrid, warnings);
 
@@ -155,7 +156,14 @@ public final class SpecialLayoutFloorComposer {
                 continue;
             }
 
-            final MapGrid source = JsonMapgenRunner.run(definition.get(), palettes, options);
+            final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
+                MapGridRotator.rotationForBuildingPiece(
+                    piece.getOvermapId(),
+                    definition.get().getOmTerrainGrid().isPresent()
+                )
+            );
+            final MapGrid source = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
+            warnings.addAll(pieceOptions.getWarnings());
             final Optional<OmTerrainGrid> sourceOmGrid = definition.get().getOmTerrainGrid();
             if (!sourceOmGrid.isPresent()) {
                 warnings.add("mapgen for '" + piece.getOvermapId() + "' has no om_terrain grid at z=" + zLevel);

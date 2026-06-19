@@ -1,0 +1,17 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_region_fill",
+    "object": {
+      "fill_ter": "t_region_groundcover",
+      "rows": [
+        ".....",
+        ".....",
+        ".....",
+        ".....",
+        "....."
+      ]
+    }
+  }
+]

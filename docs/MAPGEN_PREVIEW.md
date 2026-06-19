@@ -30,8 +30,13 @@ Bundle types and gaps: [13-building-bundle-sources](./mapgen-preview/13-building
 
 ```text
 ../Cataclysm-BN/data/json/
-  mapgen_palettes/*.json  ──► PaletteRegistry
-  mapgen/**/*.json        ──► MapgenCatalog
+  mapgen_palettes/*.json       ──► PaletteRegistry
+  mapgen/**/*.json             ──► MapgenCatalog
+
+mods/<mod>/
+  mapgen/                      ──► (same loaders)
+  overmap_and_mapgen/          ──► PaletteRegistry + MapgenCatalog  (P8)
+```
 
 User picks JsonMapgenDefinition (e.g. house_09)
   JsonMapgenRunner        ──► MapGrid (terrain + furniture per cell)
@@ -93,7 +98,25 @@ Package root: `io.gdx.cdda.bn.nextgen.mapgen`
 | Furniture layer render | **P4** | done |
 | Building bundle + floor switch | **P5** | done |
 | Multi-OMT stitch per floor | **P6** | done |
+| Bundle discovery + whole specials | **P7** | done |
 | Full overmap / worldgen | — | out of scope ([08](./mapgen-preview/08-v2-parity-roadmap.md)) |
+
+---
+
+## v2 milestones
+
+| Item | PR | Status | Unit docs |
+| --- | --- | --- | --- |
+| `overmap_and_mapgen/` scan | **P8** | done | [14](./mapgen-preview/14-mod-scan-paths.md) |
+| `set` array applier | **P9** | next | [15](./mapgen-preview/15-setmap-applier.md) |
+| Palette inheritance | **P10** | todo | [16](./mapgen-preview/16-palette-inheritance.md) |
+| Regional terrain | **P11** | todo | [19](./mapgen-preview/19-regional-terrain.md) |
+| `predecessor_mapgen` | **P12** | todo | [17](./mapgen-preview/17-predecessor-mapgen.md) |
+| `place_*` spawners | **P13** | todo | [18](./mapgen-preview/18-place-spawners.md) |
+| Rotation | **P14** | todo | [20](./mapgen-preview/20-mapgen-rotation.md) |
+| Nested / update | **P15** | todo | [21](./mapgen-preview/21-nested-update-mapgen.md) |
+
+**Plan:** [v2-implementation-plan.md](./mapgen-preview/v2-implementation-plan.md)
 
 ---
 
@@ -107,8 +130,22 @@ Package root: `io.gdx.cdda.bn.nextgen.mapgen`
 | 4 | **P4** | `drawCellFurniture` in `MapEditorScreen` | [07](./mapgen-preview/07-furniture-render.md) |
 | 5 | **P5** | `CityBuildingLoader`, `MapVolume`, floor UI | [09](./mapgen-preview/09-building-bundles-overview.md)–[11](./mapgen-preview/11-map-volume-and-floors.md) |
 | 6 | **P6** | `OmtStitchComposer` | [12](./mapgen-preview/12-omt-stitch-composer.md) |
+| 7 | **P7** | Building bundle discovery + whole specials | [13](./mapgen-preview/13-building-bundle-sources.md) |
 
-**Prerequisites:** game data **G1–G5**, map editor **M1–M4**, tileset loader v1, **P1–P4**.
+### v2 — Runner parity
+
+| Step | PR | Focus | Unit docs |
+| --- | --- | --- | --- |
+| 8 | **P8** | `overmap_and_mapgen/` scan | [14](./mapgen-preview/14-mod-scan-paths.md) — done |
+| 9 | **P9** | `SetmapApplier` | [15](./mapgen-preview/15-setmap-applier.md) |
+| 10 | **P10** | Palette inheritance | [16](./mapgen-preview/16-palette-inheritance.md) |
+| 11 | **P11** | Regional terrain | [19](./mapgen-preview/19-regional-terrain.md) |
+| 12 | **P12** | Predecessor mapgen | [17](./mapgen-preview/17-predecessor-mapgen.md) |
+| 13 | **P13** | Place spawners | [18](./mapgen-preview/18-place-spawners.md) |
+| 14 | **P14** | Rotation | [20](./mapgen-preview/20-mapgen-rotation.md) |
+| 15 | **P15** | Nested / update | [21](./mapgen-preview/21-nested-update-mapgen.md) |
+
+See [v2-implementation-plan.md](./mapgen-preview/v2-implementation-plan.md).
 
 ---
 
@@ -189,8 +226,9 @@ Self-contained — no BN checkout required for CI.
 ## Agent entry point
 
 1. [AGENTS.md](../AGENTS.md)
-2. [mapgen-preview/implementation-plan.md](./mapgen-preview/implementation-plan.md)
-3. Current PR unit doc → implement → `gradlew.bat compileJava test`
+2. v1: [mapgen-preview/implementation-plan.md](./mapgen-preview/implementation-plan.md)
+3. v2: [mapgen-preview/v2-implementation-plan.md](./mapgen-preview/v2-implementation-plan.md)
+4. Current PR unit doc → implement → `gradlew.bat compileJava test`
 
 ---
 

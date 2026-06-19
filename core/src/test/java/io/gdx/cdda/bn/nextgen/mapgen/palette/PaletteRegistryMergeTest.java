@@ -36,7 +36,7 @@ class PaletteRegistryMergeTest {
     @Test
     void unknownPaletteIdAddsWarning() {
         final PaletteRegistry registry = new PaletteRegistry();
-        registry.put(new MapgenPalette(
+        registry.put(MapgenPalette.fromResolvedStrings(
             "only",
             java.util.Collections.singletonMap((int) '.', "t_floor"),
             java.util.Collections.emptyMap()

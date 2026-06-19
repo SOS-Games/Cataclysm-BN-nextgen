@@ -1,0 +1,16 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_palette_inherit",
+    "object": {
+      "fill_ter": "t_dirt",
+      "palettes": [ "child_palette" ],
+      "rows": [
+        "###",
+        "#.#",
+        "###"
+      ]
+    }
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "type": "region_settings",
+  "id": "test_region",
+  "region_terrain_and_furniture": {
+    "terrain": {
+      "t_region_groundcover": { "t_grass": 1 },
+      "t_region_groundcover_barren": { "t_dirt": 1 }
+    },
+    "furniture": {
+      "f_region_forest": { "f_null": 1 }
+    }
+  }
+}

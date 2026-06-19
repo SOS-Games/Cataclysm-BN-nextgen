@@ -1,0 +1,8 @@
+{
+  "type": "palette",
+  "id": "child_palette",
+  "palettes": [ "parent_palette" ],
+  "terrain": {
+    "#": "t_rock"
+  }
+}

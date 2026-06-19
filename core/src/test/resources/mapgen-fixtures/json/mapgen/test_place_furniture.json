@@ -1,0 +1,20 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_place_furniture",
+    "object": {
+      "fill_ter": "t_floor",
+      "rows": [
+        ".....",
+        ".....",
+        ".....",
+        ".....",
+        "....."
+      ],
+      "place_furniture": [
+        { "furn": "f_chair", "x": 2, "y": 2 }
+      ]
+    }
+  }
+]

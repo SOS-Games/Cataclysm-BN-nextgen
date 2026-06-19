@@ -1,0 +1,7 @@
+{
+  "type": "palette",
+  "id": "outdoor_mix_palette",
+  "terrain": {
+    "`": [ [ "t_grass", 6 ], [ "t_grass_long", 4 ], "t_shrub", [ "t_dirt", 4 ] ]
+  }
+}

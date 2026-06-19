@@ -29,8 +29,11 @@ mapgen_function_json::generate(md):
     5. rotate submap per mapgen + OMT rotation
 ```
 
-**Preview v1** implements steps **1** and the **rows** portion of **3** only (terrain +
-furniture placings from char maps). No rotation, no regional resolve, no `place_*`.
+**Preview v1** implements step **1** and the **rows** portion of step **4** only (terrain +
+furniture placings from char maps). No rotation, no regional resolve, no `set`, no `place_*`.
+
+**Preview v2** adds steps **2–3**, **setmap** (before rows), remainder of **4**, **5**, **6** —
+see [v2-implementation-plan](./v2-implementation-plan.md) and units [15](./15-setmap-applier.md)–[21](./21-nested-update-mapgen.md).
 
 ---
 

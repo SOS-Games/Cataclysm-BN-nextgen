@@ -13,6 +13,8 @@ public final class JsonMapgenDefinition {
 
     private final List<String> omTerrain;
     private final OmTerrainGrid omTerrainGrid;
+    private final String nestedMapgenId;
+    private final String updateMapgenId;
     private final String method;
     private final int weight;
     private final boolean disabled;
@@ -29,7 +31,7 @@ public final class JsonMapgenDefinition {
         final int indexInFile,
         final JsonValue objectRoot
     ) {
-        this(omTerrain, null, method, weight, disabled, sourceFile, indexInFile, objectRoot);
+        this(omTerrain, null, null, null, method, weight, disabled, sourceFile, indexInFile, objectRoot);
     }
 
     public JsonMapgenDefinition(
@@ -42,8 +44,25 @@ public final class JsonMapgenDefinition {
         final int indexInFile,
         final JsonValue objectRoot
     ) {
+        this(omTerrain, omTerrainGrid, null, null, method, weight, disabled, sourceFile, indexInFile, objectRoot);
+    }
+
+    public JsonMapgenDefinition(
+        final List<String> omTerrain,
+        final OmTerrainGrid omTerrainGrid,
+        final String nestedMapgenId,
+        final String updateMapgenId,
+        final String method,
+        final int weight,
+        final boolean disabled,
+        final Path sourceFile,
+        final int indexInFile,
+        final JsonValue objectRoot
+    ) {
         this.omTerrain = Collections.unmodifiableList(new ArrayList<>(omTerrain));
         this.omTerrainGrid = omTerrainGrid;
+        this.nestedMapgenId = nestedMapgenId;
+        this.updateMapgenId = updateMapgenId;
         this.method = method;
         this.weight = weight;
         this.disabled = disabled;
@@ -58,6 +77,14 @@ public final class JsonMapgenDefinition {
 
     public Optional<OmTerrainGrid> getOmTerrainGrid() {
         return Optional.ofNullable(omTerrainGrid);
+    }
+
+    public Optional<String> getNestedMapgenId() {
+        return Optional.ofNullable(nestedMapgenId);
+    }
+
+    public Optional<String> getUpdateMapgenId() {
+        return Optional.ofNullable(updateMapgenId);
     }
 
     public String getMethod() {
@@ -85,14 +112,22 @@ public final class JsonMapgenDefinition {
     }
 
     public boolean isJsonPreviewSupported() {
-        return "json".equals(method)
-            && !disabled
-            && objectRoot != null
-            && objectRoot.isObject()
-            && objectRoot.has("rows");
+        if (!"json".equals(method) || disabled || objectRoot == null || !objectRoot.isObject()) {
+            return false;
+        }
+        if (updateMapgenId != null && !updateMapgenId.isEmpty()) {
+            return true;
+        }
+        return objectRoot.has("rows");
     }
 
     public String displayName() {
+        if (nestedMapgenId != null && !nestedMapgenId.isEmpty()) {
+            return nestedMapgenId;
+        }
+        if (updateMapgenId != null && !updateMapgenId.isEmpty()) {
+            return updateMapgenId;
+        }
         if (!omTerrain.isEmpty()) {
             return omTerrain.get(0);
         }

@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Scans {@code mapgen_palettes/} and loads {@code type: palette} JSON (P1). */
+/** Scans {@code mapgen_palettes/}, {@code overmap_and_mapgen/}, and optional inline palettes in {@code mapgen/} (P1, P8). */
 public final class PaletteLoader {
 
     private static final String PALETTE_TYPE = "palette";

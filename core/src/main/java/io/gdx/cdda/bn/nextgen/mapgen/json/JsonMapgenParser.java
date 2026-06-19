@@ -30,10 +30,19 @@ public final class JsonMapgenParser {
             return Optional.empty();
         }
 
+        final String nestedMapgenId = root.getString("nested_mapgen_id", null);
+        final String updateMapgenId = root.getString("update_mapgen_id", null);
         final OmTerrainParseResult omTerrain = parseOmTerrain(root.get("om_terrain"));
+        if ((nestedMapgenId == null || nestedMapgenId.isEmpty())
+            && (updateMapgenId == null || updateMapgenId.isEmpty())
+            && omTerrain.flatIds.isEmpty()) {
+            return Optional.empty();
+        }
         return Optional.of(new JsonMapgenDefinition(
             omTerrain.flatIds,
             omTerrain.grid.orElse(null),
+            nestedMapgenId,
+            updateMapgenId,
             root.getString("method", ""),
             root.getInt("weight", 1000),
             root.getBoolean("disabled", false),

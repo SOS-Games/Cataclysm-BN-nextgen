@@ -1,6 +1,7 @@
 package io.gdx.cdda.bn.nextgen.mapgen.compose;
 
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.map.MapGridRotator;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingPiece;
 import io.gdx.cdda.bn.nextgen.mapgen.building.OvermapTerrainResolver;
@@ -186,7 +187,7 @@ public final class MapVolumeBuilder {
                     warnings.add("unsupported combined floor mapgen at z=" + zLevel);
                     return Optional.empty();
                 }
-                final MapGrid grid = JsonMapgenRunner.run(definition, palettes, options);
+                final MapGrid grid = JsonMapgenRunner.run(definition, catalog, palettes, options);
                 return Optional.of(new FloorBuildResult(
                     grid,
                     combined.get().getPieceRects(),
@@ -235,7 +236,14 @@ public final class MapVolumeBuilder {
             warnings.add("unsupported mapgen for overmap '" + piece.getOvermapId() + "' at z=" + zLevel);
             return Optional.empty();
         }
-        final MapGrid grid = JsonMapgenRunner.run(definition.get(), palettes, options);
+        final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
+            MapGridRotator.rotationForBuildingPiece(
+                piece.getOvermapId(),
+                definition.get().getOmTerrainGrid().isPresent()
+            )
+        );
+        final MapGrid grid = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
+        warnings.addAll(pieceOptions.getWarnings());
         return Optional.of(new FloorBuildResult(
             grid,
             Collections.emptyList(),

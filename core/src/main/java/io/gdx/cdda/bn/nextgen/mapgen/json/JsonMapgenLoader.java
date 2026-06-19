@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Scans {@code mapgen/} and indexes {@code type: mapgen} JSON (P2). */
+/** Scans {@code mapgen/} and {@code overmap_and_mapgen/}; indexes {@code type: mapgen} JSON (P2, P8). */
 public final class JsonMapgenLoader {
 
     private static final String MAPGEN_TYPE = "mapgen";

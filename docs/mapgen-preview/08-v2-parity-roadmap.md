@@ -1,40 +1,51 @@
 # 08 — v2 parity roadmap
 
-Deferred BN mapgen features — ordered for future work after P1–P4. Not required for first
+Deferred BN mapgen features — ordered for future work after P1–P7c. Not required for first
 visible building preview.
+
+**Implementation guide:** [v2-implementation-plan.md](./v2-implementation-plan.md)  
+**Unit specs:** units [14](./14-mod-scan-paths.md)–[21](./21-nested-update-mapgen.md) below.
 
 ---
 
 ## Purpose
 
-Track intentional v1 gaps so implementers do not expand scope mid-PR. Each row notes BN
-behavior and suggested nextgen approach.
+Track intentional v1 gaps so implementers do not expand scope mid-PR. Each row links to a unit
+doc with algorithms, Java types, and verification.
 
 ---
 
 ## Palette system
 
-| Feature | BN behavior | Suggested v2 |
+| Feature | BN behavior | Unit / approach |
 | --- | --- | --- |
-| Weighted value arrays | Random pick weighted by int | `Random` with seed from preview options |
-| `parameters` + distributions | Roll at mapgen time | `MapgenParameterRoll` stub or fixed seed |
-| Palette `palettes: [ "parent" ]` | `mapgen_palette::add` merges parents | Recursive load + cycle detection |
-| `translate` section | Remap chars | `CharRemap` pass before merge |
-| `nested` in palette | Places sub-mapgen | Delegate to nested runner |
+| Weighted value arrays | Random pick weighted by int | [16](./16-palette-inheritance.md) — seeded `Random` |
+| `parameters` + distributions | Roll at mapgen time | [16](./16-palette-inheritance.md) — v2.1 stub |
+| Palette `palettes: [ "parent" ]` | `mapgen_palette::add` merges parents | [16](./16-palette-inheritance.md) |
+| `translate` section | Remap chars | [16](./16-palette-inheritance.md) |
+| `nested` in palette | Places sub-mapgen | [21](./21-nested-update-mapgen.md) |
 
 ---
 
 ## Mapgen object
 
-| Feature | BN behavior | Suggested v2 |
+| Feature | BN behavior | Unit / approach |
 | --- | --- | --- |
-| `set` array | Bulk ter/furn/field ops | `SetmapApplier` on `MapGrid` |
-| `place_terrain` / `place_furniture` | Rectangles with chance | After rows pass |
-| `place_items`, `place_monsters` | Spawn entities | Needs item/monster loaders |
-| `predecessor_mapgen` | Run another OMT mapgen first | Run two defs sequentially |
-| `rotation` | Rotate submap 0–3 | Rotate `MapGrid` or draw transform |
-| `mapgensize` | Nested chunk dimensions | Required for nested |
-| `flags`, `label` | Metadata | Store on `JsonMapgenDefinition` |
+| `set` array | Bulk ter/furn/field ops | [15](./15-setmap-applier.md) — `SetmapApplier` |
+| `place_terrain` / `place_furniture` | Rectangles with chance | [18](./18-place-spawners.md) |
+| `place_items`, `place_monsters` | Spawn entities | [18](./18-place-spawners.md) — P13b |
+| `predecessor_mapgen` | Run another OMT mapgen first | [17](./17-predecessor-mapgen.md) |
+| `rotation` | Rotate submap 0–3 | [20](./20-mapgen-rotation.md) |
+| `mapgensize` | Nested chunk dimensions | [21](./21-nested-update-mapgen.md) |
+| `flags`, `label` | Metadata | Store on `JsonMapgenDefinition` (optional) |
+
+---
+
+## Scan paths
+
+| Feature | Notes | Unit |
+| --- | --- | --- |
+| `overmap_and_mapgen/` tree | Arcana-style mod layout | [14](./14-mod-scan-paths.md) — **done** (P8) |
 
 ---
 
@@ -51,12 +62,12 @@ behavior and suggested nextgen approach.
 
 ## World scale
 
-| Feature | Notes |
-| --- | --- |
-| Overmap generation | New spec tree `docs/worldgen/` |
-| `overmap_terrain` loader | Prerequisite for OMT typing |
-| Submap buffer 24×24×Z | **P5–P6:** `MapVolume` + stitch without full worldgen — [09](./09-building-bundles-overview.md) |
-| Regional `t_region_*` resolve | Needs `region_settings` / region id |
+| Feature | Notes | Unit |
+| --- | --- | --- |
+| Overmap generation | New spec tree `docs/worldgen/` | out of scope |
+| `overmap_terrain` loader | Prerequisite for OMT typing | game data / worldgen |
+| Submap buffer 24×24×Z | P5–P7c `MapVolume` + stitch | [09](./09-building-bundles-overview.md) — **done** |
+| Regional `t_region_*` resolve | Needs `region_settings` | [19](./19-regional-terrain.md) |
 
 ---
 
@@ -66,12 +77,21 @@ behavior and suggested nextgen approach.
 | --- | --- |
 | Multitile autoconnect | Draw-time in `TileSpriteResolver` |
 | `looks_like` chains | Game data + gfx |
-| Field / trap overlays | Separate layer |
+| Field / trap overlays | Separate layer (setmap traps) |
 | Roof transparency | Z and `t_open_air` |
+
+---
+
+## Suggested PR order
+
+See [v2-implementation-plan.md](./v2-implementation-plan.md):
+
+P8 scan paths (done) → P9 setmap → P10 palettes → P11 regional → P12 predecessor → P13 place_* → P14 rotation → P15 nested
 
 ---
 
 ## Verification
 
-1. Every v1 “deferred” row in units 03–05 appears here or is explicitly permanent cut
-2. No v2 item blocks P1–P4 implementation
+1. Every v1 “deferred” row in units 03–05 appears here or in units 14–21
+2. No v2 item blocks v1 maintenance
+3. Each unit 14–21 has **Verification** checklist for JUnit / integration

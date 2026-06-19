@@ -1,0 +1,14 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_translate_palette",
+    "object": {
+      "fill_ter": "t_dirt",
+      "palettes": [ "translate_palette" ],
+      "rows": [
+        "AAA"
+      ]
+    }
+  }
+]

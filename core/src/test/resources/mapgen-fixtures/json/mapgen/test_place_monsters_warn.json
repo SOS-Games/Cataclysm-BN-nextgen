@@ -1,0 +1,20 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_place_monsters_warn",
+    "object": {
+      "fill_ter": "t_floor",
+      "rows": [
+        ".....",
+        ".....",
+        ".....",
+        ".....",
+        "....."
+      ],
+      "place_monsters": [
+        { "monster": "GROUP_TEST", "x": [ 0, 4 ], "y": [ 0, 4 ], "density": 1.0 }
+      ]
+    }
+  }
+]

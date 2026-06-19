@@ -17,6 +17,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalogResult;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteLoader;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
+import io.gdx.cdda.bn.nextgen.mapgen.region.RegionContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ public final class MapgenPreviewService {
 
     private PaletteRegistry palettes;
     private MapgenCatalog catalog;
+    private RegionContext regionContext = RegionContext.empty();
     private CityBuildingRegistry cityBuildings = CityBuildingRegistry.empty();
     private MapgenPickerIndex pickerIndex = MapgenPickerIndex.build(null, CityBuildingRegistry.empty());
     private List<String> loadWarnings = Collections.emptyList();
@@ -89,6 +91,8 @@ public final class MapgenPreviewService {
 
         pickerIndex = MapgenPickerIndex.build(catalog, cityBuildings);
 
+        regionContext = RegionContext.load(scanOptions, warnings);
+
         loadWarnings = Collections.unmodifiableList(warnings);
         loaded = true;
     }
@@ -108,8 +112,10 @@ public final class MapgenPreviewService {
             throw new IllegalArgumentException("mapgen is not runnable: " + definition.displayName());
         }
 
-        final JsonMapgenRunOptions options = runOptions == null ? new JsonMapgenRunOptions() : runOptions;
-        final MapGrid grid = JsonMapgenRunner.run(definition, palettes, options);
+        final JsonMapgenRunOptions options = withLoadedContext(
+            runOptions == null ? new JsonMapgenRunOptions() : runOptions
+        );
+        final MapGrid grid = JsonMapgenRunner.run(definition, catalog, palettes, options);
         return new MapgenPreviewResult(grid, options.getWarnings());
     }
 
@@ -123,9 +129,21 @@ public final class MapgenPreviewService {
         if (building == null) {
             throw new IllegalArgumentException("building is required");
         }
-        final JsonMapgenRunOptions options = runOptions == null ? new JsonMapgenRunOptions() : runOptions;
+        final JsonMapgenRunOptions options = withLoadedContext(
+            runOptions == null ? new JsonMapgenRunOptions() : runOptions
+        );
         final MapVolumeBuildResult built = MapVolumeBuilder.build(building, catalog, palettes, options);
         return new MapgenBuildingResult(built.getVolume(), built.getWarnings());
+    }
+
+    private JsonMapgenRunOptions withLoadedContext(final JsonMapgenRunOptions options) {
+        final JsonMapgenRunOptions resolved = options.getRegionContext() != null
+            ? options
+            : options.withRegionContext(regionContext);
+        if (resolved.getMapgenCatalog() != null) {
+            return resolved;
+        }
+        return resolved.withMapgenCatalog(catalog);
     }
 
     public static final class MapgenBuildingResult {

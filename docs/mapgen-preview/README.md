@@ -30,21 +30,35 @@ without full world/overmap simulation.
 - `MapgenCatalog` + editor import UI
 - Furniture sprites on map editor canvas
 
-### In scope (v1.5 — P5–P6 building bundles)
+### In scope (v1.5 — P5–P7 building bundles)
 
 - `city_building` metadata from `multitile_city_buildings.json`
 - `overmap_special` vertical stacks (e.g. `2farm_6` floors)
 - `MapVolume` — one grid per z-level, floor switch in editor
 - OMT stitch — multi-tile same floor into one canvas ([09](./09-building-bundles-overview.md))
-- Bundle source inventory + gaps — [13](./13-building-bundle-sources.md)
+- Bundle source inventory — [13](./13-building-bundle-sources.md)
+- Whole static specials — [13](./13-building-bundle-sources.md) P7c
+
+### In scope (v2 — runner parity)
+
+- Mod scan paths — [14](./14-mod-scan-paths.md) (**P8 done**)
+- `set` array — [15](./15-setmap-applier.md) (**P9 next**)
+- Palette inheritance + weighted chars — [16](./16-palette-inheritance.md)
+- `predecessor_mapgen` — [17](./17-predecessor-mapgen.md)
+- `place_*` spawners — [18](./18-place-spawners.md)
+- Regional `t_region_*` — [19](./19-regional-terrain.md)
+- Rotation — [20](./20-mapgen-rotation.md)
+- Nested / update mapgen — [21](./21-nested-update-mapgen.md)
+
+**Plan:** [v2-implementation-plan.md](./v2-implementation-plan.md)
 
 ### Out of scope (v1)
 
 | Topic | See |
 | --- | --- |
 | Full world generation | [01](./01-overview-and-scope.md) |
-| Weighted random palettes | [08](./08-v2-parity-roadmap.md) |
-| `place_items`, monsters, vehicles | [08](./08-v2-parity-roadmap.md) |
+| Weighted `oter_mapgen` pick | [08](./08-v2-parity-roadmap.md) |
+| `method: builtin` / `lua` | [08](./08-v2-parity-roadmap.md) |
 | Furniture paint brush | Map editor v2 |
 
 ### Primary BN sources
@@ -79,6 +93,15 @@ flowchart TD
     U11[11 map volume floors]
     U12[12 omt stitch]
     U13[13 bundle sources]
+    U14[14 mod scan paths]
+    U15[15 setmap]
+    U16[16 palette inherit]
+    U17[17 predecessor]
+    U18[18 place spawners]
+    U19[19 regional ter]
+    U20[20 rotation]
+    U21[21 nested update]
+    V2[v2 implementation plan]
 
     U01 --> U02
     U02 --> U03
@@ -95,6 +118,16 @@ flowchart TD
     U10 --> U13
     U11 --> U12
     U01 --> U08
+    U08 --> V2
+    U05 --> U15
+    U05 --> U17
+    U05 --> U18
+    U03 --> U16
+    U02 --> U14
+    U15 --> U18
+    U15 --> U21
+    U19 --> U05
+    U20 --> U12
 ```
 
 ---
@@ -104,18 +137,27 @@ flowchart TD
 | Unit | File | Status | Summary |
 | --- | --- | --- | --- |
 | 01 | [01-overview-and-scope.md](./01-overview-and-scope.md) | draft | Preview vs worldgen; coordinates; pipeline |
-| 02 | [02-scan-paths.md](./02-scan-paths.md) | draft | Scan dirs, catalog, mod order |
+| 02 | [02-scan-paths.md](./02-scan-paths.md) | done | Scan dirs incl. `overmap_and_mapgen/` (P8) |
 | 03 | [03-palette-loader.md](./03-palette-loader.md) | draft | `type: palette`, merge, char resolver |
 | 04 | [04-json-mapgen-format.md](./04-json-mapgen-format.md) | draft | `type: mapgen`, `object` fields |
 | 05 | [05-rows-runner.md](./05-rows-runner.md) | draft | `JsonMapgenRunner` algorithm |
 | 06 | [06-preview-ui.md](./06-preview-ui.md) | draft | Picker, service, editor hook |
 | 07 | [07-furniture-render.md](./07-furniture-render.md) | done | Furniture draw layer |
-| 08 | [08-v2-parity-roadmap.md](./08-v2-parity-roadmap.md) | draft | Deferred BN parity |
+| 08 | [08-v2-parity-roadmap.md](./08-v2-parity-roadmap.md) | draft | Deferred BN parity index |
 | 09 | [09-building-bundles-overview.md](./09-building-bundles-overview.md) | done | Multi-floor + multi-OMT scope |
 | 10 | [10-city-building-loader.md](./10-city-building-loader.md) | done | `city_building` scan + resolver |
 | 11 | [11-map-volume-and-floors.md](./11-map-volume-and-floors.md) | done | `MapVolume`, floor UI (P5) |
 | 12 | [12-omt-stitch-composer.md](./12-omt-stitch-composer.md) | done | Stitch OMT pieces (P6) |
-| 13 | [13-building-bundle-sources.md](./13-building-bundle-sources.md) | done | BN bundle types; P7a scan done |
+| 13 | [13-building-bundle-sources.md](./13-building-bundle-sources.md) | done | BN bundle types; P7 done |
+| 14 | [14-mod-scan-paths.md](./14-mod-scan-paths.md) | done | `overmap_and_mapgen/` scan (P8) |
+| 15 | [15-setmap-applier.md](./15-setmap-applier.md) | todo | `object.set` array (P9) |
+| 16 | [16-palette-inheritance.md](./16-palette-inheritance.md) | todo | Parent palettes, weighted chars (P10) |
+| 17 | [17-predecessor-mapgen.md](./17-predecessor-mapgen.md) | todo | Outdoor underlay (P12) |
+| 18 | [18-place-spawners.md](./18-place-spawners.md) | todo | `place_*` rectangles (P13) |
+| 19 | [19-regional-terrain.md](./19-regional-terrain.md) | todo | `t_region_*` resolve (P11) |
+| 20 | [20-mapgen-rotation.md](./20-mapgen-rotation.md) | todo | Submap rotation (P14) |
+| 21 | [21-nested-update-mapgen.md](./21-nested-update-mapgen.md) | todo | Nested + update mapgen (P15) |
+| — | [v2-implementation-plan.md](./v2-implementation-plan.md) | draft | v2 PR slices P8–P15 |
 
 ---
 
@@ -129,9 +171,11 @@ flowchart TD
 | 4 — Furniture draw | 07 | **P4** | done |
 | 5 — Building floors | 09, 10, 11 | **P5** | done |
 | 6 — OMT stitch | 12 | **P6** | done |
-| 7 — Bundle discovery | 13 | **P7a** | done |
+| 7 — Bundle discovery | 13 | **P7** | done |
+| 8 — v2 runner parity | 14–21 | **P8–P15** | P8 done; P9 next |
 
-**PR slices:** [MAPGEN_PREVIEW.md](../MAPGEN_PREVIEW.md#suggested-pr-slices)
+**v1 plan:** [implementation-plan.md](./implementation-plan.md)  
+**v2 plan:** [v2-implementation-plan.md](./v2-implementation-plan.md)
 
 ---
 
@@ -150,7 +194,8 @@ Each unit includes:
 
 ## Related
 
-- [implementation-plan.md](./implementation-plan.md)
+- [implementation-plan.md](./implementation-plan.md) — v1
+- [v2-implementation-plan.md](./v2-implementation-plan.md) — v2
 - [../MAPGEN_PREVIEW.md](../MAPGEN_PREVIEW.md)
 - [../MAP_EDITOR.md](../MAP_EDITOR.md)
 - [../GAME_DATA_LOADER.md](../GAME_DATA_LOADER.md)
@@ -166,3 +211,5 @@ Each unit includes:
 | 2026-06-16 | Added 09–12 building bundles (P5 floor switch, P6 OMT stitch) |
 | 2026-06-17 | Added 13 building bundle sources inventory (P7 gaps) |
 | 2026-06-17 | P7a `BuildingBundleScanner` — full mod JSON bundle discovery |
+| 2026-06-17 | v2 units 14–21 + `v2-implementation-plan.md`; P8 mod scan paths done |
+| 2026-06-17 | Expanded v2 unit docs: BN pipeline order, schemas, fixtures, BN C++ refs |
