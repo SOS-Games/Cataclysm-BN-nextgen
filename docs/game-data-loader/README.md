@@ -32,7 +32,7 @@ Gfx loading: [../TILESET_LOADER.md](../TILESET_LOADER.md).
 | Full `DynamicDataLoader` type registry (~100+ types) | Items, monsters, recipes, spells, … deferred |
 | Lua mod preload / finalize scripts | BN `catalua` — skip until game simulation |
 | `generic_factory` / `ter_id` enum codegen | Use string ids + maps in Java |
-| Mapgen execution, overmap generation | [Mapgen preview](../mapgen-preview/README.md) (subset); full worldgen deferred |
+| Mapgen execution, overmap generation | [Mapgen preview](../mapgen-preview/README.md) (subset); [Worldgen](../worldgen/README.md) W1–W6 |
 | Save file I/O | Separate future system |
 | Draw-time multitile neighbor resolution | Map renderer concern |
 | `external_tileset` JSON | Lives under `data/json`; ties to gfx, not terrain defs |

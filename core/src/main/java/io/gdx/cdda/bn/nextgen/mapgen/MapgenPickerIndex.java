@@ -153,7 +153,9 @@ public final class MapgenPickerIndex {
         final Set<String> hiddenColumnBundleIds = hiddenColumnBundleIds(buildings);
         final List<MapgenPickerRow> rows = new ArrayList<>();
         for (final JsonMapgenDefinition definition : collapseBundledBuildings(
-            catalog.all(),
+            catalog.all().stream()
+                .filter(JsonMapgenDefinition::isStandalonePickerEntry)
+                .toList(),
             buildings,
             hiddenColumnBundleIds
         )) {

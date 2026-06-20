@@ -17,6 +17,7 @@ import io.gdx.cdda.bn.nextgen.DefaultContent;
 import io.gdx.cdda.bn.nextgen.gamedata.GameDataLoader;
 import io.gdx.cdda.bn.nextgen.gamedata.load.GameDataLoadOptions;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
+import io.gdx.cdda.bn.nextgen.gamedata.model.TerrainRegistry;
 import io.gdx.cdda.bn.nextgen.gamedata.validate.GameDataValidationException;
 import io.gdx.cdda.bn.nextgen.gamedata.validate.GameDataValidator;
 import io.gdx.cdda.bn.nextgen.gamedata.validate.ValidationOptions;
@@ -43,7 +44,21 @@ import io.gdx.cdda.bn.nextgen.tileset.model.LoadedTileset;
 import io.gdx.cdda.bn.nextgen.tileset.model.TileDefinition;
 import io.gdx.cdda.bn.nextgen.tileset.model.TilesetFxType;
 
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateResult;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridFactory;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainDefinition;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoadResult;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainScanOptions;
+import io.gdx.cdda.bn.nextgen.worldgen.WorldgenPreviewService;
+import io.gdx.cdda.bn.nextgen.worldgen.WorldgenScanOptions;
+import io.gdx.cdda.bn.nextgen.worldgen.submap.VisitResult;
+
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -75,6 +90,10 @@ public final class MapEditorScreen {
     private static final float ZOOM_SCROLL_STEP = 0.24f;
     private static final float ZOOM_KEY_STEP = 0.5f;
 
+    private static final float OMT_BASE_CELL_PX = 24f;
+    private static final int[] OVERMAP_SIZE_PRESETS = { 8, 16, 32, 64 };
+    private static final int DEFAULT_OVERMAP_SIZE = 16;
+
     private final SpriteBatch batch;
     private final BitmapFont font;
     private MapGrid grid;
@@ -102,6 +121,7 @@ public final class MapEditorScreen {
     private boolean animationPlayback = true;
     private long animationTick;
     private boolean showFurnitureLayer = true;
+    private boolean showZCutaway;
 
     private boolean painting;
     private boolean panning;
@@ -124,12 +144,22 @@ public final class MapEditorScreen {
     private int lastPointerDebugCellX = -1;
     private int lastPointerDebugCellY = -1;
 
-    private final MapgenPreviewService mapgenPreviewService = new MapgenPreviewService();
+    private final WorldgenPreviewService worldgenPreviewService = new WorldgenPreviewService();
     private final MapgenPickerDialog mapgenPicker = new MapgenPickerDialog();
     private final ImportFailedDialog importFailedDialog = new ImportFailedDialog();
     private MapVolume mapVolume;
     private CityBuildingDefinition activeBuilding;
     private boolean loadingMapgenCatalog;
+
+    private EditorMode editorMode = EditorMode.SUBMAP;
+    private OvermapGrid overmapGrid;
+    private OvermapTerrainRegistry overmapTerrainRegistry = new OvermapTerrainRegistry();
+    private boolean overmapTerrainLoaded;
+    private int selectedOmtX = -1;
+    private int selectedOmtY = -1;
+    private long overmapSeed = 12345L;
+    private int overmapSize = DEFAULT_OVERMAP_SIZE;
+    private boolean overmapSmokeLayoutPending = true;
 
     public MapEditorScreen(final SpriteBatch batch) {
         this.batch = batch;
@@ -139,6 +169,8 @@ public final class MapEditorScreen {
         this.grid = createCheckerboardGrid();
         this.statusMessage = "Map editor";
         loadGameData();
+        loadOvermapTerrain();
+        initOvermapGrid();
         loadDefaultTileset();
         palette.setSelectedTerrainId("t_grass");
         centerCamera();
@@ -154,9 +186,14 @@ public final class MapEditorScreen {
 
         batch.begin();
         if (!loadingTileset) {
-            drawGrid();
-            drawOmtPieceBorders();
-            drawHoverCell();
+            if (editorMode == EditorMode.OVERMAP) {
+                drawOvermapGrid();
+                drawOvermapSelection();
+            } else {
+                drawGrid();
+                drawOmtPieceBorders();
+                drawHoverCell();
+            }
         }
         drawPalette();
         drawToolbar();
@@ -194,6 +231,12 @@ public final class MapEditorScreen {
             palette.clearFilter();
             return true;
         }
+        if (editorMode == EditorMode.OVERMAP && selectedOmtX >= 0) {
+            selectedOmtX = -1;
+            selectedOmtY = -1;
+            statusMessage = "Overmap selection cleared";
+            return true;
+        }
         return false;
     }
 
@@ -210,6 +253,29 @@ public final class MapEditorScreen {
         if (palette.isFilterEditing() && palette.onKeyDown(keycode)) {
             return true;
         }
+        if (keycode == Keys.M && overmapTerrainLoaded && overmapGrid != null) {
+            toggleEditorMode();
+            return true;
+        }
+        if (editorMode == EditorMode.OVERMAP
+            && (keycode == Keys.ENTER || keycode == Keys.NUMPAD_ENTER)) {
+            visitSelectedOmt();
+            return true;
+        }
+        if (editorMode == EditorMode.OVERMAP) {
+            if (keycode == Keys.LEFT_BRACKET) {
+                cycleOvermapSize(-1);
+                return true;
+            }
+            if (keycode == Keys.RIGHT_BRACKET) {
+                cycleOvermapSize(1);
+                return true;
+            }
+            if (keycode == Keys.R) {
+                requestOvermapRegeneration();
+                return true;
+            }
+        }
         if (mapVolume != null) {
             if (keycode == Keys.PAGE_UP || keycode == Keys.LEFT_BRACKET) {
                 switchBuildingFloor(true);
@@ -217,6 +283,11 @@ public final class MapEditorScreen {
             }
             if (keycode == Keys.PAGE_DOWN || keycode == Keys.RIGHT_BRACKET) {
                 switchBuildingFloor(false);
+                return true;
+            }
+            if (keycode == Keys.T && mapVolume.floorCount() > 1) {
+                showZCutaway = !showZCutaway;
+                statusMessage = "Upper-floor cutaway: " + (showZCutaway ? "on" : "off");
                 return true;
             }
         }
@@ -373,6 +444,24 @@ public final class MapEditorScreen {
         if (loadingTileset) {
             return true;
         }
+        if (editorMode == EditorMode.OVERMAP) {
+            if (button == Buttons.LEFT) {
+                selectOmtAt(screenX, y);
+                return true;
+            }
+            if (button == Buttons.RIGHT) {
+                rightClickPending = true;
+                rightClickStartX = screenX;
+                rightClickStartY = y;
+                storePanAnchor(screenX, y);
+                return true;
+            }
+            if (button == Buttons.MIDDLE) {
+                beginPan(screenX, y);
+                return true;
+            }
+            return false;
+        }
         if (button == Buttons.LEFT) {
             if (shouldPanWithPrimaryButton()) {
                 beginPan(screenX, y);
@@ -520,6 +609,13 @@ public final class MapEditorScreen {
             case TILESET_NEXT:
                 nextTileset();
                 break;
+            case CYCLE_EDITOR_MODE:
+                if (overmapTerrainLoaded && overmapGrid != null) {
+                    toggleEditorMode();
+                } else {
+                    statusMessage = "Overmap mode unavailable — no overmap terrain loaded";
+                }
+                break;
             default:
                 break;
         }
@@ -625,6 +721,235 @@ public final class MapEditorScreen {
         }
     }
 
+    private void loadOvermapTerrain() {
+        try {
+            final OvermapTerrainLoadResult result = OvermapTerrainLoader.load(OvermapTerrainScanOptions.defaults());
+            overmapTerrainRegistry = result.getRegistry();
+            overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
+            for (final String warning : result.getWarnings()) {
+                Gdx.app.log("overmap", warning);
+            }
+            if (overmapTerrainLoaded) {
+                Gdx.app.log("overmap", "Loaded " + overmapTerrainRegistry.size() + " overmap terrain ids");
+            }
+        } catch (final IOException e) {
+            overmapTerrainLoaded = false;
+            Gdx.app.error("map-editor", "Overmap terrain load failed: " + e.getMessage(), e);
+        }
+    }
+
+    private MapgenPreviewService mapgenService() {
+        return worldgenPreviewService.getMapgenPreviewService();
+    }
+
+    private void initOvermapGrid() {
+        try {
+            final URL fixtureUrl = MapEditorScreen.class.getResource("/worldgen-fixtures/overmaps/test_8x8.json");
+            if (fixtureUrl != null) {
+                overmapGrid = OvermapGridFactory.fromJsonFile(Paths.get(fixtureUrl.toURI()));
+                overmapSize = overmapGrid.width();
+                overmapSmokeLayoutPending = false;
+                return;
+            }
+        } catch (final URISyntaxException | IOException e) {
+            Gdx.app.log("map-editor", "Demo overmap fixture unavailable: " + e.getMessage());
+        }
+        overmapGrid = OvermapGridFactory.empty(overmapSize, overmapSize, defaultOvermapFillId());
+        overmapSmokeLayoutPending = true;
+    }
+
+    private String defaultOvermapFillId() {
+        if (overmapTerrainRegistry.contains("field")) {
+            return "field";
+        }
+        if (overmapTerrainRegistry.contains("forest")) {
+            return "forest";
+        }
+        return overmapTerrainRegistry.contains("open_air") ? "open_air" : "field";
+    }
+
+    private void refreshOvermapSmokeLayout() {
+        if (!overmapSmokeLayoutPending || !worldgenPreviewService.isLoaded()) {
+            return;
+        }
+        regenerateOvermapLayout();
+    }
+
+    private void requestOvermapRegeneration() {
+        if (!worldgenPreviewService.isLoaded()) {
+            overmapSmokeLayoutPending = true;
+            statusMessage = "Load worldgen data first (enter overmap mode once) before regenerating";
+            return;
+        }
+        regenerateOvermapLayout();
+    }
+
+    private void regenerateOvermapLayout() {
+        worldgenPreviewService.setWorldSeed(overmapSeed);
+        final OvermapGenerateResult generated = worldgenPreviewService.generateOvermap(overmapSize, overmapSize);
+        overmapGrid = generated.getGrid();
+        overmapSmokeLayoutPending = false;
+        selectedOmtX = -1;
+        selectedOmtY = -1;
+        centerCamera();
+        statusMessage = "Generated overmap " + overmapSize + "×" + overmapSize + " — "
+            + generated.getCityBuildingsPlaced() + " buildings, "
+            + generated.getStaticSpecialsPlaced() + " specials, "
+            + generated.getMutableSpecialsPlaced() + " mutable, "
+            + generated.getRiverCellsCarved() + " river, "
+            + generated.getRoadCellsPlaced() + " road, seed=" + overmapSeed
+            + " — click a building cell, Enter to visit";
+    }
+
+    private void cycleOvermapSize(final int direction) {
+        final int presetIndex = overmapSizePresetIndex(overmapSize);
+        final int nextIndex = MathUtils.clamp(presetIndex + direction, 0, OVERMAP_SIZE_PRESETS.length - 1);
+        final int nextSize = OVERMAP_SIZE_PRESETS[nextIndex];
+        if (nextSize == overmapSize) {
+            statusMessage = "Overmap size already at " + overmapSize + "×" + overmapSize;
+            return;
+        }
+        overmapSize = nextSize;
+        selectedOmtX = -1;
+        selectedOmtY = -1;
+        if (worldgenPreviewService.isLoaded()) {
+            regenerateOvermapLayout();
+            return;
+        }
+        overmapGrid = OvermapGridFactory.empty(overmapSize, overmapSize, defaultOvermapFillId());
+        overmapSmokeLayoutPending = true;
+        centerCamera();
+        statusMessage = "Overmap size set to " + overmapSize + "×" + overmapSize + " — worldgen will fill on load";
+    }
+
+    private static int overmapSizePresetIndex(final int size) {
+        for (int i = 0; i < OVERMAP_SIZE_PRESETS.length; i++) {
+            if (OVERMAP_SIZE_PRESETS[i] == size) {
+                return i;
+            }
+        }
+        return 1;
+    }
+
+    private void toggleEditorMode() {
+        if (!overmapTerrainLoaded || overmapGrid == null) {
+            statusMessage = "Overmap mode unavailable — no overmap terrain loaded";
+            return;
+        }
+        editorMode = editorMode == EditorMode.SUBMAP ? EditorMode.OVERMAP : EditorMode.SUBMAP;
+        if (editorMode == EditorMode.OVERMAP && overmapSmokeLayoutPending) {
+            ensureWorldgenLoaded(this::enterOvermapMode);
+            return;
+        }
+        if (editorMode == EditorMode.OVERMAP) {
+            enterOvermapMode();
+            return;
+        }
+        centerCamera();
+        statusMessage = "Mode: SUBMAP";
+    }
+
+    private void enterOvermapMode() {
+        refreshOvermapSmokeLayout();
+        centerCamera();
+        if (statusMessage == null || !statusMessage.startsWith("Generated overmap")) {
+            statusMessage = "Mode: OVERMAP — click a cell with mapgens≥1, Enter to generate submap";
+        }
+    }
+
+    private void selectOmtAt(final int screenX, final int screenY) {
+        final CellCoord cell = screenToCell(screenX, screenY);
+        if (cell == null) {
+            return;
+        }
+        selectedOmtX = cell.x;
+        selectedOmtY = cell.y;
+        final String omtId = overmapGrid.getOmtId(selectedOmtX, selectedOmtY);
+        final boolean visitable = mapgenService().isLoaded()
+            && OvermapGridFactory.isVisitableOmt(omtId, mapgenService().getCatalog());
+        statusMessage = "Selected OMT (" + selectedOmtX + "," + selectedOmtY + ") " + omtId
+            + (visitable ? " — Enter to generate submap" : " — no json submap (background tile)");
+    }
+
+    private void visitSelectedOmt() {
+        if (selectedOmtX < 0 || selectedOmtY < 0 || overmapGrid == null) {
+            statusMessage = "Select an OMT cell first";
+            return;
+        }
+        ensureWorldgenLoaded(this::visitSelectedOmtLoaded);
+    }
+
+    private void visitSelectedOmtLoaded() {
+        worldgenPreviewService.setGameData(gameData);
+        worldgenPreviewService.setWorldSeed(overmapSeed);
+        final VisitResult result = worldgenPreviewService.visit(overmapGrid, selectedOmtX, selectedOmtY);
+        final String omtId = result.getOmtId();
+        if (!result.hasGrid()) {
+            if ("open_air".equals(omtId) || "field".equals(omtId) || "forest".equals(omtId)) {
+                statusMessage = omtId + " is a background OMT — select a building/structure cell (mapgens≥1)";
+            } else {
+                statusMessage = "No json mapgen for " + omtId + " — try Ctrl+G mapgen picker for direct import";
+            }
+            for (final String warning : result.getWarnings()) {
+                Gdx.app.log("worldgen", warning);
+            }
+            return;
+        }
+        replaceGrid(result.getGrid());
+        mapVolume = null;
+        activeBuilding = null;
+        editorMode = EditorMode.SUBMAP;
+        centerCamera();
+        final String cacheNote = result.isFromCache() ? " (cached)" : "";
+        statusMessage = "Visited " + omtId + " → " + grid.width() + "x" + grid.height() + " submap" + cacheNote;
+        for (final String warning : result.getWarnings()) {
+            Gdx.app.log("worldgen", warning);
+        }
+        appendValidationSummary(runGameDataValidation(tileset));
+    }
+
+    private void ensureWorldgenLoaded(final Runnable onReady) {
+        if (worldgenPreviewService.isLoaded()) {
+            overmapTerrainRegistry = worldgenPreviewService.getOvermapTerrainRegistry();
+            overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
+            onReady.run();
+            return;
+        }
+        if (loadingMapgenCatalog) {
+            return;
+        }
+        if (!worldgenPreviewService.hasDataRoots()) {
+            statusMessage = "No data roots (set -Dcdda.data.roots=...)";
+            return;
+        }
+        loadingMapgenCatalog = true;
+        statusMessage = "Loading worldgen data…";
+        new Thread(() -> {
+            try {
+                worldgenPreviewService.ensureLoaded(WorldgenScanOptions.defaults());
+                Gdx.app.postRunnable(() -> {
+                    loadingMapgenCatalog = false;
+                    overmapTerrainRegistry = worldgenPreviewService.getOvermapTerrainRegistry();
+                    overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
+                    logMapgenLoadWarnings();
+                    for (final String warning : worldgenPreviewService.getOvermapLoadWarnings()) {
+                        Gdx.app.log("overmap", warning);
+                    }
+                    onReady.run();
+                });
+            } catch (final IOException e) {
+                Gdx.app.postRunnable(() -> {
+                    loadingMapgenCatalog = false;
+                    showImportFailed("Worldgen load failed", "Could not load mapgen/overmap data.", e);
+                });
+            }
+        }, "worldgen-load").start();
+    }
+
+    private void ensureMapgenCatalogLoaded(final Runnable onReady) {
+        ensureWorldgenLoaded(onReady);
+    }
+
     private ValidationReport runGameDataValidation(final LoadedTileset withTileset) {
         if (gameData == null) {
             return new ValidationReport(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
@@ -684,9 +1009,117 @@ public final class MapEditorScreen {
                     final float worldY = cellBottomY(y);
                     final MapCell cell = grid.get(x, y);
                     if (pass.isTerrain()) {
-                        drawCellTerrain(cell.getTerrainId(), worldX, worldY, tilePx, pass.drawBackground());
+                        drawCellTerrain(x, y, cell.getTerrainId(), worldX, worldY, tilePx, pass.drawBackground());
                     } else {
                         drawCellFurniture(cell.getFurnitureId(), worldX, worldY, tilePx, pass.drawBackground());
+                    }
+                }
+            }
+        }
+
+        if (ZCutawayPolicy.isCutawayActive(mapVolume, showZCutaway)) {
+            drawUpperFloorCutaway(firstCol, lastCol, firstRow, lastRow, tilePx);
+        }
+    }
+
+    private void drawOvermapGrid() {
+        if (overmapGrid == null) {
+            return;
+        }
+        final float cellPx = activeCellPixelSize();
+        final int firstCol = Math.max(0, (int) Math.floor((-cameraX) / cellPx) - 1);
+        final int lastCol = Math.min(overmapGrid.width(), (int) Math.ceil((canvasWidth() - cameraX) / cellPx) + 1);
+        final int firstRow = Math.max(0, (int) Math.floor((gridTopY() - viewportPixelHeight()) / cellPx));
+        final int lastRow = Math.min(overmapGrid.height(), (int) Math.ceil((gridTopY() - gridBaseY()) / cellPx));
+
+        for (int y = firstRow; y < lastRow; y++) {
+            for (int x = firstCol; x < lastCol; x++) {
+                final String omtId = overmapGrid.getOmtId(x, y);
+                final float worldX = cameraX + x * cellPx;
+                final float worldY = cellBottomY(y);
+                final OvermapTerrainDefinition definition = overmapTerrainRegistry.find(omtId).orElse(null);
+                final Color fill = definition == null
+                    ? OvermapTerrainColors.hashColor(omtId)
+                    : OvermapTerrainColors.resolve(definition.getColor(), omtId);
+                batch.setColor(fill);
+                batch.draw(whitePixel, worldX, worldY, cellPx, cellPx);
+                batch.setColor(Color.WHITE);
+                if (definition != null && definition.hasSymbol()) {
+                    final String label = definition.getSymbol();
+                    glyphLayout.setText(font, label);
+                    font.draw(
+                        batch,
+                        label,
+                        worldX + (cellPx - glyphLayout.width) / 2f,
+                        worldY + (cellPx + glyphLayout.height) / 2f
+                    );
+                } else if (definition == null) {
+                    glyphLayout.setText(font, "?");
+                    font.draw(
+                        batch,
+                        "?",
+                        worldX + (cellPx - glyphLayout.width) / 2f,
+                        worldY + (cellPx + glyphLayout.height) / 2f
+                    );
+                }
+            }
+        }
+    }
+
+    private void drawOvermapSelection() {
+        if (overmapGrid == null || selectedOmtX < 0 || selectedOmtY < 0) {
+            return;
+        }
+        final float cellPx = activeCellPixelSize();
+        final float worldX = cameraX + selectedOmtX * cellPx;
+        final float worldY = cellBottomY(selectedOmtY);
+        batch.setColor(1f, 0.92f, 0.35f, 1f);
+        final float border = Math.max(1f, cellPx * 0.08f);
+        batch.draw(whitePixel, worldX, worldY + cellPx - border, cellPx, border);
+        batch.draw(whitePixel, worldX, worldY, cellPx, border);
+        batch.draw(whitePixel, worldX, worldY, border, cellPx);
+        batch.draw(whitePixel, worldX + cellPx - border, worldY, border, cellPx);
+        batch.setColor(Color.WHITE);
+    }
+
+    private void drawUpperFloorCutaway(
+        final int firstCol,
+        final int lastCol,
+        final int firstRow,
+        final int lastRow,
+        final float tilePx
+    ) {
+        final TerrainRegistry terrains = gameData == null ? null : gameData.getTerrain();
+        for (final int zLevel : ZCutawayPolicy.zLevelsAboveActive(mapVolume)) {
+            final MapGrid upperGrid = mapVolume.getGridAtZ(zLevel);
+            if (upperGrid == null) {
+                continue;
+            }
+            final int upperLastCol = Math.min(lastCol, upperGrid.width());
+            final int upperLastRow = Math.min(lastRow, upperGrid.height());
+            for (final GridDrawPass pass : GridDrawPass.values()) {
+                if (!pass.isTerrain()) {
+                    continue;
+                }
+                for (int y = firstRow; y < upperLastRow; y++) {
+                    for (int x = firstCol; x < upperLastCol; x++) {
+                        final String terrainId = upperGrid.get(x, y).getTerrainId();
+                        if (ZCutawayPolicy.skipUpperFloorOverlay(terrainId, terrains)) {
+                            continue;
+                        }
+                        final float worldX = cameraX + x * tilePx;
+                        final float worldY = cellBottomY(y);
+                        drawCellTerrain(
+                            x,
+                            y,
+                            terrainId,
+                            worldX,
+                            worldY,
+                            tilePx,
+                            pass.drawBackground(),
+                            upperGrid,
+                            ZCutawayPolicy.UPPER_FLOOR_OVERLAY_ALPHA
+                        );
                     }
                 }
             }
@@ -830,21 +1263,50 @@ public final class MapEditorScreen {
     }
 
     private void drawCellTerrain(
+        final int cellX,
+        final int cellY,
         final String terrainId,
         final float drawX,
         final float drawY,
         final float tilePx,
         final boolean backgroundOnly
     ) {
+        drawCellTerrain(cellX, cellY, terrainId, drawX, drawY, tilePx, backgroundOnly, grid, 1f);
+    }
+
+    private void drawCellTerrain(
+        final int cellX,
+        final int cellY,
+        final String terrainId,
+        final float drawX,
+        final float drawY,
+        final float tilePx,
+        final boolean backgroundOnly,
+        final MapGrid sourceGrid,
+        final float alpha
+    ) {
         if (tileset == null) {
             return;
         }
 
-        final TileDefinition tile = findTileWithFallback(terrainId).orElse(null);
+        final MultitileConnectResolver.TerrainDrawResolve resolved = MultitileConnectResolver.resolveTerrainDraw(
+            tileset,
+            sourceGrid,
+            cellX,
+            cellY,
+            terrainId,
+            gameData == null ? null : gameData.getTerrain()
+        );
+        final String drawableId = TileLooksLikeResolver.resolveTerrainDrawId(
+            resolved.getTileId(),
+            tileset,
+            gameData == null ? null : gameData.getTerrain()
+        );
+        final TileDefinition tile = findTileWithFallback(drawableId).orElse(null);
         if (tile == null) {
             return;
         }
-        drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly);
+        drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly, resolved.getRotation(), alpha);
     }
 
     private void drawCellFurniture(
@@ -857,10 +1319,15 @@ public final class MapEditorScreen {
         if (tileset == null || furnitureId == null || furnitureId.isEmpty()) {
             return;
         }
-        if (!TileSpriteResolver.hasDrawableArt(tileset, furnitureId)) {
+        final String drawableId = TileLooksLikeResolver.resolveFurnitureDrawId(
+            furnitureId,
+            tileset,
+            gameData == null ? null : gameData.getFurniture()
+        );
+        if (!TileSpriteResolver.hasDrawableArt(tileset, drawableId)) {
             return;
         }
-        tileset.findTile(furnitureId).ifPresent(tile -> drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly));
+        tileset.findTile(drawableId).ifPresent(tile -> drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly, 0, 1f));
     }
 
     private void drawCellTile(
@@ -870,18 +1337,53 @@ public final class MapEditorScreen {
         final float tilePx,
         final boolean backgroundOnly
     ) {
+        drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly, 0, 1f);
+    }
+
+    private void drawCellTile(
+        final TileDefinition tile,
+        final float drawX,
+        final float drawY,
+        final float tilePx,
+        final boolean backgroundOnly,
+        final int rotationIndex
+    ) {
+        drawCellTile(tile, drawX, drawY, tilePx, backgroundOnly, rotationIndex, 1f);
+    }
+
+    private void drawCellTile(
+        final TileDefinition tile,
+        final float drawX,
+        final float drawY,
+        final float tilePx,
+        final boolean backgroundOnly,
+        final int rotationIndex,
+        final float alpha
+    ) {
         final int pick = TileSpriteResolver.animationPickIndex(tile, animationTick, animationPlayback);
-        final TextureRegion bg = TileSpriteResolver.resolveBackground(tileset, tile, pick, TilesetFxType.NONE);
-        final TextureRegion fg = TileSpriteResolver.resolveForeground(tileset, tile, pick, TilesetFxType.NONE);
+        final TextureRegion bg = TileSpriteResolver.resolveBackground(
+            tileset,
+            tile,
+            pick,
+            rotationIndex,
+            TilesetFxType.NONE
+        );
+        final TextureRegion fg = TileSpriteResolver.resolveForeground(
+            tileset,
+            tile,
+            pick,
+            rotationIndex,
+            TilesetFxType.NONE
+        );
 
         if (backgroundOnly) {
             if (bg != null) {
-                drawLayer(tile, bg, drawX, drawY, tilePx);
+                drawLayer(tile, bg, drawX, drawY, tilePx, alpha);
             }
             return;
         }
         if (fg != null) {
-            drawLayer(tile, fg, drawX, drawY, tilePx);
+            drawLayer(tile, fg, drawX, drawY, tilePx, alpha);
         }
     }
 
@@ -892,6 +1394,17 @@ public final class MapEditorScreen {
         final float drawY,
         final float tilePx
     ) {
+        drawLayer(tile, region, drawX, drawY, tilePx, 1f);
+    }
+
+    private void drawLayer(
+        final TileDefinition tile,
+        final TextureRegion region,
+        final float drawX,
+        final float drawY,
+        final float tilePx,
+        final float alpha
+    ) {
         final TileDrawMath.DrawRect rect = TileDrawMath.computeDrawRect(
             tileset,
             tile,
@@ -900,7 +1413,14 @@ public final class MapEditorScreen {
             drawY,
             tilePx
         );
+        if (alpha >= 0.999f) {
+            batch.draw(region, rect.x, rect.y, rect.width, rect.height);
+            return;
+        }
+        final Color saved = batch.getColor().cpy();
+        batch.setColor(1f, 1f, 1f, alpha);
         batch.draw(region, rect.x, rect.y, rect.width, rect.height);
+        batch.setColor(saved);
     }
 
     private Optional<TileDefinition> findTileWithFallback(final String terrainId) {
@@ -913,6 +1433,10 @@ public final class MapEditorScreen {
     }
 
     private void drawHud() {
+        if (editorMode == EditorMode.OVERMAP) {
+            drawOvermapHud();
+            return;
+        }
         final String brush = palette.getSelectedTerrainId();
         final String cursor = hoverCellX >= 0
             ? formatCursorCell(hoverCellX, hoverCellY)
@@ -926,12 +1450,13 @@ public final class MapEditorScreen {
             + buildingFloorHudSuffix()
             + "  |  brush " + brush
             + "  |  furniture " + (showFurnitureLayer ? "on" : "off")
+            + cutawayHudSuffix()
             + "  |  tool " + toolbar.getActiveTool().name().toLowerCase()
             + "  |  zoom " + formatViewZoom();
         final String line5 = "Toolbar: Paint / Pan / Pick / Mapgen — Ctrl+G import json mapgen";
         final String line6 = pointerDebugLogging
             ? "F3 pointer debug ON — delta = mouse minus highlight center  |  Esc menu"
-            : "[F] furniture  [P] anim  [G] grid  [[ ]] tileset  |  [/] floor  |  F3 debug  |  Esc menu";
+            : formatShortcutLine();
 
         final int top = viewportPixelHeight() - HUD_MARGIN;
         final float cursorLineY = top - 32;
@@ -947,6 +1472,42 @@ public final class MapEditorScreen {
         font.draw(batch, line6, HUD_MARGIN, top - 80);
     }
 
+    private void drawOvermapHud() {
+        final String hover = hoverCellX >= 0
+            ? formatOvermapCursorCell(hoverCellX, hoverCellY)
+            : "—";
+        final String selection = selectedOmtX >= 0
+            ? formatOvermapCursorCell(selectedOmtX, selectedOmtY)
+            : "none";
+        final String line1 = statusMessage;
+        final String line2 = "Mode: OVERMAP  "
+            + overmapGrid.width() + "×" + overmapGrid.height()
+            + "  seed=" + overmapSeed
+            + "  |  OMT types " + overmapTerrainRegistry.size();
+        final String line4 = "Hover: " + hover + "  |  Selected: " + selection + "  |  zoom " + formatViewZoom();
+        final String line5 = "Click a building cell — Enter visit — [ ] size (8/16/32/64) — R regenerate — [M] submap";
+        final String line6 = overmapTerrainLoaded
+            ? "[M] submap mode  |  Esc clear selection  |  F3 debug"
+            : "Overmap terrain not loaded";
+
+        final int top = viewportPixelHeight() - HUD_MARGIN;
+        font.draw(batch, line1, HUD_MARGIN, top);
+        font.draw(batch, line2, HUD_MARGIN, top - 16);
+        font.draw(batch, line4, HUD_MARGIN, top - 32);
+        font.draw(batch, line5, HUD_MARGIN, top - 48);
+        font.draw(batch, line6, HUD_MARGIN, top - 64);
+    }
+
+    private String formatOvermapCursorCell(final int x, final int y) {
+        final String omtId = overmapGrid.getOmtId(x, y);
+        final OvermapTerrainDefinition definition = overmapTerrainRegistry.find(omtId).orElse(null);
+        final String mapgenCount = definition == null
+            ? "mapgens=?"
+            : "mapgens=" + definition.jsonMapgenRefCount();
+        final String rotatable = definition != null && definition.isRotatable() ? " rotatable" : "";
+        return "(" + x + "," + y + ") " + omtId + "  " + mapgenCount + rotatable;
+    }
+
     private String buildingFloorHudSuffix() {
         if (mapVolume == null) {
             return "";
@@ -954,6 +1515,21 @@ public final class MapEditorScreen {
         return "  |  building " + mapVolume.getBuildingId()
             + "  floor z=" + mapVolume.getActiveZ()
             + " (" + (mapVolume.activeFloorIndex() + 1) + "/" + mapVolume.floorCount() + ")";
+    }
+
+    private String cutawayHudSuffix() {
+        if (mapVolume == null || mapVolume.floorCount() <= 1) {
+            return "";
+        }
+        return "  |  cutaway " + (showZCutaway ? "on" : "off");
+    }
+
+    private String formatShortcutLine() {
+        final String modeHint = overmapTerrainLoaded ? "  [M] overmap" : "";
+        final String floorHint = mapVolume != null && mapVolume.floorCount() > 1
+            ? "  [PgUp/PgDn] floor  [T] cutaway"
+            : "  [[ ]] tileset";
+        return "[F] furniture  [P] anim  [G] grid" + modeHint + floorHint + "  |  F3 debug  |  Esc menu";
     }
 
     private String formatCursorCell(final int x, final int y) {
@@ -1020,6 +1596,9 @@ public final class MapEditorScreen {
     }
 
     private void paintAt(final int screenX, final int screenY) {
+        if (editorMode == EditorMode.OVERMAP) {
+            return;
+        }
         if (pointerDebugLogging) {
             logPointerDebugAt(screenX, screenY, "paint");
         }
@@ -1083,14 +1662,36 @@ public final class MapEditorScreen {
             return null;
         }
 
-        final float tilePx = tilePixelSize();
-        final int cellX = (int) Math.floor((screenX - cameraX) / tilePx);
+        final float cellPx = activeCellPixelSize();
+        final int cellX = (int) Math.floor((screenX - cameraX) / cellPx);
         final float rowOffset = gridTopY() - screenY;
-        final int cellY = (int) Math.floor(rowOffset / tilePx);
-        if (cellX < 0 || cellY < 0 || cellX >= grid.width() || cellY >= grid.height()) {
+        final int cellY = (int) Math.floor(rowOffset / cellPx);
+        if (cellX < 0 || cellY < 0 || cellX >= activeGridWidth() || cellY >= activeGridHeight()) {
             return null;
         }
         return new CellCoord(cellX, cellY);
+    }
+
+    private int activeGridWidth() {
+        if (editorMode == EditorMode.OVERMAP && overmapGrid != null) {
+            return overmapGrid.width();
+        }
+        return grid.width();
+    }
+
+    private int activeGridHeight() {
+        if (editorMode == EditorMode.OVERMAP && overmapGrid != null) {
+            return overmapGrid.height();
+        }
+        return grid.height();
+    }
+
+    private float activeCellPixelSize() {
+        return editorMode == EditorMode.OVERMAP ? omtCellPixelSize() : tilePixelSize();
+    }
+
+    private float omtCellPixelSize() {
+        return Math.max(8f, viewZoom * OMT_BASE_CELL_PX);
     }
 
     /** Bottom edge of the grid in screen space (LibGDX y-up). */
@@ -1100,12 +1701,12 @@ public final class MapEditorScreen {
 
     /** Top edge of the grid in screen space; grid row 0 is just below this. */
     private float gridTopY() {
-        return gridBaseY() + grid.height() * tilePixelSize();
+        return gridBaseY() + activeGridHeight() * activeCellPixelSize();
     }
 
     /** Bottom-left draw position for a cell; row 0 is the top row of the map. */
     private float cellBottomY(final int gridY) {
-        return gridTopY() - (gridY + 1) * tilePixelSize();
+        return gridTopY() - (gridY + 1) * activeCellPixelSize();
     }
 
     private void logPointerDebug(final boolean force) {
@@ -1278,42 +1879,18 @@ public final class MapEditorScreen {
         if (mapgenPicker.isOpen() || loadingMapgenCatalog) {
             return;
         }
-        if (!mapgenPreviewService.hasDataRoots()) {
-            statusMessage = "No data roots (set -Dcdda.data.roots=...)";
-            return;
-        }
-        if (mapgenPreviewService.isLoaded()) {
-            showMapgenPicker();
-            return;
-        }
-        loadingMapgenCatalog = true;
-        statusMessage = "Loading mapgen catalog…";
-        new Thread(() -> {
-            try {
-                mapgenPreviewService.ensureLoaded(MapgenScanOptions.defaults());
-                Gdx.app.postRunnable(() -> {
-                    loadingMapgenCatalog = false;
-                    logMapgenLoadWarnings();
-                    showMapgenPicker();
-                });
-            } catch (final IOException e) {
-                Gdx.app.postRunnable(() -> {
-                    loadingMapgenCatalog = false;
-                    showImportFailed("Mapgen catalog load failed", "Could not load mapgen data.", e);
-                });
-            }
-        }, "mapgen-catalog-load").start();
+        ensureMapgenCatalogLoaded(this::showMapgenPicker);
     }
 
     private void showMapgenPicker() {
-        if (mapgenPreviewService.getCatalog().runnableOnly().isEmpty()) {
+        if (mapgenService().getCatalog().runnableOnly().isEmpty()) {
             statusMessage = "No json mapgens found";
             return;
         }
         mapgenPicker.open(
-            mapgenPreviewService.getCatalog(),
-            mapgenPreviewService.getCityBuildings(),
-            mapgenPreviewService.getPickerIndex()
+            mapgenService().getCatalog(),
+            mapgenService().getCityBuildings(),
+            mapgenService().getPickerIndex()
         );
     }
 
@@ -1330,7 +1907,7 @@ public final class MapEditorScreen {
     private void applyBuildingImport(final CityBuildingDefinition building) {
         try {
             statusMessage = "Generating building " + building.getId() + "…";
-            final MapgenPreviewService.MapgenBuildingResult result = mapgenPreviewService.generateBuilding(
+            final MapgenPreviewService.MapgenBuildingResult result = mapgenService().generateBuilding(
                 building,
                 new JsonMapgenRunOptions()
             );
@@ -1363,7 +1940,7 @@ public final class MapEditorScreen {
         }
         try {
             statusMessage = "Generating " + definition.displayName() + "…";
-            final MapgenPreviewService.MapgenPreviewResult result = mapgenPreviewService.generate(
+            final MapgenPreviewService.MapgenPreviewResult result = mapgenService().generate(
                 definition,
                 gameData,
                 new JsonMapgenRunOptions()
@@ -1382,7 +1959,7 @@ public final class MapEditorScreen {
     }
 
     private void logMapgenLoadWarnings() {
-        for (final String warning : mapgenPreviewService.getLoadWarnings()) {
+        for (final String warning : mapgenService().getLoadWarnings()) {
             Gdx.app.log("mapgen", warning);
         }
     }
@@ -1523,9 +2100,9 @@ public final class MapEditorScreen {
     }
 
     private void centerCamera() {
-        final float tilePx = tilePixelSize();
-        final float gridW = grid.width() * tilePx;
-        final float gridH = grid.height() * tilePx;
+        final float cellPx = activeCellPixelSize();
+        final float gridW = activeGridWidth() * cellPx;
+        final float gridH = activeGridHeight() * cellPx;
         final float areaBottom = MapEditorToolbar.HEIGHT + 16;
         final float areaTop = viewportPixelHeight() - hudHeight() - 8;
         final float baseY = (areaBottom + areaTop - gridH) / 2f;
@@ -1546,16 +2123,16 @@ public final class MapEditorScreen {
     }
 
     private void adjustViewZoom(final float zoomDelta, final int anchorX, final int anchorY) {
-        final float oldTilePx = tilePixelSize();
-        final float mapX = (anchorX - cameraX) / oldTilePx;
-        final float gridTopOld = cameraY + hudHeight() + grid.height() * oldTilePx;
-        final float mapYFromTop = (gridTopOld - anchorY) / oldTilePx;
+        final float oldCellPx = activeCellPixelSize();
+        final float mapX = (anchorX - cameraX) / oldCellPx;
+        final float gridTopOld = cameraY + hudHeight() + activeGridHeight() * oldCellPx;
+        final float mapYFromTop = (gridTopOld - anchorY) / oldCellPx;
 
         viewZoom = MathUtils.clamp(viewZoom - zoomDelta, MIN_VIEW_ZOOM, MAX_VIEW_ZOOM);
 
-        final float newTilePx = tilePixelSize();
-        cameraX = anchorX - mapX * newTilePx;
-        cameraY = anchorY - hudHeight() - grid.height() * newTilePx + mapYFromTop * newTilePx;
+        final float newCellPx = activeCellPixelSize();
+        cameraX = anchorX - mapX * newCellPx;
+        cameraY = anchorY - hudHeight() - activeGridHeight() * newCellPx + mapYFromTop * newCellPx;
     }
 
     private int gridZoomAnchorX() {

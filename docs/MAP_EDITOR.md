@@ -42,7 +42,10 @@ Package roots: `io.gdx.cdda.bn.nextgen.map`, `io.gdx.cdda.bn.nextgen.view`
 | Polish: filter, resize, HUD, toolbar, mouse (M4) | done |
 | `MainMenuScreen` + sprite viewer `[E]` shortcut | done |
 | Walkable player | out of scope |
-| Multitile autoconnect | out of scope |
+| Multitile autoconnect | **R1** — [05-multitile-autoconnect.md](./map-editor/05-multitile-autoconnect.md) |
+| `looks_like` at draw | **R2** — [06-looks-like-draw-fallback.md](./map-editor/06-looks-like-draw-fallback.md) |
+| Furniture paint | **M5** — [07-furniture-paint.md](./map-editor/07-furniture-paint.md) |
+| Mapgen spawn overlay | **M6** — [08-debug-overlays.md](./map-editor/08-debug-overlays.md) |
 
 ---
 
@@ -112,8 +115,22 @@ OS cursor aligns with the grid on Windows (GLFW y-down vs LibGDX y-up).
 | **M3** `MapPalettePanel`, paint input | done | Click/drag paint, eyedropper |
 | **M4** filter, resize, HUD, toolbar, menu entry | done | Mouse palette; `[`/`]` tileset + spinner |
 
+### v2 milestone (post–mapgen-v2)
+
+| Item | PR | Spec |
+| --- | --- | --- |
+| Terrain multitile autoconnect | **R1** | [05-multitile-autoconnect.md](./map-editor/05-multitile-autoconnect.md) |
+| `looks_like` draw fallback | **R2** | [06-looks-like-draw-fallback.md](./map-editor/06-looks-like-draw-fallback.md) |
+| Furniture paint brush | **M5** | [07-furniture-paint.md](./map-editor/07-furniture-paint.md) |
+| Spawn marker overlay | **M6** | [08-debug-overlays.md](./map-editor/08-debug-overlays.md) |
+| Z-level roof cutaway | **M7** | [09-z-roof-transparency.md](./map-editor/09-z-roof-transparency.md) (optional) |
+| Overmap debug view | **R3** | [10-overmap-debug-view.md](./map-editor/10-overmap-debug-view.md) (needs W2) |
+
+**Plan:** [map-editor/v2-implementation-plan.md](./map-editor/v2-implementation-plan.md)
+
 ```bash
 gradlew.bat :core:test --tests "io.gdx.cdda.bn.nextgen.map.*"
+gradlew.bat :core:test --tests "io.gdx.cdda.bn.nextgen.view.*"
 ```
 
 ---

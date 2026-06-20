@@ -99,7 +99,7 @@ Package root: `io.gdx.cdda.bn.nextgen.mapgen`
 | Building bundle + floor switch | **P5** | done |
 | Multi-OMT stitch per floor | **P6** | done |
 | Bundle discovery + whole specials | **P7** | done |
-| Full overmap / worldgen | — | out of scope ([08](./mapgen-preview/08-v2-parity-roadmap.md)) |
+| Full overmap / worldgen | — | [WORLDGEN.md](../WORLDGEN.md) ([08](./mapgen-preview/08-v2-parity-roadmap.md)) |
 
 ---
 

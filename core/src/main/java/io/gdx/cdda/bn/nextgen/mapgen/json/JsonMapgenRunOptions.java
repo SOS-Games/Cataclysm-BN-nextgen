@@ -16,6 +16,7 @@ public final class JsonMapgenRunOptions {
     private int omtRotation = 0;
     private RegionContext regionContext;
     private MapgenCatalog mapgenCatalog;
+    private List<String> neighborOmtIds = Collections.emptyList();
     private final List<String> warnings = new ArrayList<>();
 
     public JsonMapgenRunOptions() {}
@@ -74,8 +75,22 @@ public final class JsonMapgenRunOptions {
         derived.previewRegionId = previewRegionId;
         derived.regionContext = regionContext;
         derived.mapgenCatalog = mapgenCatalog;
+        derived.neighborOmtIds = neighborOmtIds;
         derived.omtRotation = Math.floorMod(omtRotation, 4);
         return derived;
+    }
+
+    public List<String> getNeighborOmtIds() {
+        return neighborOmtIds;
+    }
+
+    public JsonMapgenRunOptions withNeighborOmtIds(final List<String> neighborOmtIds) {
+        if (neighborOmtIds == null || neighborOmtIds.isEmpty()) {
+            this.neighborOmtIds = Collections.emptyList();
+        } else {
+            this.neighborOmtIds = Collections.unmodifiableList(new ArrayList<>(neighborOmtIds));
+        }
+        return this;
     }
 
     public RegionContext getRegionContext() {

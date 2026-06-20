@@ -139,8 +139,8 @@ Eyedropper: v2 could pick `furnitureId` from cell; v1 eyedropper terrain only.
 
 - Furniture paint brush in palette
 - Z-order / transparency between furniture on same tile
-- Multitile furniture
-- `looks_like` at draw time
+- Multitile furniture — [map-editor 05](../map-editor/05-multitile-autoconnect.md) § R1.1b
+- `looks_like` at draw time — [map-editor 06](../map-editor/06-looks-like-draw-fallback.md) **R2**
 - Items on ground (mapgen `place_items`)
 
 ---

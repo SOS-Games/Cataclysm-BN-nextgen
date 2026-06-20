@@ -1,0 +1,24 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_weighted_pick",
+    "weight": 1,
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [ "AAA", "AAA", "AAA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_weighted_pick",
+    "weight": 9,
+    "object": {
+      "fill_ter": "t_floor",
+      "palettes": [ "minimal" ],
+      "rows": [ "BBB", "BBB", "BBB" ]
+    }
+  }
+]

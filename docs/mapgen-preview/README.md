@@ -16,7 +16,7 @@ without full world/overmap simulation.
 - [Map editor](../map-editor/README.md) — `MapGrid`, render bridge (M1–M4 done)
 - [Tileset loader](../tileset-loader/README.md) — sprites
 
-**Not in scope:** overmap generation, `method: builtin` / `lua`, nested mapgen, BN `.sav2`.
+**Not in scope (mapgen preview):** full overmap generation — see [WORLDGEN.md](../WORLDGEN.md); `method: builtin` / `lua` at world scale; BN `.sav2`.
 
 ---
 
@@ -56,7 +56,7 @@ without full world/overmap simulation.
 
 | Topic | See |
 | --- | --- |
-| Full world generation | [01](./01-overview-and-scope.md) |
+| Full world generation | [01](./01-overview-and-scope.md), [worldgen/](../worldgen/README.md) |
 | Weighted `oter_mapgen` pick | [08](./08-v2-parity-roadmap.md) |
 | `method: builtin` / `lua` | [08](./08-v2-parity-roadmap.md) |
 | Furniture paint brush | Map editor v2 |

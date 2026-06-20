@@ -121,6 +121,11 @@ public final class JsonMapgenDefinition {
         return objectRoot.has("rows");
     }
 
+    /** True when the definition maps to an OMT tile; false for nested/update-only fragments. */
+    public boolean isStandalonePickerEntry() {
+        return !omTerrain.isEmpty();
+    }
+
     public String displayName() {
         if (nestedMapgenId != null && !nestedMapgenId.isEmpty()) {
             return nestedMapgenId;

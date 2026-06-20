@@ -49,26 +49,43 @@ Specs: **`docs/game-data-loader/`**. BN C++ in `src/init.cpp`, `src/mapdata.cpp`
 | Spec index | `docs/game-data-loader/README.md` |
 | Implementation plan | `docs/game-data-loader/implementation-plan.md` |
 
-### Map editor (v1 done)
+### Map editor (v1 done, v2 planned)
 
-Specs: **`docs/map-editor/`**. Consumes game data + tileset loaders.
+Specs: **`docs/map-editor/`**. Paintable grid + mapgen import UI.
 
 | Doc | Path |
 | --- | --- |
 | Guide | `docs/MAP_EDITOR.md` |
 | Spec index | `docs/map-editor/README.md` |
+| v1 plan | `docs/map-editor/implementation-plan.md` |
+| v2 plan | `docs/map-editor/v2-implementation-plan.md` |
+
+**PR slices:** M1–M4 done. v2: **R1** multitile → **R2** looks_like → **M5** furniture paint → **M6** overlays; **R3** overmap view with W2.
 
 ### Mapgen preview (done)
 
-Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (not full worldgen).
+Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (single-building / import).
 
 | Doc | Path |
 | --- | --- |
 | Guide | `docs/MAPGEN_PREVIEW.md` |
 | Spec index | `docs/mapgen-preview/README.md` |
-| Implementation plan | `docs/mapgen-preview/implementation-plan.md` |
+| v2 plan | `docs/mapgen-preview/v2-implementation-plan.md` |
 
-**PR slices:** P1–P7c done (… → OMT stitch → bundle discovery → implicit bundles → whole special). **v2:** [v2-implementation-plan](docs/mapgen-preview/v2-implementation-plan.md) (P8 done → P9 setmap next). Index: [08-v2-parity-roadmap](docs/mapgen-preview/08-v2-parity-roadmap.md), units [14–21](docs/mapgen-preview/14-mod-scan-paths.md).
+**PR slices:** P1–P7c + v2 P8–P15 done. Units [14–21](docs/mapgen-preview/14-mod-scan-paths.md).
+
+### World generation (planned)
+
+Specs: **`docs/worldgen/`**. Overmap grid + visit-tile submaps; reuses `JsonMapgenRunner`.
+
+| Doc | Path |
+| --- | --- |
+| Guide | `docs/WORLDGEN.md` |
+| Spec index | `docs/worldgen/README.md` |
+| Plan | `docs/worldgen/implementation-plan.md` |
+
+**PR slices:** W1–W6 (overmap_terrain → mini-overmap → visit → cities → rivers → mutable specials).
+Parallel: [08–11](docs/worldgen/08-mapgen-post-v2-polish.md).
 
 | Docs index | `docs/README.md` |
 
@@ -146,11 +163,11 @@ gradlew.bat test
 
 **Game data loader:** G1–G5 done — see `docs/game-data-loader/implementation-plan.md`.
 
-**Map editor:** M1–M4 done — `docs/map-editor/implementation-plan.md`.
+**Map editor:** M1–M4 done — `docs/map-editor/implementation-plan.md`. v2 **R1–R3, M5–M7** — `docs/map-editor/v2-implementation-plan.md` (start with **R1** multitile).
 
-**Mapgen preview:** P1–P7c done; see `docs/mapgen-preview/implementation-plan.md` for v2 items.
+**Mapgen preview:** P1–P7c + v2 P8–P15 done — `docs/mapgen-preview/v2-implementation-plan.md`.
 
-Sprite viewer follow-ups: search, detail pane. Gfx: draw-time seasonal/tint/warp.
+**World generation:** W1–W6 planned — `docs/worldgen/implementation-plan.md` (start with W1 `OvermapTerrainRegistry`).
 
 **Loading:** use `TilesetLoadSession` for UI; never `TilesetLoader.load` on a worker thread
 (see `docs/INCREMENTAL_LOADING.md`).

@@ -38,7 +38,17 @@ public final class TileSpriteResolver {
         final int pickIndex,
         final TilesetFxType fxType
     ) {
-        return resolveLayer(tileset, tile.getSprites().getBackground(), pickIndex, fxType);
+        return resolveBackground(tileset, tile, pickIndex, 0, fxType);
+    }
+
+    public static TextureRegion resolveBackground(
+        final LoadedTileset tileset,
+        final TileDefinition tile,
+        final int pickIndex,
+        final int rotationIndex,
+        final TilesetFxType fxType
+    ) {
+        return resolveLayer(tileset, tile.getSprites().getBackground(), tile, pickIndex, rotationIndex, fxType);
     }
 
     public static TextureRegion resolveForeground(
@@ -47,26 +57,50 @@ public final class TileSpriteResolver {
         final int pickIndex,
         final TilesetFxType fxType
     ) {
-        return resolveLayer(tileset, tile.getSprites().getForeground(), pickIndex, fxType);
+        return resolveForeground(tileset, tile, pickIndex, 0, fxType);
+    }
+
+    public static TextureRegion resolveForeground(
+        final LoadedTileset tileset,
+        final TileDefinition tile,
+        final int pickIndex,
+        final int rotationIndex,
+        final TilesetFxType fxType
+    ) {
+        return resolveLayer(tileset, tile.getSprites().getForeground(), tile, pickIndex, rotationIndex, fxType);
     }
 
     private static TextureRegion resolveLayer(
         final LoadedTileset tileset,
         final WeightedSpriteList layer,
+        final TileDefinition tile,
         final int pickIndex,
+        final int rotationIndex,
         final TilesetFxType fxType
     ) {
-        final int spriteIndex = resolveSpriteIndex(layer, pickIndex);
+        final int spriteIndex = resolveSpriteIndex(layer, pickIndex, rotationIndex, tile);
         return spriteIndex < 0 ? null : tileset.getTexture(spriteIndex, fxType);
     }
 
-    private static int resolveSpriteIndex(final WeightedSpriteList layer, final int pickIndex) {
+    private static int resolveSpriteIndex(
+        final WeightedSpriteList layer,
+        final int pickIndex,
+        final int rotationIndex,
+        final TileDefinition tile
+    ) {
         if (layer.isEmpty()) {
             return -1;
         }
         final SpriteVariant variant = layer.pickByIndex(pickIndex);
         if (variant == null || variant.isEmpty()) {
             return -1;
+        }
+        final int frameCount = variant.getFrames().size();
+        if (frameCount > 1) {
+            return variant.getFrame(rotationIndex);
+        }
+        if (tile != null && tile.isRotates() && !tile.isMultitileSubtile() && rotationIndex != 0) {
+            return variant.getFrame(0);
         }
         return variant.getFrame(0);
     }

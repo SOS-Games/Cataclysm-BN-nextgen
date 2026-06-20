@@ -1,0 +1,15 @@
+{
+  "width": 8,
+  "height": 8,
+  "fill": "open_air",
+  "rows": [
+    [ "test_field", "test_field", "test_field", "test_field", "open_air", "open_air", "open_air", "open_air" ],
+    [ "test_field", "test_room", "test_room", "test_field", "open_air", "open_air", "open_air", "open_air" ],
+    [ "test_field", "test_room", "test_room", "test_field", "open_air", "open_air", "open_air", "open_air" ],
+    [ "test_field", "test_field", "test_field", "test_field", "open_air", "open_air", "open_air", "open_air" ],
+    [ "open_air", "open_air", "open_air", "open_air", "test_duplex_ground_north", "test_duplex_ground_north", "open_air", "open_air" ],
+    [ "open_air", "open_air", "open_air", "open_air", "open_air", "open_air", "open_air", "open_air" ],
+    [ "open_air", "open_air", "test_multitile_west_north", "test_multitile_east_north", "open_air", "open_air", "open_air", "open_air" ],
+    [ "open_air", "open_air", "open_air", "open_air", "open_air", "open_air", "open_air", "open_air" ]
+  ]
+}

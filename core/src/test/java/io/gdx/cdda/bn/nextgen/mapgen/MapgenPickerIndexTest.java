@@ -14,6 +14,29 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 class MapgenPickerIndexTest {
 
     @Test
+    void hidesNestedOnlyMapgenFragments() throws Exception {
+        final MapgenScanOptions options = MapgenScanOptions.fromDataRoot(MapgenTestFixtures.fixtureDataRoot());
+        final CityBuildingRegistry buildings = CityBuildingLoader.load(options);
+        final MapgenCatalog catalog = JsonMapgenLoader.load(options).getCatalog();
+        final MapgenPickerIndex index = MapgenPickerIndex.build(catalog, buildings);
+
+        assertFalse(
+            index.all().stream().anyMatch(row -> !row.isWholeSpecialRow()
+                && row.getDefinition()
+                    .map(def -> "test_nested_room".equals(def.displayName()))
+                    .orElse(false)),
+            "nested-only chunk should not appear as a standalone picker row"
+        );
+        assertTrue(
+            index.all().stream().anyMatch(row -> !row.isWholeSpecialRow()
+                && row.getDefinition()
+                    .map(def -> def.getOmTerrain().contains("test_nested_parent"))
+                    .orElse(false)),
+            "parent OMT mapgen should still appear in picker"
+        );
+    }
+
+    @Test
     void includesWholeOvermapSpecialInFixtureIndex() throws Exception {
         final MapgenScanOptions options = MapgenScanOptions.fromDataRoot(MapgenTestFixtures.fixtureDataRoot());
         final CityBuildingRegistry buildings = CityBuildingLoader.load(options);

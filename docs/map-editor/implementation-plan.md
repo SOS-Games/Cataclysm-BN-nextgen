@@ -13,9 +13,10 @@ A **MapEditorScreen** that:
 3. Lets the user pick a brush from terrain ids and paint cells
 4. Saves/loads local map JSON (not BN saves)
 
-**v1 milestones M1–M4 are implemented.**
+**v1 milestones M1–M4 are implemented.** Mapgen import, furniture display, and `MapVolume`
+floors are integrated via [mapgen-preview](../mapgen-preview/README.md).
 
----
+**v2 milestones** (rendering + UX): [v2-implementation-plan.md](./v2-implementation-plan.md).
 
 ## Dependencies
 
@@ -53,6 +54,21 @@ Game data **G2** (terrain) is required; **G3** (furniture) optional for terrain-
 | **M4** | done | Filter, resize, HUD, toolbar, mouse, `TilesetLoadSession` |
 
 **Prerequisite:** game data **G2** (`TerrainRegistry`).
+
+---
+
+## v2 deliverables
+
+| PR | Unit | Status |
+| --- | --- | --- |
+| **R1** | [05 multitile](./05-multitile-autoconnect.md) | todo |
+| **R2** | [06 looks_like](./06-looks-like-draw-fallback.md) | todo |
+| **M5** | [07 furniture paint](./07-furniture-paint.md) | todo |
+| **M6** | [08 debug overlays](./08-debug-overlays.md) | todo |
+| **M7** | [09 z roof](./09-z-roof-transparency.md) | todo (optional) |
+| **R3** | [10 overmap view](./10-overmap-debug-view.md) | todo (W2) |
+
+See [v2-implementation-plan.md](./v2-implementation-plan.md) for order and package layout.
 
 ---
 

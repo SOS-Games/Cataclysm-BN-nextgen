@@ -64,21 +64,23 @@ doc with algorithms, Java types, and verification.
 
 | Feature | Notes | Unit |
 | --- | --- | --- |
-| Overmap generation | New spec tree `docs/worldgen/` | out of scope |
-| `overmap_terrain` loader | Prerequisite for OMT typing | game data / worldgen |
-| Submap buffer 24×24×Z | P5–P7c `MapVolume` + stitch | [09](./09-building-bundles-overview.md) — **done** |
-| Regional `t_region_*` resolve | Needs `region_settings` | [19](./19-regional-terrain.md) |
+| Overmap generation | [docs/worldgen/](../worldgen/README.md) — W1–W6 | [WORLDGEN.md](../WORLDGEN.md) |
+| `overmap_terrain` loader | Prerequisite for OMT typing | [02](../worldgen/02-overmap-terrain-loader.md) |
+| Submap buffer 24×24×Z | P5–P7c `MapVolume` + stitch; visit-tile W3 | [09](./09-building-bundles-overview.md), [04](../worldgen/04-visit-tile-mapgen.md) |
+| Regional `t_region_*` resolve | Needs `region_settings` | [19](./19-regional-terrain.md) — **done** P11 |
 
 ---
 
-## Rendering
+## Rendering (post–mapgen-v2)
 
-| Feature | Notes |
-| --- | --- |
-| Multitile autoconnect | Draw-time in `TileSpriteResolver` |
-| `looks_like` chains | Game data + gfx |
-| Field / trap overlays | Separate layer (setmap traps) |
-| Roof transparency | Z and `t_open_air` |
+| Feature | Notes | Unit |
+| --- | --- | --- |
+| Multitile autoconnect | Draw-time in `MultitileConnectResolver` | [map-editor 05](../map-editor/05-multitile-autoconnect.md) **R1** |
+| `looks_like` chains | Draw-time in `TileLooksLikeResolver` | [map-editor 06](../map-editor/06-looks-like-draw-fallback.md) **R2** |
+| Field / trap overlays | Debug layer | [map-editor 08](../map-editor/08-debug-overlays.md) **M6** |
+| Roof transparency | Multi-floor cutaway | [map-editor 09](../map-editor/09-z-roof-transparency.md) **M7** |
+
+**Plan:** [map-editor/v2-implementation-plan.md](../map-editor/v2-implementation-plan.md)
 
 ---
 

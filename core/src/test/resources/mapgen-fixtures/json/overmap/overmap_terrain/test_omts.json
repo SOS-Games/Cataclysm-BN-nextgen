@@ -1,0 +1,121 @@
+[
+  {
+    "type": "overmap_terrain",
+    "id": "open_air",
+    "name": "open air",
+    "sym": ".",
+    "color": "blue",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_field",
+    "name": "field",
+    "sym": ".",
+    "color": "brown",
+    "flags": [ "NO_ROTATE" ],
+    "mapgen": [ { "method": "json", "om_terrain": "test_field_bg" } ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_room",
+    "name": "test room",
+    "sym": "R",
+    "color": "light_green",
+    "flags": [ "NO_ROTATE" ],
+    "mapgen": [ { "method": "json", "om_terrain": "test_room" } ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_duplex_ground_north",
+    "name": "duplex ground",
+    "sym": "D",
+    "color": "white",
+    "flags": [ "NO_ROTATE" ],
+    "mapgen": [ { "method": "json", "om_terrain": "test_duplex_ground" } ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_multitile_west_north",
+    "name": "multitile west",
+    "sym": "W",
+    "color": "cyan",
+    "flags": [ "NO_ROTATE" ],
+    "mapgen": [ { "method": "json", "om_terrain": "test_multitile_west" } ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_multitile_east_north",
+    "name": "multitile east",
+    "sym": "E",
+    "color": "cyan",
+    "flags": [ "NO_ROTATE" ],
+    "mapgen": [ { "method": "json", "om_terrain": "test_multitile_east" } ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_river",
+    "name": "test river",
+    "sym": "~",
+    "color": "blue",
+    "flags": [ "NO_ROTATE", "RIVER" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road",
+    "name": "test road",
+    "sym": "=",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_mutable_west_north",
+    "name": "mutable west",
+    "sym": "W",
+    "color": "magenta",
+    "flags": [ "NO_ROTATE" ],
+    "mapgen": [ { "method": "json", "om_terrain": "test_room" } ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_mutable_east_north",
+    "name": "mutable east",
+    "sym": "E",
+    "color": "magenta",
+    "flags": [ "NO_ROTATE" ],
+    "mapgen": [ { "method": "json", "om_terrain": "test_room" } ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_mutable_nw_north",
+    "name": "mutable nw",
+    "sym": "1",
+    "color": "magenta",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_mutable_ne_north",
+    "name": "mutable ne",
+    "sym": "2",
+    "color": "magenta",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_mutable_sw_north",
+    "name": "mutable sw",
+    "sym": "3",
+    "color": "magenta",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_mutable_se_north",
+    "name": "mutable se",
+    "sym": "4",
+    "color": "magenta",
+    "flags": [ "NO_ROTATE" ]
+  }
+]

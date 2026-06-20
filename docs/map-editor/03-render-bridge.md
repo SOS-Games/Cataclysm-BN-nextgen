@@ -97,6 +97,9 @@ Row/column bounds computed from camera and viewport; full grid draw OK for ≤64
 BN selects grass/wall subtiles from neighbor mask. v1 draws **base id** sprite only —
 edges may look wrong.
 
+**v2 fix:** [05 multitile autoconnect](./05-multitile-autoconnect.md) (**R1**) and
+[06 looks_like](./06-looks-like-draw-fallback.md) (**R2**).
+
 ---
 
 ## FX preview

@@ -31,7 +31,8 @@ public final class MapEditorToolbar {
         OPEN_MAPGEN,
         CYCLE_GRID,
         TILESET_PREV,
-        TILESET_NEXT
+        TILESET_NEXT,
+        CYCLE_EDITOR_MODE
     }
 
     private static final class ButtonDef {
@@ -57,6 +58,7 @@ public final class MapEditorToolbar {
         new ButtonDef("Load", Action.LOAD, null),
         new ButtonDef("Mapgen", Action.OPEN_MAPGEN, null),
         new ButtonDef("Grid", Action.CYCLE_GRID, null),
+        new ButtonDef("OMT", Action.CYCLE_EDITOR_MODE, null),
         new ButtonDef("<", Action.TILESET_PREV, null),
         new ButtonDef(">", Action.TILESET_NEXT, null)
     };

@@ -1,0 +1,251 @@
+package io.gdx.cdda.bn.nextgen.worldgen;
+
+import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
+import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
+import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionLoadResult;
+import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateOptions;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateResult;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerator;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoadResult;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridFactory;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoadResult;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapCache;
+import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapGenerator;
+import io.gdx.cdda.bn.nextgen.worldgen.submap.VisitResult;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/** Facade for overmap terrain + visit-tile submap generation (W3). */
+public final class WorldgenPreviewService {
+
+    private static final int DEFAULT_CACHE_SIZE = 64;
+
+    private final MapgenPreviewService mapgenPreviewService = new MapgenPreviewService();
+    private final SubmapCache submapCache = new SubmapCache(DEFAULT_CACHE_SIZE);
+
+    private OvermapTerrainRegistry overmapTerrainRegistry = new OvermapTerrainRegistry();
+    private OvermapConnectionRegistry overmapConnectionRegistry = new OvermapConnectionRegistry();
+    private MutableSpecialRegistry mutableSpecialRegistry = new MutableSpecialRegistry();
+    private List<String> overmapLoadWarnings = Collections.emptyList();
+    private LoadedGameData gameData;
+    private long worldSeed = 12345L;
+    private boolean loaded;
+
+    public boolean hasDataRoots() {
+        return !WorldgenScanOptions.defaults().getDataRoots().isEmpty();
+    }
+
+    public boolean isLoaded() {
+        return loaded && mapgenPreviewService.isLoaded();
+    }
+
+    public MapgenPreviewService getMapgenPreviewService() {
+        return mapgenPreviewService;
+    }
+
+    public OvermapTerrainRegistry getOvermapTerrainRegistry() {
+        return overmapTerrainRegistry;
+    }
+
+    public OvermapConnectionRegistry getOvermapConnectionRegistry() {
+        return overmapConnectionRegistry;
+    }
+
+    public MutableSpecialRegistry getMutableSpecialRegistry() {
+        return mutableSpecialRegistry;
+    }
+
+    public List<String> getOvermapLoadWarnings() {
+        return overmapLoadWarnings;
+    }
+
+    public long getWorldSeed() {
+        return worldSeed;
+    }
+
+    public void setWorldSeed(final long worldSeed) {
+        this.worldSeed = worldSeed;
+        submapCache.clear();
+    }
+
+    public void setGameData(final LoadedGameData gameData) {
+        this.gameData = gameData;
+    }
+
+    public void clearSubmapCache() {
+        submapCache.clear();
+    }
+
+    public synchronized void ensureLoaded(final WorldgenScanOptions options) throws IOException {
+        if (loaded && mapgenPreviewService.isLoaded()) {
+            return;
+        }
+        final WorldgenScanOptions scanOptions = options == null ? WorldgenScanOptions.defaults() : options;
+
+        final OvermapTerrainLoadResult oterResult = OvermapTerrainLoader.load(
+            scanOptions.getOvermapTerrainScanOptions()
+        );
+        overmapTerrainRegistry = oterResult.getRegistry();
+        overmapLoadWarnings = new ArrayList<>(oterResult.getWarnings());
+
+        final OvermapConnectionLoadResult connectionResult = OvermapConnectionLoader.load(
+            scanOptions.getOvermapConnectionScanOptions()
+        );
+        overmapConnectionRegistry = connectionResult.getRegistry();
+        overmapLoadWarnings.addAll(connectionResult.getWarnings());
+
+        final MutableSpecialLoadResult mutableResult = MutableSpecialLoader.load(
+            scanOptions.getMutableSpecialScanOptions()
+        );
+        mutableSpecialRegistry = mutableResult.getRegistry();
+        overmapLoadWarnings.addAll(mutableResult.getWarnings());
+
+        mapgenPreviewService.ensureLoaded(scanOptions.getMapgenScanOptions());
+        loaded = true;
+    }
+
+    public OvermapGrid createTestOvermap(final int width, final int height, final long seed) {
+        worldSeed = seed;
+        submapCache.clear();
+        if (!isLoaded()) {
+            return OvermapGridFactory.empty(width, height, defaultFillId());
+        }
+        return generateOvermap(width, height).getGrid();
+    }
+
+    public OvermapGenerateResult generateOvermap(final int width, final int height) {
+        return generateOvermap(OvermapGenerateOptions.forSize(width, height).withSeed(worldSeed));
+    }
+
+    public OvermapGenerateResult generateOvermap(final OvermapGenerateOptions options) {
+        if (!isLoaded()) {
+            return new OvermapGenerateResult(
+                OvermapGridFactory.empty(
+                    options == null ? 8 : options.getWidth(),
+                    options == null ? 8 : options.getHeight(),
+                    defaultFillId()
+                ),
+                Collections.singletonList("worldgen not loaded"),
+                0,
+                0
+            );
+        }
+        final OvermapGenerateOptions resolved = resolveGenerateOptions(options);
+        submapCache.clear();
+        return OvermapGenerator.generate(
+            resolved,
+            mapgenPreviewService.getCityBuildings(),
+            overmapTerrainRegistry,
+            overmapConnectionRegistry,
+            mutableSpecialRegistry
+        );
+    }
+
+    private OvermapGenerateOptions resolveGenerateOptions(final OvermapGenerateOptions options) {
+        final OvermapGenerateOptions base = options == null
+            ? OvermapGenerateOptions.forSize(8, 8)
+            : options;
+        final String fieldId = resolveTerrainId(base.getFieldId(), "field");
+        final String forestId = overmapTerrainRegistry.contains(base.getForestId())
+            ? base.getForestId()
+            : resolveTerrainId("forest", fieldId);
+        final String riverCenterId = resolveTerrainId(base.getRiverCenterId(), "river_center", "test_river");
+        final String riverBankId = resolveTerrainId(base.getRiverBankId(), "river", "test_river");
+        final String connectionId = resolveConnectionId(base.getConnectionId());
+        return base.withSeed(worldSeed)
+            .withTerrainIds(fieldId, forestId)
+            .withConnectivity(
+                base.isRiversEnabled(),
+                base.isRoadsEnabled(),
+                connectionId,
+                riverCenterId,
+                riverBankId
+            );
+    }
+
+    private String resolveConnectionId(final String preferred) {
+        if (preferred != null && overmapConnectionRegistry.contains(preferred)) {
+            return preferred;
+        }
+        if (overmapConnectionRegistry.contains("local_road")) {
+            return "local_road";
+        }
+        if (overmapConnectionRegistry.contains("test_local_road")) {
+            return "test_local_road";
+        }
+        return preferred == null || preferred.isEmpty() ? "local_road" : preferred;
+    }
+
+    private String resolveTerrainId(final String preferred, final String fallback) {
+        return resolveTerrainId(preferred, fallback, null);
+    }
+
+    private String resolveTerrainId(final String preferred, final String fallback, final String secondFallback) {
+        if (preferred != null && !preferred.isEmpty() && overmapTerrainRegistry.contains(preferred)) {
+            return preferred;
+        }
+        if (fallback != null && !fallback.isEmpty() && overmapTerrainRegistry.contains(fallback)) {
+            return fallback;
+        }
+        if (secondFallback != null && !secondFallback.isEmpty()
+            && overmapTerrainRegistry.contains(secondFallback)) {
+            return secondFallback;
+        }
+        if (overmapTerrainRegistry.contains("field")) {
+            return "field";
+        }
+        if (overmapTerrainRegistry.contains("test_field")) {
+            return "test_field";
+        }
+        if (overmapTerrainRegistry.contains("open_air")) {
+            return "open_air";
+        }
+        return preferred == null || preferred.isEmpty() ? "field" : preferred;
+    }
+
+    public VisitResult visit(final OvermapGrid overmap, final int omtX, final int omtY) {
+        return visit(overmap, omtX, omtY, 0);
+    }
+
+    public VisitResult visit(final OvermapGrid overmap, final int omtX, final int omtY, final int z) {
+        if (!isLoaded()) {
+            return new VisitResult(
+                null,
+                Collections.singletonList("worldgen not loaded"),
+                false,
+                ""
+            );
+        }
+        return SubmapGenerator.visit(
+            overmap,
+            omtX,
+            omtY,
+            z,
+            worldSeed,
+            submapCache,
+            mapgenPreviewService,
+            overmapTerrainRegistry,
+            gameData
+        );
+    }
+
+    private String defaultFillId() {
+        if (overmapTerrainRegistry.contains("field")) {
+            return "field";
+        }
+        if (overmapTerrainRegistry.contains("forest")) {
+            return "forest";
+        }
+        return overmapTerrainRegistry.contains("open_air") ? "open_air" : "field";
+    }
+}

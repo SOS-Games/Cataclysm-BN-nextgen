@@ -1,0 +1,10 @@
+[
+  {
+    "type": "overmap_connection",
+    "id": "test_local_road",
+    "default_terrain": "test_road",
+    "subtypes": [
+      { "terrain": "test_road", "locations": [ "test_field" ] }
+    ]
+  }
+]

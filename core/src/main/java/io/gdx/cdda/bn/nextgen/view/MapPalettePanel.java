@@ -283,7 +283,7 @@ public final class MapPalettePanel {
     }
 
     private boolean isPaintableInTileset(final String terrainId) {
-        return TileSpriteResolver.hasDrawableArt(tileset, terrainId);
+        return TileLooksLikeResolver.hasDrawableTerrainArt(tileset, terrainId, terrainRegistry);
     }
 
     private int countPaintableTerrain() {
