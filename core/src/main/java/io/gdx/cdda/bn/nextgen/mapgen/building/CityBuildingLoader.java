@@ -44,7 +44,12 @@ public final class CityBuildingLoader {
         final List<CityBuildingPiece> pieces = new ArrayList<>();
         final JsonValue overmaps = root.get("overmaps");
         if (overmaps == null || !overmaps.isArray()) {
-            warnings.add("city_building '" + id + "' has no overmaps array in " + sourceFile);
+            final String copyFrom = root.getString("copy-from", "");
+            if (!copyFrom.isEmpty()) {
+                warnings.add("bundle " + id + " skipped: copy-from unresolved");
+            } else {
+                warnings.add("city_building '" + id + "' has no overmaps array in " + sourceFile);
+            }
             return;
         }
         for (JsonValue entry = overmaps.child; entry != null; entry = entry.next) {

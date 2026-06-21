@@ -10,6 +10,8 @@ final class PaletteCharMaps {
 
     private final Map<Integer, JsonValue> terrainByCodePoint = new HashMap<>();
     private final Map<Integer, JsonValue> furnitureByCodePoint = new HashMap<>();
+    private final Map<Integer, JsonValue> itemsByCodePoint = new HashMap<>();
+    private final Map<Integer, JsonValue> monsterByCodePoint = new HashMap<>();
     private final Map<Integer, Integer> translateByCodePoint = new HashMap<>();
 
     void mergeFrom(final PaletteCharMaps other) {
@@ -18,6 +20,8 @@ final class PaletteCharMaps {
         }
         terrainByCodePoint.putAll(other.terrainByCodePoint);
         furnitureByCodePoint.putAll(other.furnitureByCodePoint);
+        itemsByCodePoint.putAll(other.itemsByCodePoint);
+        monsterByCodePoint.putAll(other.monsterByCodePoint);
         translateByCodePoint.putAll(other.translateByCodePoint);
     }
 
@@ -33,6 +37,18 @@ final class PaletteCharMaps {
         }
     }
 
+    void putItemsNode(final int codePoint, final JsonValue node) {
+        if (node != null) {
+            itemsByCodePoint.put(codePoint, node);
+        }
+    }
+
+    void putMonsterNode(final int codePoint, final JsonValue node) {
+        if (node != null) {
+            monsterByCodePoint.put(codePoint, node);
+        }
+    }
+
     void putTranslate(final int aliasCodePoint, final int targetCodePoint) {
         translateByCodePoint.put(aliasCodePoint, targetCodePoint);
     }
@@ -43,6 +59,14 @@ final class PaletteCharMaps {
 
     Map<Integer, JsonValue> getFurnitureByCodePoint() {
         return furnitureByCodePoint;
+    }
+
+    Map<Integer, JsonValue> getItemsByCodePoint() {
+        return itemsByCodePoint;
+    }
+
+    Map<Integer, JsonValue> getMonsterByCodePoint() {
+        return monsterByCodePoint;
     }
 
     Map<Integer, Integer> getTranslateByCodePoint() {

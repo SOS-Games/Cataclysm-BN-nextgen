@@ -200,6 +200,8 @@ Canonical copy with end-to-end timeline: [GAME_DATA_LOADER.md](../GAME_DATA_LOAD
 | **G3** | `FurnitureDefinition`, `FurnitureRegistry`, `FurnitureParser` | 05b, 07b, 08 | Furniture registry on `LoadedGameData` |
 | **G4** | `GameDataValidator`, `ValidationReport` | 10 | `looks_like` warnings; optional tileset cross-check |
 | **G5** | `ModDiscovery`, `ModRegistry`, `ModOrderResolver`, `loadMods` | 03, 09, 06 | Later mod overrides terrain id in fixture |
+| **G6** | `ItemGroupRegistry`, `ItemGroupParser` | [worldgen 10](../worldgen/10-game-data-g6-plus.md) | `itemgroups/` scan; mapgen spawn validation |
+| **G7** | `MonsterGroupRegistry`, `MonsterGroupParser` | worldgen 10 | `monstergroups/` scan; overlay display names |
 
 Map editor slices (**M1–M4**): [MAP_EDITOR.md](../MAP_EDITOR.md).
 

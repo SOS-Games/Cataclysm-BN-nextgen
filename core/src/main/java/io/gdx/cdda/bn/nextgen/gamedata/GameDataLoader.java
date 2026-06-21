@@ -3,15 +3,19 @@ package io.gdx.cdda.bn.nextgen.gamedata;
 import io.gdx.cdda.bn.nextgen.gamedata.mod.ModConfiguration;
 import io.gdx.cdda.bn.nextgen.gamedata.load.GameDataLoadOptions;
 import io.gdx.cdda.bn.nextgen.gamedata.model.FurnitureRegistry;
+import io.gdx.cdda.bn.nextgen.gamedata.model.ItemGroupRegistry;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.gamedata.model.ModInfo;
 import io.gdx.cdda.bn.nextgen.gamedata.model.ModRegistry;
+import io.gdx.cdda.bn.nextgen.gamedata.model.MonsterGroupRegistry;
 import io.gdx.cdda.bn.nextgen.gamedata.model.TerrainRegistry;
 import io.gdx.cdda.bn.nextgen.gamedata.load.GameDataScanResult;
 import io.gdx.cdda.bn.nextgen.gamedata.mod.ModOrderResolver;
 import io.gdx.cdda.bn.nextgen.gamedata.parse.FurnitureParser;
+import io.gdx.cdda.bn.nextgen.gamedata.parse.ItemGroupParser;
 import io.gdx.cdda.bn.nextgen.gamedata.parse.JsonDataObject;
 import io.gdx.cdda.bn.nextgen.gamedata.parse.JsonDataScanner;
+import io.gdx.cdda.bn.nextgen.gamedata.parse.MonsterGroupParser;
 import io.gdx.cdda.bn.nextgen.gamedata.parse.TerrainParser;
 
 import java.io.IOException;
@@ -64,6 +68,8 @@ public final class GameDataLoader {
         final List<String> orderedMods = ModOrderResolver.resolve(modIds, registry);
         final TerrainRegistry terrainRegistry = new TerrainRegistry();
         final FurnitureRegistry furnitureRegistry = new FurnitureRegistry();
+        final ItemGroupRegistry itemGroupRegistry = new ItemGroupRegistry();
+        final MonsterGroupRegistry monsterGroupRegistry = new MonsterGroupRegistry();
         final List<String> loadedMods = new ArrayList<>();
 
         for (final String modId : orderedMods) {
@@ -74,17 +80,32 @@ public final class GameDataLoader {
                 continue;
             }
             loadedMods.add(modId);
-            loadModContent(modInfo, options, terrainRegistry, furnitureRegistry);
+            loadModContent(
+                modInfo,
+                options,
+                terrainRegistry,
+                furnitureRegistry,
+                itemGroupRegistry,
+                monsterGroupRegistry
+            );
         }
 
-        return new LoadedGameData(terrainRegistry, furnitureRegistry, loadedMods);
+        return new LoadedGameData(
+            terrainRegistry,
+            furnitureRegistry,
+            itemGroupRegistry,
+            monsterGroupRegistry,
+            loadedMods
+        );
     }
 
     private static void loadModContent(
         final ModInfo modInfo,
         final GameDataLoadOptions options,
         final TerrainRegistry terrainRegistry,
-        final FurnitureRegistry furnitureRegistry
+        final FurnitureRegistry furnitureRegistry,
+        final ItemGroupRegistry itemGroupRegistry,
+        final MonsterGroupRegistry monsterGroupRegistry
     ) throws IOException {
         final List<Path> files = JsonDataScanner.listJsonFiles(
             modInfo.getResolvedContentPath(),
@@ -93,10 +114,21 @@ public final class GameDataLoader {
         for (final Path file : files) {
             final List<JsonDataObject> objects = JsonDataScanner.parseFile(file);
             for (final JsonDataObject object : objects) {
-                if ("terrain".equals(object.getType())) {
-                    TerrainParser.parseInto(object.getRoot(), modInfo.getId(), terrainRegistry);
-                } else if ("furniture".equals(object.getType())) {
-                    FurnitureParser.parseInto(object.getRoot(), modInfo.getId(), furnitureRegistry);
+                switch (object.getType()) {
+                    case "terrain":
+                        TerrainParser.parseInto(object.getRoot(), modInfo.getId(), terrainRegistry);
+                        break;
+                    case "furniture":
+                        FurnitureParser.parseInto(object.getRoot(), modInfo.getId(), furnitureRegistry);
+                        break;
+                    case "item_group":
+                        ItemGroupParser.parseInto(object.getRoot(), modInfo.getId(), itemGroupRegistry);
+                        break;
+                    case "monstergroup":
+                        MonsterGroupParser.parseInto(object.getRoot(), modInfo.getId(), monsterGroupRegistry);
+                        break;
+                    default:
+                        break;
                 }
             }
         }

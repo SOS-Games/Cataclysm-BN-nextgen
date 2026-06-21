@@ -1,0 +1,10 @@
+[
+  {
+    "id": "fixture_loot",
+    "type": "item_group",
+    "subtype": "distribution",
+    "entries": [
+      { "item": "rock", "prob": 100 }
+    ]
+  }
+]

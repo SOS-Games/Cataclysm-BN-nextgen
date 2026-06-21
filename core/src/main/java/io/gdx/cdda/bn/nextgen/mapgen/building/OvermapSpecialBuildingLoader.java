@@ -80,6 +80,11 @@ public final class OvermapSpecialBuildingLoader {
         final String specialId = root.getString("id", "");
         final JsonValue overmaps = root.get("overmaps");
         if (overmaps == null || !overmaps.isArray()) {
+            final String copyFrom = root.getString("copy-from", "");
+            if (!copyFrom.isEmpty()) {
+                final String label = specialId.isEmpty() ? copyFrom : specialId;
+                warnings.add("bundle " + label + " skipped: copy-from unresolved");
+            }
             return;
         }
 

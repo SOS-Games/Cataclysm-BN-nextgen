@@ -53,6 +53,11 @@ public final class MapGridRotator {
         return 0;
     }
 
+    /** Runner rotation when mapgen will be cropped per OMT slot (rotation applied after crop). */
+    public static int runnerOmtRotation(final boolean cropFromMultitileOmGrid, final String overmapId) {
+        return cropFromMultitileOmGrid ? 0 : rotationFromOmSuffix(overmapId);
+    }
+
     public static int rotationForBuildingPiece(
         final String overmapId,
         final boolean combinedMultitileMapgen
@@ -61,6 +66,31 @@ public final class MapGridRotator {
             return 0;
         }
         return rotationFromOmSuffix(overmapId);
+    }
+
+  /** Maps a cell coordinate through {@code quarterTurnsClockwise} on a {@code width}×{@code height} grid. */
+    public static int[] rotatePointClockwise(
+        final int x,
+        final int y,
+        final int width,
+        final int height,
+        final int quarterTurnsClockwise
+    ) {
+        int px = x;
+        int py = y;
+        int w = width;
+        int h = height;
+        final int turns = Math.floorMod(quarterTurnsClockwise, 4);
+        for (int i = 0; i < turns; i++) {
+            final int newX = h - 1 - py;
+            final int newY = px;
+            px = newX;
+            py = newY;
+            final int swap = w;
+            w = h;
+            h = swap;
+        }
+        return new int[] { px, py };
     }
 
     private static MapGrid rotate90Clockwise(final MapGrid source) {

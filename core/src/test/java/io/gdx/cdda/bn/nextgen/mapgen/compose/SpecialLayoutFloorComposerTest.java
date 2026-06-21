@@ -9,6 +9,9 @@ import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingLoader;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -84,6 +87,55 @@ class SpecialLayoutFloorComposerTest {
         }
         assertTrue(siloOnGround, "expected silo metal walls on ground near 2farm_6");
         assertTrue(siloOnUpper, "expected silo metal walls on z=1 near 2farm_6");
+    }
+
+    @Test
+    void labMutagenCoreUpperFloorUsesNonOverlappingHallwayChunks() throws Exception {
+        final MapgenScanOptions options = MapgenScanOptions.defaults();
+        assumeTrue(!options.getDataRoots().isEmpty(), "no BN data roots configured");
+
+        final CityBuildingDefinition building = CityBuildingLoader.load(options)
+            .findById("lab_mutagen_6_level")
+            .orElse(null);
+        assumeTrue(building != null, "lab_mutagen_6_level not in BN data");
+
+        final MapgenPreviewService service = new MapgenPreviewService();
+        service.ensureLoaded(options);
+        final MapVolume volume = service.generateBuilding(building, null).getVolume();
+
+        final List<OmtPieceRect> coreChunks = new ArrayList<>();
+        for (final OmtPieceRect rect : volume.getPieceLayoutsAtZ(-2)) {
+            if (rect.getOvermapId().startsWith("lab_CORE_2x1_")) {
+                coreChunks.add(rect);
+            }
+        }
+        assertEquals(2, coreChunks.size());
+        for (final OmtPieceRect rect : coreChunks) {
+            assertEquals(24, rect.getWidth(), rect.getOvermapId());
+            assertEquals(24, rect.getHeight(), rect.getOvermapId());
+        }
+        assertEquals(24, Math.abs(coreChunks.get(0).getOriginX() - coreChunks.get(1).getOriginX()));
+    }
+
+    @Test
+    void labParkingWestBlocksSharePavementAcrossSeamWhenSiblingBnPresent() throws Exception {
+        final MapgenScanOptions options = MapgenScanOptions.defaults();
+        assumeTrue(!options.getDataRoots().isEmpty(), "no BN data roots configured");
+
+        final CityBuildingDefinition building = CityBuildingLoader.load(options)
+            .findById("lab_mutagen_6_level")
+            .orElse(null);
+        assumeTrue(building != null, "lab_mutagen_6_level not in BN data");
+
+        final MapgenPreviewService service = new MapgenPreviewService();
+        service.ensureLoaded(options);
+        final MapGrid ground = service.generateBuilding(building, null).getVolume().getGridAtZ(0);
+
+        assertEquals(
+            ground.get(23, 12).getTerrainId(),
+            ground.get(24, 12).getTerrainId(),
+            "E0/E1 parking seam should match after west rotation"
+        );
     }
 
     @Test

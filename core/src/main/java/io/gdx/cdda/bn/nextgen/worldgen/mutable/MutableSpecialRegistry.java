@@ -12,6 +12,10 @@ public final class MutableSpecialRegistry {
 
     private final Map<String, MutableSpecialDefinition> byId = new LinkedHashMap<>();
 
+    public static MutableSpecialRegistry empty() {
+        return new MutableSpecialRegistry();
+    }
+
     public void put(final MutableSpecialDefinition definition) {
         if (definition == null || definition.getId() == null || definition.getId().isEmpty()) {
             return;

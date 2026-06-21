@@ -13,6 +13,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.json.OmTerrainGrid;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -111,7 +112,8 @@ public final class SpecialLayoutFloorComposer {
 
         return new MapVolumeBuilder.MapVolumeBuildResult(
             new MapVolume(building.getId(), builtZLevels, gridsByZ, pieceLayoutsByZ, activeZ),
-            warnings
+            warnings,
+            Collections.emptyMap()
         );
     }
 
@@ -156,11 +158,9 @@ public final class SpecialLayoutFloorComposer {
                 continue;
             }
 
+            final boolean multitileCrop = definition.get().getOmTerrainGrid().isPresent();
             final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
-                MapGridRotator.rotationForBuildingPiece(
-                    piece.getOvermapId(),
-                    definition.get().getOmTerrainGrid().isPresent()
-                )
+                MapGridRotator.runnerOmtRotation(multitileCrop, piece.getOvermapId())
             );
             final MapGrid source = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
             warnings.addAll(pieceOptions.getWarnings());

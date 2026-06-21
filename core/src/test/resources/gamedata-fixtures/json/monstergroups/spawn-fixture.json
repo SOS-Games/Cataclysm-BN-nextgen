@@ -1,0 +1,10 @@
+[
+  {
+    "type": "monstergroup",
+    "name": "GROUP_FIXTURE_TEST",
+    "default": "mon_fixture_zombie",
+    "monsters": [
+      { "monster": "mon_fixture_zombie", "freq": 100, "cost_multiplier": 1 }
+    ]
+  }
+]

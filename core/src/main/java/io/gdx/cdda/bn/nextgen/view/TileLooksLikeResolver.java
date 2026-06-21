@@ -73,6 +73,20 @@ public final class TileLooksLikeResolver {
         );
     }
 
+    public static boolean hasDrawableFurnitureArt(
+        final LoadedTileset tileset,
+        final String furnitureId,
+        final FurnitureRegistry furniture
+    ) {
+        if (tileset == null || furnitureId == null || furnitureId.isEmpty()) {
+            return false;
+        }
+        return TileSpriteResolver.hasDrawableArt(
+            tileset,
+            resolveFurnitureDrawId(furnitureId, tileset, furniture)
+        );
+    }
+
     public static String resolveChain(
         final String startId,
         final LoadedTileset tileset,

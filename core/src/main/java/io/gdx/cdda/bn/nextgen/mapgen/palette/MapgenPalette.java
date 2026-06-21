@@ -22,6 +22,34 @@ public final class MapgenPalette {
         final List<String> parentIds,
         final Map<Integer, JsonValue> terrainByCodePoint,
         final Map<Integer, JsonValue> furnitureByCodePoint,
+        final Map<Integer, JsonValue> itemsByCodePoint,
+        final Map<Integer, JsonValue> monstersByCodePoint,
+        final Map<Integer, JsonValue> monsterByCodePoint,
+        final Map<Integer, Integer> translateByCodePoint
+    ) {
+        this(id, parentIds, terrainByCodePoint, furnitureByCodePoint, translateByCodePoint);
+        if (itemsByCodePoint != null) {
+            for (final Map.Entry<Integer, JsonValue> entry : itemsByCodePoint.entrySet()) {
+                localCharMaps.putItemsNode(entry.getKey(), entry.getValue());
+            }
+        }
+        if (monstersByCodePoint != null) {
+            for (final Map.Entry<Integer, JsonValue> entry : monstersByCodePoint.entrySet()) {
+                localCharMaps.putMonsterNode(entry.getKey(), entry.getValue());
+            }
+        }
+        if (monsterByCodePoint != null) {
+            for (final Map.Entry<Integer, JsonValue> entry : monsterByCodePoint.entrySet()) {
+                localCharMaps.putMonsterNode(entry.getKey(), entry.getValue());
+            }
+        }
+    }
+
+    public MapgenPalette(
+        final String id,
+        final List<String> parentIds,
+        final Map<Integer, JsonValue> terrainByCodePoint,
+        final Map<Integer, JsonValue> furnitureByCodePoint,
         final Map<Integer, Integer> translateByCodePoint
     ) {
         this.id = id;
@@ -65,7 +93,7 @@ public final class MapgenPalette {
                 furniture.put(entry.getKey(), reader.parse('"' + entry.getValue() + '"'));
             }
         }
-        return new MapgenPalette(id, List.of(), terrain, furniture, Map.of());
+        return new MapgenPalette(id, List.of(), terrain, furniture, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     public String getId() {

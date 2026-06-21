@@ -1,0 +1,25 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_parameters_room",
+    "object": {
+      "fill_ter": "t_floor",
+      "rows": [
+        "....",
+        "....",
+        "....",
+        "...."
+      ],
+      "parameters": {
+        "roof_type": {
+          "type": "ter_str_id",
+          "default": "t_flat_roof"
+        }
+      },
+      "terrain": {
+        ".": { "param": "roof_type", "fallback": "t_floor" }
+      }
+    }
+  }
+]

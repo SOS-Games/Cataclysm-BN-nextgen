@@ -74,8 +74,10 @@ When `../Cataclysm-BN/gfx` and `../Cataclysm-BN/data` exist, Gradle sets `-Dcdda
 | `+` / `-` | Zoom |
 | `G` | Cycle grid preset (10×10 … 64×64) |
 | `Ctrl+S` / `Ctrl+O` | Save / load `maps/autosave.json` |
-| `/` | Focus palette filter |
+| Click filter row (sidebar) | Focus palette filter |
 | `F3` | Toggle pointer debug logging (console) |
+| `F1` / `H` | Keyboard shortcuts help (scrollable) |
+| `F5` | Reload active tileset |
 | `Esc` | Clear filter / back to main menu |
 | **Palette** (right) | Click terrain row to select brush; wheel to scroll; click **Filter:** to type |
 | Mouse wheel on canvas | Zoom (wheel over palette scrolls list) |

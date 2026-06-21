@@ -49,10 +49,10 @@ These improve preview/worldgen quality but are **not** overmap layout:
 
 | Unit | Topic | Status |
 | --- | --- | --- |
-| [08](./08-mapgen-post-v2-polish.md) | Parameters, weighted picker, nested neighbors | todo |
-| [09](./09-editor-rendering-polish.md) | Multitile, looks_like, overlays — [map-editor v2](../map-editor/v2-implementation-plan.md) | todo |
-| [10](./10-game-data-g6-plus.md) | Items, monsters, item groups | todo |
-| [11](./11-building-bundle-gaps.md) | Mutable specials in bundles, scan gaps | todo |
+| [08](./08-mapgen-post-v2-polish.md) | Parameters, weighted picker, nested neighbors | done |
+| [09](./09-editor-rendering-polish.md) | Multitile, looks_like, overlays — [map-editor v2](../map-editor/v2-implementation-plan.md) | done |
+| [10](./10-game-data-g6-plus.md) | Items, monsters, item groups | done |
+| [11](./11-building-bundle-gaps.md) | Mutable specials in bundles, scan gaps | done |
 
 ---
 

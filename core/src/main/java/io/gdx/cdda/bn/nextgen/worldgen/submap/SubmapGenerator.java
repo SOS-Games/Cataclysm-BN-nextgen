@@ -11,7 +11,9 @@ import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
@@ -68,7 +70,7 @@ public final class SubmapGenerator {
         final JsonMapgenRunOptions runOptions = new JsonMapgenRunOptions()
             .withPreviewSeed(previewSeed)
             .withOmtRotation(MapGridRotator.rotationFromOmSuffix(omtId))
-            .withNeighborOmtIds(collectNeighborOmtIds(overmap, omtX, omtY));
+            .withNeighborsByDirection(collectNeighborsByDirection(overmap, omtX, omtY));
 
         final MapgenPreviewService.MapgenPreviewResult generated = mapgenPreviewService.generate(
             definition.get(),
@@ -81,7 +83,7 @@ public final class SubmapGenerator {
         if (cache != null && grid != null) {
             cache.put(key, grid);
         }
-        return new VisitResult(grid, warnings, false, omtId);
+        return new VisitResult(grid, warnings, generated.getSpawnMarkers(), false, omtId);
     }
 
     /** Legacy entry point for direct OMT id visits without grid context. */
@@ -113,29 +115,30 @@ public final class SubmapGenerator {
         return Optional.of(mapgenPreviewService.generate(definition.get(), gameData, resolved));
     }
 
-    private static List<String> collectNeighborOmtIds(
+    private static Map<String, String> collectNeighborsByDirection(
         final OvermapGrid overmap,
         final int omtX,
         final int omtY
     ) {
-        final List<String> neighbors = new ArrayList<>(4);
-        addNeighborIfPresent(overmap, omtX, omtY - 1, neighbors);
-        addNeighborIfPresent(overmap, omtX + 1, omtY, neighbors);
-        addNeighborIfPresent(overmap, omtX, omtY + 1, neighbors);
-        addNeighborIfPresent(overmap, omtX - 1, omtY, neighbors);
+        final Map<String, String> neighbors = new HashMap<>();
+        putNeighborIfPresent(overmap, omtX, omtY - 1, "north", neighbors);
+        putNeighborIfPresent(overmap, omtX + 1, omtY, "east", neighbors);
+        putNeighborIfPresent(overmap, omtX, omtY + 1, "south", neighbors);
+        putNeighborIfPresent(overmap, omtX - 1, omtY, "west", neighbors);
         return neighbors;
     }
 
-    private static void addNeighborIfPresent(
+    private static void putNeighborIfPresent(
         final OvermapGrid overmap,
         final int x,
         final int y,
-        final List<String> neighbors
+        final String direction,
+        final Map<String, String> neighbors
     ) {
         if (x < 0 || y < 0 || x >= overmap.width() || y >= overmap.height()) {
             return;
         }
-        neighbors.add(overmap.getOmtId(x, y));
+        neighbors.put(direction, overmap.getOmtId(x, y));
     }
 
     private static VisitResult emptyResult(final String omtId, final List<String> warnings) {

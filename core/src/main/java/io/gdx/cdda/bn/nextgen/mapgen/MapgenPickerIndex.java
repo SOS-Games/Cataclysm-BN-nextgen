@@ -6,6 +6,8 @@ import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingRegistry;
 import io.gdx.cdda.bn.nextgen.mapgen.building.OvermapTerrainResolver;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialDefinition;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,21 +31,37 @@ public final class MapgenPickerIndex {
 
     private final List<MapgenPickerRow> rows;
     private final CityBuildingRegistry buildings;
+    private final MutableSpecialRegistry mutableSpecials;
 
     private MapgenPickerIndex(
         final List<MapgenPickerRow> rows,
-        final CityBuildingRegistry buildings
+        final CityBuildingRegistry buildings,
+        final MutableSpecialRegistry mutableSpecials
     ) {
         this.rows = Collections.unmodifiableList(new ArrayList<>(rows));
         this.buildings = buildings;
+        this.mutableSpecials = mutableSpecials == null
+            ? MutableSpecialRegistry.empty()
+            : mutableSpecials;
     }
 
     public static MapgenPickerIndex build(final MapgenCatalog catalog, final CityBuildingRegistry buildings) {
+        return build(catalog, buildings, MutableSpecialRegistry.empty());
+    }
+
+    public static MapgenPickerIndex build(
+        final MapgenCatalog catalog,
+        final CityBuildingRegistry buildings,
+        final MutableSpecialRegistry mutableSpecials
+    ) {
         if (catalog == null) {
-            return new MapgenPickerIndex(Collections.emptyList(), CityBuildingRegistry.empty());
+            return new MapgenPickerIndex(Collections.emptyList(), CityBuildingRegistry.empty(), mutableSpecials);
         }
         final CityBuildingRegistry indexed = buildings == null ? CityBuildingRegistry.empty() : buildings;
-        return new MapgenPickerIndex(buildRows(catalog, indexed), indexed);
+        final MutableSpecialRegistry mutables = mutableSpecials == null
+            ? MutableSpecialRegistry.empty()
+            : mutableSpecials;
+        return new MapgenPickerIndex(buildRows(catalog, indexed, mutables), indexed, mutables);
     }
 
     public List<MapgenPickerRow> all() {
@@ -77,6 +95,9 @@ public final class MapgenPickerIndex {
         }
         if (row.isWholeSpecialRow()) {
             return formatWholeSpecialRow(row.getWholeSpecial().orElseThrow());
+        }
+        if (row.isMutableSpecialRow()) {
+            return formatMutableSpecialRow(row.getMutableSpecial().orElseThrow());
         }
         return formatRow(row.getDefinition().orElseThrow(), buildings);
     }
@@ -146,15 +167,29 @@ public final class MapgenPickerIndex {
         return Optional.empty();
     }
 
+    private static String formatMutableSpecialRow(final MutableSpecialDefinition special) {
+        final StringBuilder line = new StringBuilder();
+        line.append(special.getId());
+        line.append(" (mutable special)");
+        line.append("   ");
+        if (special.getSourceFile() != null) {
+            line.append(special.getSourceFile().getFileName());
+        }
+        line.append("   overmap_mutable");
+        return line.toString();
+    }
+
     private static List<MapgenPickerRow> buildRows(
         final MapgenCatalog catalog,
-        final CityBuildingRegistry buildings
+        final CityBuildingRegistry buildings,
+        final MutableSpecialRegistry mutableSpecials
     ) {
         final Set<String> hiddenColumnBundleIds = hiddenColumnBundleIds(buildings);
         final List<MapgenPickerRow> rows = new ArrayList<>();
         for (final JsonMapgenDefinition definition : collapseBundledBuildings(
             catalog.all().stream()
                 .filter(JsonMapgenDefinition::isStandalonePickerEntry)
+                .filter(def -> !def.isDisabled())
                 .toList(),
             buildings,
             hiddenColumnBundleIds
@@ -167,6 +202,9 @@ public final class MapgenPickerIndex {
             }
             rows.add(MapgenPickerRow.forWholeSpecial(building));
         }
+        for (final MutableSpecialDefinition special : mutableSpecials.all()) {
+            rows.add(MapgenPickerRow.forMutableSpecial(special));
+        }
         rows.sort(Comparator.comparing(row -> rowSortKey(row, buildings).toLowerCase(Locale.ROOT)));
         return rows;
     }
@@ -174,6 +212,9 @@ public final class MapgenPickerIndex {
     private static String rowSortKey(final MapgenPickerRow row, final CityBuildingRegistry buildings) {
         if (row.isWholeSpecialRow()) {
             return row.getWholeSpecial().map(CityBuildingDefinition::getId).orElse("");
+        }
+        if (row.isMutableSpecialRow()) {
+            return row.getMutableSpecial().map(MutableSpecialDefinition::getId).orElse("");
         }
         return row.getDefinition().map(MapgenPickerIndex::primaryLabel).orElse("");
     }
@@ -205,6 +246,20 @@ public final class MapgenPickerIndex {
                 }
             }
             return false;
+        }
+        if (row.isMutableSpecialRow()) {
+            final MutableSpecialDefinition special = row.getMutableSpecial().orElse(null);
+            if (special == null) {
+                return false;
+            }
+            if (special.getId().toLowerCase(Locale.ROOT).contains(normalizedQuery)) {
+                return true;
+            }
+            if (special.getSourceFile() != null
+                && special.getSourceFile().toString().toLowerCase(Locale.ROOT).contains(normalizedQuery)) {
+                return true;
+            }
+            return normalizedQuery.contains("mutable") || normalizedQuery.contains("overmap_mutable");
         }
         final JsonMapgenDefinition definition = row.getDefinition().orElse(null);
         if (definition == null) {

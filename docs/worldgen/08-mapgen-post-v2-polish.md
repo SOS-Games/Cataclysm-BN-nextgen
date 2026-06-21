@@ -2,7 +2,7 @@
 
 Runner and catalog improvements **after** mapgen preview v2 (P8–P15). Parallel to worldgen W1+.
 
-**Status:** todo. Not a worldgen PR — improves both preview and visit-tile quality.
+**Status:** done. Not a worldgen PR — improves both preview and visit-tile quality.
 
 ---
 

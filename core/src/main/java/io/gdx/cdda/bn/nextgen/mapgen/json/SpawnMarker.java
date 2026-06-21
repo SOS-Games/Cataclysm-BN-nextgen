@@ -10,6 +10,7 @@ public final class SpawnMarker {
 
     public final Kind kind;
     public final String groupId;
+    public final String displayName;
     public final int x;
     public final int y;
     public final float density;
@@ -21,10 +22,29 @@ public final class SpawnMarker {
         final int y,
         final float density
     ) {
+        this(kind, groupId, null, x, y, density);
+    }
+
+    public SpawnMarker(
+        final Kind kind,
+        final String groupId,
+        final String displayName,
+        final int x,
+        final int y,
+        final float density
+    ) {
         this.kind = kind;
         this.groupId = groupId;
+        this.displayName = displayName;
         this.x = x;
         this.y = y;
         this.density = density;
+    }
+
+    public String label() {
+        if (displayName != null && !displayName.isEmpty()) {
+            return displayName;
+        }
+        return groupId;
     }
 }

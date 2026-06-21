@@ -4,14 +4,16 @@ import io.gdx.cdda.bn.nextgen.gamedata.DataPaths;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 /** Options for a game-data scan or load session (G1: scan-only). */
 public final class GameDataLoadOptions {
 
-    private static final List<String> DEFAULT_SCAN_SUBDIRS =
-        Collections.singletonList("furniture_and_terrain");
+    private static final List<String> DEFAULT_SCAN_SUBDIRS = Collections.unmodifiableList(
+        Arrays.asList("furniture_and_terrain", "itemgroups", "monstergroups")
+    );
 
     private final List<Path> dataRoots;
     private final List<String> scanSubdirs;

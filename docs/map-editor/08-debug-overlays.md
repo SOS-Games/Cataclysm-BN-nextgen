@@ -2,7 +2,7 @@
 
 Optional **debug draw** for mapgen metadata that does not live in ter/furn layers.
 
-**Status:** todo (**M6**). Spawner **collection** is done (P13b).
+**Status:** done (**M6**). Spawner **collection** is done (P13b).
 
 ---
 

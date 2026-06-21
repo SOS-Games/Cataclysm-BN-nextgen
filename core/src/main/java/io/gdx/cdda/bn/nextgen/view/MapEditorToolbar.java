@@ -32,18 +32,27 @@ public final class MapEditorToolbar {
         CYCLE_GRID,
         TILESET_PREV,
         TILESET_NEXT,
-        CYCLE_EDITOR_MODE
+        CYCLE_EDITOR_MODE,
+        TOGGLE_BRUSH_LAYER,
+        TOGGLE_SPAWN_OVERLAY,
+        TOGGLE_OMT_PIECE_BORDERS
     }
 
     private static final class ButtonDef {
         private final String label;
         private final Action action;
         private final Tool tool;
+        private final boolean toggle;
 
         private ButtonDef(final String label, final Action action, final Tool tool) {
+            this(label, action, tool, false);
+        }
+
+        private ButtonDef(final String label, final Action action, final Tool tool, final boolean toggle) {
             this.label = label;
             this.action = action;
             this.tool = tool;
+            this.toggle = toggle;
         }
     }
 
@@ -51,6 +60,9 @@ public final class MapEditorToolbar {
         new ButtonDef("Paint", Action.SET_TOOL, Tool.PAINT),
         new ButtonDef("Pan", Action.SET_TOOL, Tool.PAN),
         new ButtonDef("Pick", Action.SET_TOOL, Tool.EYEDROPPER),
+        new ButtonDef("Ter", Action.TOGGLE_BRUSH_LAYER, null, true),
+        new ButtonDef("Spawns", Action.TOGGLE_SPAWN_OVERLAY, null, true),
+        new ButtonDef("Chunks", Action.TOGGLE_OMT_PIECE_BORDERS, null, true),
         new ButtonDef("-", Action.ZOOM_OUT, null),
         new ButtonDef("+", Action.ZOOM_IN, null),
         new ButtonDef("Center", Action.CENTER, null),
@@ -68,6 +80,23 @@ public final class MapEditorToolbar {
     private final float[] buttonW = new float[BUTTONS.length];
 
     private Tool activeTool = Tool.PAINT;
+    private String brushLayerLabel = "Ter";
+    private boolean furnitureBrushLayer;
+    private boolean spawnOverlayOn;
+    private boolean omtPieceBordersOn = true;
+
+    public void setFurnitureBrushLayer(final boolean furnitureBrushLayer) {
+        this.furnitureBrushLayer = furnitureBrushLayer;
+        this.brushLayerLabel = furnitureBrushLayer ? "Furn" : "Ter";
+    }
+
+    public void setSpawnOverlayOn(final boolean spawnOverlayOn) {
+        this.spawnOverlayOn = spawnOverlayOn;
+    }
+
+    public void setOmtPieceBordersOn(final boolean omtPieceBordersOn) {
+        this.omtPieceBordersOn = omtPieceBordersOn;
+    }
 
     public Tool getActiveTool() {
         return activeTool;
@@ -117,7 +146,11 @@ public final class MapEditorToolbar {
         final Color old = font.getColor().cpy();
         for (int i = 0; i < BUTTONS.length; i++) {
             final ButtonDef def = BUTTONS[i];
-            final boolean selected = def.action == Action.SET_TOOL && def.tool == activeTool;
+            final String label = labelFor(def);
+            final boolean selected = def.action == Action.SET_TOOL && def.tool == activeTool
+                || def.action == Action.TOGGLE_BRUSH_LAYER && furnitureBrushLayer
+                || def.action == Action.TOGGLE_SPAWN_OVERLAY && spawnOverlayOn
+                || def.action == Action.TOGGLE_OMT_PIECE_BORDERS && omtPieceBordersOn;
             if (selected) {
                 batch.setColor(0.28f, 0.32f, 0.42f, 1f);
                 batch.draw(whitePixel, buttonX[i], barY + 2, buttonW[i], HEIGHT - 4);
@@ -126,10 +159,10 @@ public final class MapEditorToolbar {
             } else {
                 font.setColor(0.88f, 0.9f, 0.94f, 1f);
             }
-            glyphLayout.setText(font, def.label);
+            glyphLayout.setText(font, label);
             font.draw(
                 batch,
-                def.label,
+                label,
                 buttonX[i] + (buttonW[i] - glyphLayout.width) / 2f,
                 barY + HEIGHT - BUTTON_PAD_Y
             );
@@ -138,11 +171,18 @@ public final class MapEditorToolbar {
         batch.setColor(Color.WHITE);
     }
 
+    private String labelFor(final ButtonDef def) {
+        if (def.action == Action.TOGGLE_BRUSH_LAYER) {
+            return brushLayerLabel;
+        }
+        return def.label;
+    }
+
     private void layoutButtons(final int canvasWidth) {
         float x = MARGIN + 4;
         for (int i = 0; i < BUTTONS.length; i++) {
             buttonX[i] = x;
-            buttonW[i] = estimateButtonWidth(BUTTONS[i].label) + BUTTON_PAD_X * 2f;
+            buttonW[i] = estimateButtonWidth(labelFor(BUTTONS[i])) + BUTTON_PAD_X * 2f;
             x += buttonW[i] + 4;
         }
     }

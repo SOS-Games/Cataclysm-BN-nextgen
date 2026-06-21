@@ -10,6 +10,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunner;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
 import io.gdx.cdda.bn.nextgen.mapgen.json.OmTerrainGrid;
+import io.gdx.cdda.bn.nextgen.mapgen.json.SpawnMarker;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 
 import java.util.ArrayList;
@@ -53,6 +54,7 @@ public final class MapVolumeBuilder {
         final int preferredZ = pickDefaultZ(zLevels);
         final Map<Integer, FloorBuildResult> rawFloors = new LinkedHashMap<>();
         for (final int zLevel : zLevels) {
+            options.clearSpawnMarkers();
             final Optional<FloorBuildResult> floor = buildFloorGrid(
                 building.piecesAtZ(zLevel),
                 catalog,
@@ -85,6 +87,7 @@ public final class MapVolumeBuilder {
 
         final Map<Integer, MapGrid> gridsByZ = new LinkedHashMap<>();
         final Map<Integer, List<OmtPieceRect>> pieceLayoutsByZ = new LinkedHashMap<>();
+        final Map<Integer, List<SpawnMarker>> spawnMarkersByZ = new LinkedHashMap<>();
         for (final int zLevel : zLevels) {
             final FloorBuildResult raw = rawFloors.get(zLevel);
             if (raw == null) {
@@ -105,6 +108,9 @@ public final class MapVolumeBuilder {
             if (!raw.pieceLayouts.isEmpty()) {
                 pieceLayoutsByZ.put(zLevel, raw.pieceLayouts);
             }
+            if (!raw.spawnMarkers.isEmpty()) {
+                spawnMarkersByZ.put(zLevel, raw.spawnMarkers);
+            }
         }
 
         final List<Integer> volumeZLevels = builtZLevelsFrom(zLevels, gridsByZ);
@@ -112,7 +118,8 @@ public final class MapVolumeBuilder {
 
         return new MapVolumeBuildResult(
             new MapVolume(building.getId(), volumeZLevels, gridsByZ, pieceLayoutsByZ, activeZ),
-            warnings
+            warnings,
+            spawnMarkersByZ
         );
     }
 
@@ -137,6 +144,13 @@ public final class MapVolumeBuilder {
         final int anchorCol = anchor.map(cell -> cell.col).orElse(raw.singlePiece.getOffsetX());
         final int anchorRow = anchor.map(cell -> cell.row).orElse(raw.singlePiece.getOffsetY());
 
+        final Optional<OmTerrainMapgenPlacer.GridCell> sourceCell = OmTerrainMapgenPlacer.findCell(
+            raw.sourceOmGrid.get(),
+            raw.singlePiece.getOvermapId()
+        );
+        final int destOmtCol = anchorCol + sourceCell.map(cell -> cell.col).orElse(0);
+        final int destOmtRow = anchorRow + sourceCell.map(cell -> cell.row).orElse(0);
+
         final MapGrid canvas = new MapGrid(canvasWidth, canvasHeight, raw.grid.getDefaultTerrainId());
         final Optional<OmTerrainMapgenPlacer.PlacementRect> placement = OmTerrainMapgenPlacer.blitAtReferenceCell(
             canvas,
@@ -144,8 +158,8 @@ public final class MapVolumeBuilder {
             raw.sourceOmGrid.get(),
             raw.singlePiece.getOvermapId(),
             referenceOmGrid,
-            anchorCol,
-            anchorRow,
+            destOmtCol,
+            destOmtRow,
             raw.grid.getDefaultTerrainId()
         );
         if (!placement.isPresent()) {
@@ -192,7 +206,8 @@ public final class MapVolumeBuilder {
                     grid,
                     combined.get().getPieceRects(),
                     definition.getOmTerrainGrid(),
-                    Optional.empty()
+                    Optional.empty(),
+                    List.copyOf(options.getSpawnMarkers())
                 ));
             }
             final OmtStitchComposer.StitchResult stitched = OmtStitchComposer.stitch(
@@ -210,7 +225,8 @@ public final class MapVolumeBuilder {
                 stitched.getGrid().get(),
                 stitched.getPieceRects(),
                 Optional.empty(),
-                Optional.empty()
+                Optional.empty(),
+                List.copyOf(options.getSpawnMarkers())
             ));
         }
         return runSinglePiece(pieces.get(0), catalog, palettes, options, warnings, zLevel);
@@ -236,19 +252,19 @@ public final class MapVolumeBuilder {
             warnings.add("unsupported mapgen for overmap '" + piece.getOvermapId() + "' at z=" + zLevel);
             return Optional.empty();
         }
+        final boolean multitileCrop = definition.get().getOmTerrainGrid().isPresent();
         final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
-            MapGridRotator.rotationForBuildingPiece(
-                piece.getOvermapId(),
-                definition.get().getOmTerrainGrid().isPresent()
-            )
+            MapGridRotator.runnerOmtRotation(multitileCrop, piece.getOvermapId())
         );
         final MapGrid grid = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
         warnings.addAll(pieceOptions.getWarnings());
+        options.addSpawnMarkers(pieceOptions.getSpawnMarkers());
         return Optional.of(new FloorBuildResult(
             grid,
             Collections.emptyList(),
             definition.get().getOmTerrainGrid(),
-            Optional.of(piece)
+            Optional.of(piece),
+            List.copyOf(options.getSpawnMarkers())
         ));
     }
 
@@ -288,28 +304,41 @@ public final class MapVolumeBuilder {
         private final Optional<OmTerrainGrid> sourceOmGrid;
         private final Optional<OmTerrainGrid> referenceOmGrid;
         private final CityBuildingPiece singlePiece;
+        private final List<SpawnMarker> spawnMarkers;
 
         private FloorBuildResult(
             final MapGrid grid,
             final List<OmtPieceRect> pieceLayouts,
             final Optional<OmTerrainGrid> sourceOmGrid,
-            final Optional<CityBuildingPiece> singlePiece
+            final Optional<CityBuildingPiece> singlePiece,
+            final List<SpawnMarker> spawnMarkers
         ) {
             this.grid = grid;
             this.pieceLayouts = pieceLayouts;
             this.sourceOmGrid = sourceOmGrid;
             this.referenceOmGrid = sourceOmGrid;
             this.singlePiece = singlePiece.orElse(null);
+            this.spawnMarkers = spawnMarkers == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(spawnMarkers));
         }
     }
 
     public static final class MapVolumeBuildResult {
         private final MapVolume volume;
         private final List<String> warnings;
+        private final Map<Integer, List<SpawnMarker>> spawnMarkersByZ;
 
-        public MapVolumeBuildResult(final MapVolume volume, final List<String> warnings) {
+        public MapVolumeBuildResult(
+            final MapVolume volume,
+            final List<String> warnings,
+            final Map<Integer, List<SpawnMarker>> spawnMarkersByZ
+        ) {
             this.volume = volume;
             this.warnings = Collections.unmodifiableList(new ArrayList<>(warnings));
+            this.spawnMarkersByZ = spawnMarkersByZ == null || spawnMarkersByZ.isEmpty()
+                ? Collections.emptyMap()
+                : Collections.unmodifiableMap(new LinkedHashMap<>(spawnMarkersByZ));
         }
 
         public MapVolume getVolume() {
@@ -318,6 +347,10 @@ public final class MapVolumeBuilder {
 
         public List<String> getWarnings() {
             return warnings;
+        }
+
+        public Map<Integer, List<SpawnMarker>> getSpawnMarkersByZ() {
+            return spawnMarkersByZ;
         }
     }
 }

@@ -2,7 +2,7 @@
 
 Edit **furniture** ids on the grid — not just view mapgen output.
 
-**Status:** todo (**M5**). Display-only furniture is done ([mapgen-preview 07](../mapgen-preview/07-furniture-render.md)).
+**Status:** done (**M5**). Display-only furniture is done ([mapgen-preview 07](../mapgen-preview/07-furniture-render.md)).
 
 ---
 

@@ -1,13 +1,18 @@
 package io.gdx.cdda.bn.nextgen.worldgen.submap;
 
+import io.gdx.cdda.bn.nextgen.mapgen.building.OvermapTerrainResolver;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.MapgenRef;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 
 /** Weighted json mapgen pick for an OMT visit (W3). */
 public final class MapgenPicker {
@@ -40,6 +45,7 @@ public final class MapgenPicker {
         }
 
         if (candidates.isEmpty()) {
+            warnNonJsonMapgenRefs(omtId, registry, warnings);
             addWarning(warnings, "no runnable json mapgen candidates for " + omtId);
             return Optional.empty();
         }
@@ -68,8 +74,43 @@ public final class MapgenPicker {
     }
 
     private static void addWarning(final List<String> warnings, final String message) {
-        if (warnings != null) {
+        if (warnings != null && !warnings.contains(message)) {
             warnings.add(message);
+        }
+    }
+
+    private static void warnNonJsonMapgenRefs(
+        final String omtId,
+        final OvermapTerrainRegistry registry,
+        final List<String> warnings
+    ) {
+        if (registry == null || omtId == null || omtId.isEmpty()) {
+            return;
+        }
+        final Set<String> warnedMethods = new HashSet<>();
+        warnNonJsonRefsForTerrain(registry.find(omtId), omtId, warnings, warnedMethods);
+        final String stripped = OvermapTerrainResolver.stripRotation(omtId);
+        if (!stripped.equals(omtId)) {
+            warnNonJsonRefsForTerrain(registry.find(stripped), omtId, warnings, warnedMethods);
+        }
+    }
+
+    private static void warnNonJsonRefsForTerrain(
+        final Optional<OvermapTerrainDefinition> terrain,
+        final String omtId,
+        final List<String> warnings,
+        final Set<String> warnedMethods
+    ) {
+        if (!terrain.isPresent()) {
+            return;
+        }
+        for (final MapgenRef ref : terrain.get().getMapgenRefs()) {
+            if (ref.isJsonMethod()) {
+                continue;
+            }
+            if (warnedMethods.add(ref.getMethod())) {
+                addWarning(warnings, "skipped non-json mapgen method '" + ref.getMethod() + "' for " + omtId);
+            }
         }
     }
 }

@@ -61,13 +61,14 @@ public final class PaletteRegistry {
                 mergedNodes.mergeFrom(PaletteResolver.resolveWithParents(this, paletteId, warnings));
             }
         }
-        return resolveToMergedCharMap(mergedNodes, rng, warnings);
+        return resolveToMergedCharMap(mergedNodes, rng, warnings, runOptions.getRolledParameters());
     }
 
     static MergedCharMap resolveToMergedCharMap(
         final PaletteCharMaps mergedNodes,
         final Random rng,
-        final List<String> warnings
+        final List<String> warnings,
+        final Map<String, String> rolledParameters
     ) {
         final MergedCharMap merged = new MergedCharMap();
         if (mergedNodes == null) {
@@ -76,16 +77,19 @@ public final class PaletteRegistry {
 
         final Map<Integer, String> terrain = new HashMap<>();
         final Map<Integer, String> furniture = new HashMap<>();
+        final Map<String, String> parameters = rolledParameters == null
+            ? Collections.emptyMap()
+            : rolledParameters;
         resolveNodes(mergedNodes.getTerrainByCodePoint(), terrain, rng, warning -> {
             if (warnings != null) {
                 warnings.add(warning);
             }
-        });
+        }, parameters);
         resolveNodes(mergedNodes.getFurnitureByCodePoint(), furniture, rng, warning -> {
             if (warnings != null) {
                 warnings.add(warning);
             }
-        });
+        }, parameters);
         applyTranslate(terrain, mergedNodes.getTranslateByCodePoint());
         applyTranslate(furniture, mergedNodes.getTranslateByCodePoint());
 
@@ -99,31 +103,46 @@ public final class PaletteRegistry {
         final Map<Integer, JsonValue> terrainNodes,
         final Map<Integer, JsonValue> furnitureNodes,
         final Random rng,
-        final Consumer<String> warningSink
+        final Consumer<String> warningSink,
+        final Map<String, String> rolledParameters
     ) {
         if (merged == null) {
             return;
         }
         final Map<Integer, String> terrain = new HashMap<>();
         final Map<Integer, String> furniture = new HashMap<>();
+        final Map<String, String> parameters = rolledParameters == null
+            ? Collections.emptyMap()
+            : rolledParameters;
         if (terrainNodes != null) {
-            resolveNodes(terrainNodes, terrain, rng, warningSink);
+            resolveNodes(terrainNodes, terrain, rng, warningSink, parameters);
         }
         if (furnitureNodes != null) {
-            resolveNodes(furnitureNodes, furniture, rng, warningSink);
+            resolveNodes(furnitureNodes, furniture, rng, warningSink, parameters);
         }
         merged.putAllTerrain(terrain);
         merged.putAllFurniture(furniture);
+    }
+
+    public static void applyInlineNodes(
+        final MergedCharMap merged,
+        final Map<Integer, JsonValue> terrainNodes,
+        final Map<Integer, JsonValue> furnitureNodes,
+        final Random rng,
+        final Consumer<String> warningSink
+    ) {
+        applyInlineNodes(merged, terrainNodes, furnitureNodes, rng, warningSink, Collections.emptyMap());
     }
 
     private static void resolveNodes(
         final Map<Integer, JsonValue> nodes,
         final Map<Integer, String> target,
         final Random rng,
-        final Consumer<String> warningSink
+        final Consumer<String> warningSink,
+        final Map<String, String> rolledParameters
     ) {
         for (final Map.Entry<Integer, JsonValue> entry : nodes.entrySet()) {
-            PaletteCharResolver.resolve(entry.getValue(), rng, warningSink)
+            PaletteCharResolver.resolve(entry.getValue(), rng, warningSink, rolledParameters)
                 .ifPresent(id -> target.put(entry.getKey(), id));
         }
     }

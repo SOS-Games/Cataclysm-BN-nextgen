@@ -1,0 +1,7 @@
+[
+  {
+    "type": "overmap_special",
+    "id": "test_copy_from_stub",
+    "copy-from": "test_missing_parent"
+  }
+]

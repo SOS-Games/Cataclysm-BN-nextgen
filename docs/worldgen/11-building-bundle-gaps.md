@@ -2,7 +2,7 @@
 
 Remaining **building discovery** and **layout** gaps from [13-building-bundle-sources](../mapgen-preview/13-building-bundle-sources.md). Affects picker and W4 placement.
 
-**Status:** todo. Parallel track.
+**Status:** done. Parallel track.
 
 ---
 

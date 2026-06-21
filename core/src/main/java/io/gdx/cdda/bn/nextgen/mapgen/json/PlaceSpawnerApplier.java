@@ -2,6 +2,9 @@ package io.gdx.cdda.bn.nextgen.mapgen.json;
 
 import com.badlogic.gdx.utils.JsonValue;
 
+import io.gdx.cdda.bn.nextgen.gamedata.model.ItemGroupDefinition;
+import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
+import io.gdx.cdda.bn.nextgen.gamedata.model.MonsterGroupDefinition;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
 
 import java.util.ArrayList;
@@ -40,6 +43,8 @@ public final class PlaceSpawnerApplier {
         final List<SpawnMarker> markers = new ArrayList<>();
         collectItemSpawns(object.get("place_items"), grid, markers, runOptions, rng);
         collectMonsterSpawns(object.get("place_monsters"), grid, markers, runOptions, rng);
+        collectFixedMonsterSpawns(object.get("place_monster"), grid, markers, runOptions, rng);
+        collectLootSpawns(object.get("place_loot"), grid, markers, runOptions, rng);
         summarizeSkippedSpawns(markers, runOptions);
         return List.copyOf(markers);
     }
@@ -114,6 +119,10 @@ public final class PlaceSpawnerApplier {
             if (groupId == null || groupId.isEmpty()) {
                 continue;
             }
+            final String displayName = resolveItemGroupDisplayName(groupId, options);
+            if (displayName == null) {
+                continue;
+            }
             if (!entryBounds(entry, grid == null ? 0 : grid.width(), grid == null ? 0 : grid.height()).inGrid()) {
                 options.addWarning("skipped place_items entry: out of bounds");
                 continue;
@@ -127,7 +136,9 @@ public final class PlaceSpawnerApplier {
             final int spawnCount = rollRemainder(chance / 100.0f, rng);
             for (int i = 0; i < spawnCount; i++) {
                 final Point point = rollPoint(entry, rng);
-                markers.add(new SpawnMarker(SpawnMarker.Kind.ITEM_GROUP, groupId, point.x, point.y, 0f));
+                markers.add(
+                    new SpawnMarker(SpawnMarker.Kind.ITEM_GROUP, groupId, displayName, point.x, point.y, 0f)
+                );
             }
         }
     }
@@ -149,6 +160,10 @@ public final class PlaceSpawnerApplier {
             final String groupId = entry.getString("monster", null);
             if (groupId == null || groupId.isEmpty()) {
                 options.addWarning("skipped place_monsters entry: missing monster");
+                continue;
+            }
+            final String displayName = resolveMonsterDisplayName(groupId, options);
+            if (displayName == null) {
                 continue;
             }
             final Bounds bounds = entryBounds(
@@ -173,14 +188,173 @@ public final class PlaceSpawnerApplier {
             for (int i = 0; i < spawnCount; i++) {
                 final Point point = rollPointInBounds(bounds, rng);
                 markers.add(
-                    new SpawnMarker(SpawnMarker.Kind.MONSTER_GROUP, groupId, point.x, point.y, effectiveDensity)
+                    new SpawnMarker(
+                        SpawnMarker.Kind.MONSTER_GROUP,
+                        groupId,
+                        displayName,
+                        point.x,
+                        point.y,
+                        effectiveDensity
+                    )
                 );
             }
         }
     }
 
+    private static void collectFixedMonsterSpawns(
+        final JsonValue array,
+        final MapGrid grid,
+        final List<SpawnMarker> markers,
+        final JsonMapgenRunOptions options,
+        final Random rng
+    ) {
+        if (array == null || !array.isArray()) {
+            return;
+        }
+        for (JsonValue entry = array.child; entry != null; entry = entry.next) {
+            if (entry == null || !entry.isObject()) {
+                continue;
+            }
+            final String monsterId = readFixedMonsterId(entry, options);
+            if (monsterId == null || monsterId.isEmpty()) {
+                continue;
+            }
+            final String displayName = resolveMonsterDisplayName(monsterId, options);
+            if (displayName == null) {
+                continue;
+            }
+            final Bounds bounds = entryBounds(
+                entry,
+                grid == null ? 0 : grid.width(),
+                grid == null ? 0 : grid.height()
+            );
+            if (!bounds.inGrid()) {
+                options.addWarning("skipped place_monster entry: out of bounds");
+                continue;
+            }
+
+            final int chance = JmapgenIntRange.rollOptional(entry, "chance", 100, rng);
+            if (chance <= 0 || chance > 100) {
+                options.addWarning("skipped place_monster entry: invalid chance " + chance);
+                continue;
+            }
+            final int repeat = JmapgenIntRange.rollOptional(entry, "repeat", 1, rng);
+            final int packSize = JmapgenIntRange.rollOptional(entry, "pack_size", 1, rng);
+            for (int attempt = 0; attempt < repeat; attempt++) {
+                final int spawnCount;
+                if (chance == 100) {
+                    spawnCount = packSize;
+                } else if (rng.nextInt(100) < chance) {
+                    spawnCount = packSize;
+                } else {
+                    continue;
+                }
+                for (int i = 0; i < spawnCount; i++) {
+                    final Point point = rollPoint(entry, rng);
+                    if (grid != null && !inBounds(grid, point.x, point.y)) {
+                        options.addWarning(
+                            "place_monster out of bounds at " + point.x + "," + point.y
+                        );
+                        continue;
+                    }
+                    markers.add(
+                        new SpawnMarker(
+                            SpawnMarker.Kind.MONSTER_GROUP,
+                            monsterId,
+                            displayName,
+                            point.x,
+                            point.y,
+                            1f
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    private static void collectLootSpawns(
+        final JsonValue array,
+        final MapGrid grid,
+        final List<SpawnMarker> markers,
+        final JsonMapgenRunOptions options,
+        final Random rng
+    ) {
+        if (array == null || !array.isArray()) {
+            return;
+        }
+        for (JsonValue entry = array.child; entry != null; entry = entry.next) {
+            if (entry == null || !entry.isObject()) {
+                continue;
+            }
+            String groupId = entry.getString("group", null);
+            if (groupId == null || groupId.isEmpty()) {
+                groupId = entry.getString("item", null);
+            }
+            if (groupId == null || groupId.isEmpty()) {
+                options.addWarning("skipped place_loot entry: missing item/group");
+                continue;
+            }
+            final String displayName = resolveItemGroupDisplayName(groupId, options);
+            if (displayName == null) {
+                continue;
+            }
+            if (!entryBounds(entry, grid == null ? 0 : grid.width(), grid == null ? 0 : grid.height()).inGrid()) {
+                options.addWarning("skipped place_loot entry: out of bounds");
+                continue;
+            }
+            final int chance = JmapgenIntRange.rollOptional(entry, "chance", 100, rng);
+            if (chance <= 0 || chance > 100) {
+                options.addWarning("skipped place_loot entry: invalid chance " + chance);
+                continue;
+            }
+            if (chance != 100 && rng.nextInt(100) >= chance) {
+                continue;
+            }
+            final Point point = rollPoint(entry, rng);
+            if (grid != null && !inBounds(grid, point.x, point.y)) {
+                options.addWarning("place_loot out of bounds at " + point.x + "," + point.y);
+                continue;
+            }
+            markers.add(
+                new SpawnMarker(SpawnMarker.Kind.ITEM_GROUP, groupId, displayName, point.x, point.y, 0f)
+            );
+        }
+    }
+
+    static String readFixedMonsterId(final JsonValue entry, final JsonMapgenRunOptions options) {
+        if (entry.has("group")) {
+            final String groupId = entry.getString("group", null);
+            if (groupId == null || groupId.isEmpty()) {
+                options.addWarning("skipped place_monster entry: missing group");
+            }
+            return groupId;
+        }
+        final JsonValue monsterField = entry.get("monster");
+        if (monsterField == null) {
+            options.addWarning("skipped place_monster entry: missing monster/group");
+            return null;
+        }
+        if (monsterField.isString()) {
+            return monsterField.asString();
+        }
+        if (monsterField.isArray() && monsterField.size > 0) {
+            final JsonValue first = monsterField.get(0);
+            if (first.isString()) {
+                return first.asString();
+            }
+            if (first.isArray() && first.size > 0) {
+                final JsonValue idNode = first.get(0);
+                if (idNode != null && idNode.isString()) {
+                    return idNode.asString();
+                }
+            }
+        }
+        options.addWarning("skipped place_monster entry: unsupported monster field");
+        return null;
+    }
+
     private static void summarizeSkippedSpawns(final List<SpawnMarker> markers, final JsonMapgenRunOptions options) {
-        if (markers.isEmpty()) {
+        if (markers.isEmpty() || options.getGameData() != null) {
             return;
         }
         long itemCount = markers.stream().filter(m -> m.kind == SpawnMarker.Kind.ITEM_GROUP).count();
@@ -227,6 +401,48 @@ public final class PlaceSpawnerApplier {
             options.addWarning("skipped place_items entry: missing item/items");
         }
         return groupId;
+    }
+
+    static String resolveItemGroupDisplayName(
+        final String groupId,
+        final JsonMapgenRunOptions options
+    ) {
+        final LoadedGameData gameData = options.getGameData();
+        if (gameData == null) {
+            return groupId;
+        }
+        final java.util.Optional<ItemGroupDefinition> def = gameData.getItemGroups().find(groupId);
+        if (!def.isPresent()) {
+            options.addWarning("unknown item_group '" + groupId + "' in place_items");
+            return groupId;
+        }
+        return def.get().getDisplayName();
+    }
+
+    static String resolveMonsterDisplayName(
+        final String monsterId,
+        final JsonMapgenRunOptions options
+    ) {
+        if ("mon_null".equals(monsterId)) {
+            return null;
+        }
+        final LoadedGameData gameData = options.getGameData();
+        if (gameData == null) {
+            return monsterId;
+        }
+        final java.util.Optional<MonsterGroupDefinition> def = gameData.getMonsterGroups().find(monsterId);
+        if (def.isPresent()) {
+            final String display = def.get().getDisplayName();
+            if ("mon_null".equals(display)) {
+                return null;
+            }
+            return display;
+        }
+        if (monsterId.startsWith("mon_") || monsterId.startsWith("GROUP_")) {
+            return monsterId;
+        }
+        options.addWarning("unknown monster '" + monsterId + "' in place_monster(s)");
+        return null;
     }
 
     private static Point rollPoint(final JsonValue entry, final Random rng) {

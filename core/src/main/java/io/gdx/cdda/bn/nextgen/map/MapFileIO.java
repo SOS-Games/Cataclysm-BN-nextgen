@@ -40,7 +40,43 @@ public final class MapFileIO {
             }
         }
         json.append("  ],\n");
-        json.append("  \"furniture\": null\n");
+
+        boolean hasFurniture = false;
+        for (int y = 0; y < grid.height(); y++) {
+            for (int x = 0; x < grid.width(); x++) {
+                final String furnitureId = grid.get(x, y).getFurnitureId();
+                if (furnitureId != null && !furnitureId.isEmpty()) {
+                    hasFurniture = true;
+                    break;
+                }
+            }
+            if (hasFurniture) {
+                break;
+            }
+        }
+
+        if (hasFurniture) {
+            json.append("  \"furniture\": [\n");
+            index = 0;
+            for (int y = 0; y < grid.height(); y++) {
+                for (int x = 0; x < grid.width(); x++) {
+                    final String furnitureId = grid.get(x, y).getFurnitureId();
+                    if (furnitureId == null || furnitureId.isEmpty()) {
+                        json.append("    null");
+                    } else {
+                        json.append("    \"").append(escapeJson(furnitureId)).append("\"");
+                    }
+                    index++;
+                    if (index < size) {
+                        json.append(",");
+                    }
+                    json.append("\n");
+                }
+            }
+            json.append("  ]\n");
+        } else {
+            json.append("  \"furniture\": null\n");
+        }
         json.append("}\n");
 
         final Path parent = path.getParent();
@@ -100,6 +136,31 @@ public final class MapFileIO {
                     throw new IOException("terrain[" + index + "] is empty");
                 }
                 grid.setTerrain(x, y, terrainId);
+            }
+        }
+
+        final JsonValue furnitureArray = root.get("furniture");
+        if (furnitureArray != null && !furnitureArray.isNull()) {
+            if (!furnitureArray.isArray()) {
+                throw new IOException("furniture must be an array or null");
+            }
+            if (furnitureArray.size != expected) {
+                throw new IOException(
+                    "furniture length mismatch: expected " + expected + " but got " + furnitureArray.size
+                );
+            }
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    final int index = y * width + x;
+                    final JsonValue value = furnitureArray.get(index);
+                    if (value == null || value.isNull()) {
+                        continue;
+                    }
+                    final String furnitureId = value.asString();
+                    if (furnitureId != null && !furnitureId.trim().isEmpty()) {
+                        grid.setFurniture(x, y, furnitureId);
+                    }
+                }
             }
         }
 

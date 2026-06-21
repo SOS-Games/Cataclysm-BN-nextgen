@@ -15,14 +15,21 @@ import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunner;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalogResult;
+import io.gdx.cdda.bn.nextgen.mapgen.json.SpawnMarker;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteLoader;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 import io.gdx.cdda.bn.nextgen.mapgen.region.RegionContext;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoadResult;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialScanOptions;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Loads mapgen catalogs and generates preview grids (P3). */
 public final class MapgenPreviewService {
@@ -31,6 +38,7 @@ public final class MapgenPreviewService {
     private MapgenCatalog catalog;
     private RegionContext regionContext = RegionContext.empty();
     private CityBuildingRegistry cityBuildings = CityBuildingRegistry.empty();
+    private MutableSpecialRegistry mutableSpecials = MutableSpecialRegistry.empty();
     private MapgenPickerIndex pickerIndex = MapgenPickerIndex.build(null, CityBuildingRegistry.empty());
     private List<String> loadWarnings = Collections.emptyList();
     private boolean loaded;
@@ -61,6 +69,13 @@ public final class MapgenPreviewService {
         return cityBuildings;
     }
 
+    public MutableSpecialRegistry getMutableSpecials() {
+        if (!loaded) {
+            throw new IllegalStateException("call ensureLoaded before getMutableSpecials");
+        }
+        return mutableSpecials;
+    }
+
     public MapgenPickerIndex getPickerIndex() {
         if (!loaded) {
             throw new IllegalStateException("call ensureLoaded before getPickerIndex");
@@ -89,7 +104,13 @@ public final class MapgenPreviewService {
         );
         warnings.addAll(cityBuildings.getWarnings());
 
-        pickerIndex = MapgenPickerIndex.build(catalog, cityBuildings);
+        final MutableSpecialLoadResult mutableResult = MutableSpecialLoader.load(
+            new MutableSpecialScanOptions(scanOptions.getDataRoots(), scanOptions.getModIds())
+        );
+        mutableSpecials = mutableResult.getRegistry();
+        warnings.addAll(mutableResult.getWarnings());
+
+        pickerIndex = MapgenPickerIndex.build(catalog, cityBuildings, mutableSpecials);
 
         regionContext = RegionContext.load(scanOptions, warnings);
 
@@ -115,12 +136,23 @@ public final class MapgenPreviewService {
         final JsonMapgenRunOptions options = withLoadedContext(
             runOptions == null ? new JsonMapgenRunOptions() : runOptions
         );
+        if (gameData != null) {
+            options.withGameData(gameData);
+        }
         final MapGrid grid = JsonMapgenRunner.run(definition, catalog, palettes, options);
-        return new MapgenPreviewResult(grid, options.getWarnings());
+        return new MapgenPreviewResult(grid, options.getSpawnMarkers(), options.getWarnings());
     }
 
     public MapgenBuildingResult generateBuilding(
         final CityBuildingDefinition building,
+        final JsonMapgenRunOptions runOptions
+    ) {
+        return generateBuilding(building, null, runOptions);
+    }
+
+    public MapgenBuildingResult generateBuilding(
+        final CityBuildingDefinition building,
+        final LoadedGameData gameData,
         final JsonMapgenRunOptions runOptions
     ) {
         if (!loaded || palettes == null || catalog == null) {
@@ -132,8 +164,15 @@ public final class MapgenPreviewService {
         final JsonMapgenRunOptions options = withLoadedContext(
             runOptions == null ? new JsonMapgenRunOptions() : runOptions
         );
+        if (gameData != null) {
+            options.withGameData(gameData);
+        }
         final MapVolumeBuildResult built = MapVolumeBuilder.build(building, catalog, palettes, options);
-        return new MapgenBuildingResult(built.getVolume(), built.getWarnings());
+        return new MapgenBuildingResult(
+            built.getVolume(),
+            built.getWarnings(),
+            built.getSpawnMarkersByZ()
+        );
     }
 
     private JsonMapgenRunOptions withLoadedContext(final JsonMapgenRunOptions options) {
@@ -149,10 +188,18 @@ public final class MapgenPreviewService {
     public static final class MapgenBuildingResult {
         private final MapVolume volume;
         private final List<String> runWarnings;
+        private final Map<Integer, List<SpawnMarker>> spawnMarkersByZ;
 
-        public MapgenBuildingResult(final MapVolume volume, final List<String> runWarnings) {
+        public MapgenBuildingResult(
+            final MapVolume volume,
+            final List<String> runWarnings,
+            final Map<Integer, List<SpawnMarker>> spawnMarkersByZ
+        ) {
             this.volume = volume;
             this.runWarnings = Collections.unmodifiableList(new ArrayList<>(runWarnings));
+            this.spawnMarkersByZ = spawnMarkersByZ == null || spawnMarkersByZ.isEmpty()
+                ? Collections.emptyMap()
+                : Collections.unmodifiableMap(new LinkedHashMap<>(spawnMarkersByZ));
         }
 
         public MapVolume getVolume() {
@@ -162,19 +209,35 @@ public final class MapgenPreviewService {
         public List<String> getRunWarnings() {
             return runWarnings;
         }
+
+        public Map<Integer, List<SpawnMarker>> getSpawnMarkersByZ() {
+            return spawnMarkersByZ;
+        }
     }
 
     public static final class MapgenPreviewResult {
         private final MapGrid grid;
+        private final List<SpawnMarker> spawnMarkers;
         private final List<String> runWarnings;
 
-        public MapgenPreviewResult(final MapGrid grid, final List<String> runWarnings) {
+        public MapgenPreviewResult(
+            final MapGrid grid,
+            final List<SpawnMarker> spawnMarkers,
+            final List<String> runWarnings
+        ) {
             this.grid = grid;
+            this.spawnMarkers = spawnMarkers == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(spawnMarkers));
             this.runWarnings = Collections.unmodifiableList(new ArrayList<>(runWarnings));
         }
 
         public MapGrid getGrid() {
             return grid;
+        }
+
+        public List<SpawnMarker> getSpawnMarkers() {
+            return spawnMarkers;
         }
 
         public List<String> getRunWarnings() {

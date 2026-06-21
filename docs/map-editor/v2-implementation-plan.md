@@ -51,8 +51,8 @@ terrain-only paint:
 | --- | --- | --- |
 | **R1** | Terrain multitile autoconnect at draw | done | `MultitileConnectResolver`, `MultitileConnectResolverTest` |
 | **R2** | `looks_like` chain at draw (terrain + furniture) | done | `TileLooksLikeResolver`, palette paintable check |
-| **M5** | Furniture paint brush + palette mode | Paint/eyedropper `furnitureId`; map JSON round-trip |
-| **M6** | Spawn marker overlay toggle | Dots/labels for `SpawnMarker` from last mapgen import |
+| **M5** | Furniture paint brush + palette mode | done | Paint/eyedropper `furnitureId`; map JSON round-trip |
+| **M6** | Spawn marker overlay toggle | done | Dots/labels for `SpawnMarker` from last mapgen import |
 | **M7** | Z-floor roof transparency (optional) | done | `ZCutawayPolicy`, `[T]` toggle, upper-floor ghost pass |
 | **R3** | Overmap debug view in editor | done | W1/W2 loaders, `[M]` mode, Enter visit via `SubmapGenerator` |
 

@@ -31,8 +31,11 @@ public final class PaletteParser {
         final List<String> parentIds = readParentIds(root);
         final Map<Integer, JsonValue> terrain = parseCharSectionNodes(root.get("terrain"));
         final Map<Integer, JsonValue> furniture = parseCharSectionNodes(root.get("furniture"));
+        final Map<Integer, JsonValue> items = parseCharSectionNodes(root.get("items"));
+        final Map<Integer, JsonValue> monsters = parseCharSectionNodes(root.get("monsters"));
+        final Map<Integer, JsonValue> monster = parseCharSectionNodes(root.get("monster"));
         final Map<Integer, Integer> translate = parseTranslateSection(root.get("translate"));
-        return Optional.of(new MapgenPalette(id, parentIds, terrain, furniture, translate));
+        return Optional.of(new MapgenPalette(id, parentIds, terrain, furniture, items, monsters, monster, translate));
     }
 
     public static Map<Integer, String> parseCharSection(final JsonValue section) {

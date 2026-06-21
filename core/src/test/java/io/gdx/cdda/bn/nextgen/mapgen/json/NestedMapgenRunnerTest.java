@@ -8,6 +8,8 @@ import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -95,6 +97,46 @@ class NestedMapgenRunnerTest {
         final FixtureContext ctx = loadFixtureContext();
         assertEquals(1, ctx.catalog.findByNestedMapgenId("test_nested_room").size());
         assertTrue(ctx.catalog.pickNestedMapgen("test_nested_room", new Random(1L)).isPresent());
+    }
+
+    @Test
+    void wrongNeighborUsesElseChunk() throws Exception {
+        final FixtureContext ctx = loadFixtureContext();
+        final JsonMapgenDefinition parent = ctx.catalog.findByOmTerrain("test_nested_neighbor_parent").get(0);
+        final JsonMapgenRunOptions options = new JsonMapgenRunOptions()
+            .withPreviewSeed(11L)
+            .withNeighborsByDirection(neighbors("field", "field", "field", "field"));
+
+        final MapGrid grid = JsonMapgenRunner.run(parent, ctx.catalog, ctx.palettes, options);
+
+        assertEquals("t_rock_floor", grid.get(6, 6).getTerrainId());
+    }
+
+    @Test
+    void matchingNeighborUsesPrimaryChunk() throws Exception {
+        final FixtureContext ctx = loadFixtureContext();
+        final JsonMapgenDefinition parent = ctx.catalog.findByOmTerrain("test_nested_neighbor_parent").get(0);
+        final JsonMapgenRunOptions options = new JsonMapgenRunOptions()
+            .withPreviewSeed(11L)
+            .withNeighborsByDirection(neighbors("lab_north", "field", "field", "field"));
+
+        final MapGrid grid = JsonMapgenRunner.run(parent, ctx.catalog, ctx.palettes, options);
+
+        assertEquals("t_wall", grid.get(6, 6).getTerrainId());
+    }
+
+    private static Map<String, String> neighbors(
+        final String north,
+        final String east,
+        final String south,
+        final String west
+    ) {
+        final Map<String, String> neighbors = new HashMap<>();
+        neighbors.put("north", north);
+        neighbors.put("east", east);
+        neighbors.put("south", south);
+        neighbors.put("west", west);
+        return neighbors;
     }
 
     private static FixtureContext loadFixtureContext() throws Exception {

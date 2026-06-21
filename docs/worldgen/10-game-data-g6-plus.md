@@ -2,7 +2,7 @@
 
 Extend [game data loader](../game-data-loader/README.md) beyond terrain/furniture for **spawn preview** and future simulation.
 
-**Status:** todo. Parallel track; unblocks rich mapgen markers.
+**Status:** done. Parallel track; unblocks rich mapgen markers.
 
 ---
 

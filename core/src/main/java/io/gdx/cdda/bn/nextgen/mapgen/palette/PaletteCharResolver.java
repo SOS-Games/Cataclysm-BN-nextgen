@@ -4,6 +4,7 @@ import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.JsonValue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,13 +18,22 @@ public final class PaletteCharResolver {
     private PaletteCharResolver() {}
 
     public static Optional<String> resolveId(final JsonValue value) {
-        return resolve(value, null, null);
+        return resolve(value, null, null, Collections.emptyMap());
     }
 
     public static Optional<String> resolve(
         final JsonValue value,
         final Random rng,
         final Consumer<String> warningSink
+    ) {
+        return resolve(value, rng, warningSink, Collections.emptyMap());
+    }
+
+    public static Optional<String> resolve(
+        final JsonValue value,
+        final Random rng,
+        final Consumer<String> warningSink,
+        final Map<String, String> rolledParameters
     ) {
         if (value == null || value.isNull()) {
             return Optional.empty();
@@ -36,11 +46,22 @@ public final class PaletteCharResolver {
             return pickFromArray(value, rng, warningSink);
         }
         if (value.isObject()) {
-            if (value.has("fallback")) {
-                return resolve(value.get("fallback"), rng, warningSink);
+            if (value.has("param")) {
+                final String paramName = value.getString("param", null);
+                final Map<String, String> parameters = rolledParameters == null
+                    ? Collections.emptyMap()
+                    : rolledParameters;
+                if (paramName != null && parameters.containsKey(paramName)) {
+                    return Optional.of(parameters.get(paramName));
+                }
+                if (value.has("fallback")) {
+                    return resolve(value.get("fallback"), rng, warningSink, parameters);
+                }
+                emitWarning(warningSink, "missing rolled parameter: " + paramName);
+                return Optional.empty();
             }
-            if (value.has("param") && value.has("fallback")) {
-                return resolve(value.get("fallback"), rng, warningSink);
+            if (value.has("fallback")) {
+                return resolve(value.get("fallback"), rng, warningSink, rolledParameters);
             }
             emitWarning(warningSink, "unsupported palette value object");
         }

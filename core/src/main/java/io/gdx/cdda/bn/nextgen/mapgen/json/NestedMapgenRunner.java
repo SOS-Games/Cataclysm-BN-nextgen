@@ -4,6 +4,7 @@ import com.badlogic.gdx.utils.JsonValue;
 
 import io.gdx.cdda.bn.nextgen.map.MapCell;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.SpawnMarkerTransform;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 
 import java.nio.file.Paths;
@@ -108,7 +109,8 @@ public final class NestedMapgenRunner {
         final Random rng,
         final int depth
     ) {
-        final Optional<ResolvedChunk> chunk = pickChunk(entry.get("chunks"), catalog, options, rng);
+        final JsonValue chunksNode = selectChunkList(entry, options);
+        final Optional<ResolvedChunk> chunk = pickChunk(chunksNode, catalog, options, rng);
         if (chunk.isEmpty()) {
             return;
         }
@@ -127,8 +129,26 @@ public final class NestedMapgenRunner {
         }
 
         final MapGrid overlay = copyParentRegion(parent, destX, destY, chunkWidth, chunkHeight);
+        final int markerStart = options.getSpawnMarkers().size();
         JsonMapgenRunner.runOverlayOnto(overlay, definition, catalog, palettes, options, depth + 1);
+        options.addSpawnMarkers(
+            SpawnMarkerTransform.translate(options.drainSpawnMarkersSince(markerStart), destX, destY)
+        );
         parent.blitFrom(overlay, destX, destY, null);
+    }
+
+    private static JsonValue selectChunkList(final JsonValue entry, final JsonMapgenRunOptions options) {
+        if (entry == null) {
+            return null;
+        }
+        if (NestedContextChecker.matches(entry, options)) {
+            return entry.get("chunks");
+        }
+        final JsonValue elseChunks = entry.get("else_chunks");
+        if (elseChunks != null) {
+            return elseChunks;
+        }
+        return null;
     }
 
     static MapGrid copyParentRegion(

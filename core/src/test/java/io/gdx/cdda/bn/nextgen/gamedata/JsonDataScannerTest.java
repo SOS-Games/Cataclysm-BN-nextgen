@@ -64,11 +64,13 @@ class JsonDataScannerTest {
         );
         final GameDataScanResult result = GameDataLoader.scan(options);
 
-        assertEquals(2, result.getJsonFiles().size());
-        assertEquals(4, result.getTotalObjects());
+        assertEquals(4, result.getJsonFiles().size());
+        assertEquals(6, result.getTotalObjects());
         assertEquals(2, result.countObjects("terrain"));
         assertEquals(1, result.countObjects("furniture"));
         assertEquals(1, result.countObjects("GUN"));
+        assertEquals(1, result.countObjects("item_group"));
+        assertEquals(1, result.countObjects("monstergroup"));
     }
 
     private static Path fixtureDataRoot() throws URISyntaxException {

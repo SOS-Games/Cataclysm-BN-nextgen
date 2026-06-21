@@ -17,6 +17,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MapFileIOTest {
 
     @Test
+    void roundTripPreservesFurnitureIds() throws Exception {
+        final MapGrid grid = new MapGrid(2, 2, "t_floor");
+        grid.setFurniture(0, 0, "f_chair");
+        grid.setFurniture(1, 1, "f_table");
+
+        final Path file = Files.createTempFile("nextgen-map-furn-", ".json");
+        try {
+            MapFileIO.save(file, grid);
+            final MapGrid loaded = MapFileIO.load(file);
+
+            assertEquals("f_chair", loaded.get(0, 0).getFurnitureId());
+            assertEquals("f_table", loaded.get(1, 1).getFurnitureId());
+            assertEquals(null, loaded.get(0, 1).getFurnitureId());
+        } finally {
+            Files.deleteIfExists(file);
+        }
+    }
+
+    @Test
     void roundTripPreservesTerrainIds() throws Exception {
         final MapGrid grid = new MapGrid(3, 3, "t_dirt");
         grid.setTerrain(0, 0, "t_grass");

@@ -73,6 +73,9 @@ public final class OterMapgenIndex {
             return;
         }
         for (final JsonMapgenDefinition definition : catalog.findByOmTerrain(omTerrainKey)) {
+            if (definition.isDisabled()) {
+                continue;
+            }
             unique.put(definitionKey(definition), definition);
         }
     }

@@ -14,7 +14,11 @@
       "terrain": {
         "W": "t_wall",
         "E": "t_dirt"
-      }
+      },
+      "place_monster": [
+        { "monster": "mon_west_bot", "x": 0, "y": 0, "chance": 100 },
+        { "monster": "mon_east_bot", "x": 24, "y": 0, "chance": 100 }
+      ]
     }
   }
 ]

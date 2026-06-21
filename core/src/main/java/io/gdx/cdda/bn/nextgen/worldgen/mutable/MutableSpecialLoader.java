@@ -14,10 +14,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Scans BN {@code overmap_mutable/} JSON into {@link MutableSpecialRegistry} (W6). */
+/** Scans mod JSON for {@code subtype: mutable} overmap specials (W6 / unit 11). */
 public final class MutableSpecialLoader {
-
-    private static final String OVERMAP_MUTABLE_DIR = "overmap_mutable";
 
     private MutableSpecialLoader() {}
 
@@ -51,11 +49,7 @@ public final class MutableSpecialLoader {
         if (!Files.isDirectory(contentRoot)) {
             return;
         }
-        final Path mutableRoot = contentRoot.resolve("overmap").resolve(OVERMAP_MUTABLE_DIR);
-        if (!Files.isDirectory(mutableRoot)) {
-            return;
-        }
-        final List<Path> files = JsonDataScanner.listJsonFiles(mutableRoot, Collections.emptyList());
+        final List<Path> files = JsonDataScanner.listJsonFiles(contentRoot, Collections.emptyList());
         for (final Path file : files) {
             loadFromFile(file, registry, warnings);
         }
@@ -74,7 +68,14 @@ public final class MutableSpecialLoader {
                 }
                 final MutableSpecialDefinition definition = MutableSpecialParser.parseObject(object.getRoot());
                 if (definition != null) {
-                    registry.put(definition);
+                    registry.put(new MutableSpecialDefinition(
+                        definition.getId(),
+                        file,
+                        definition.getRootPieceId(),
+                        definition.getNodes(),
+                        definition.getPhases(),
+                        definition.getJoinOpposites()
+                    ));
                 }
             }
         } catch (final RuntimeException e) {

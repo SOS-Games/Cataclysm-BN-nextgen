@@ -1,6 +1,5 @@
 package io.gdx.cdda.bn.nextgen.mapgen.compose;
 
-import io.gdx.cdda.bn.nextgen.map.MapCell;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
 import io.gdx.cdda.bn.nextgen.map.MapGridRotator;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingPiece;
@@ -9,6 +8,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunner;
 import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
+import io.gdx.cdda.bn.nextgen.mapgen.json.SpawnMarker;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 
 import java.util.ArrayList;
@@ -77,15 +77,13 @@ public final class OmtStitchComposer {
                 warnings.add("unsupported mapgen for overmap '" + piece.getOvermapId() + "'");
                 continue;
             }
+            final boolean multitileCrop = definition.get().getOmTerrainGrid().isPresent();
             final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
-                MapGridRotator.rotationForBuildingPiece(
-                    piece.getOvermapId(),
-                    definition.get().getOmTerrainGrid().isPresent()
-                )
+                MapGridRotator.runnerOmtRotation(multitileCrop, piece.getOvermapId())
             );
             final MapGrid grid = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
             warnings.addAll(pieceOptions.getWarnings());
-            resolvedPieces.add(new ResolvedPiece(piece, definition.get(), grid));
+            resolvedPieces.add(new ResolvedPiece(piece, definition.get(), grid, pieceOptions));
         }
 
         if (resolvedPieces.isEmpty()) {
@@ -100,22 +98,45 @@ public final class OmtStitchComposer {
 
         final String fillTer = resolveFillTer(resolvedPieces.get(0).definition, options);
         final MapGrid canvas = new MapGrid(bounds.width, bounds.height, fillTer);
+        final List<SpawnMarker> floorMarkers = new ArrayList<>();
 
         for (final ResolvedPiece resolved : resolvedPieces) {
             final int destX = resolved.piece.getOffsetX() * DEFAULT_OMT_SIZE - bounds.originX;
             final int destY = resolved.piece.getOffsetY() * DEFAULT_OMT_SIZE - bounds.originY;
-            final int overlaps = canvas.blitFrom(resolved.grid, destX, destY, fillTer);
+            final Optional<MapGrid> oriented = OmTerrainMapgenPlacer.extractOrientedOmtSubmap(
+                resolved.grid,
+                resolved.definition.getOmTerrainGrid().orElse(null),
+                resolved.piece.getOvermapId()
+            );
+            if (!oriented.isPresent()) {
+                warnings.add("could not crop mapgen for overmap '" + resolved.piece.getOvermapId() + "'");
+                continue;
+            }
+            final MapGrid pieceGrid = oriented.get();
+            final int overlaps = canvas.blitFrom(pieceGrid, destX, destY, fillTer);
             if (overlaps > 0) {
                 warnings.add("stitch overlap at " + resolved.piece.getOvermapId() + ": " + overlaps + " cells");
             }
             pieceRects.add(new OmtPieceRect(
                 destX,
                 destY,
-                resolved.grid.width(),
-                resolved.grid.height(),
+                pieceGrid.width(),
+                pieceGrid.height(),
                 resolved.piece.getOvermapId()
             ));
+            floorMarkers.addAll(
+                SpawnMarkerTransform.orientForStitchPiece(
+                    resolved.pieceOptions.getSpawnMarkers(),
+                    resolved.grid,
+                    resolved.definition.getOmTerrainGrid().orElse(null),
+                    resolved.piece.getOvermapId(),
+                    destX,
+                    destY
+                )
+            );
         }
+
+        options.addSpawnMarkers(floorMarkers);
 
         return new StitchResult(canvas, pieceRects, warnings);
     }
@@ -197,8 +218,15 @@ public final class OmtStitchComposer {
             final int originY = resolved.piece.getOffsetY() * stride;
             minOriginX = Math.min(minOriginX, originX);
             minOriginY = Math.min(minOriginY, originY);
-            maxX = Math.max(maxX, originX + resolved.grid.width());
-            maxY = Math.max(maxY, originY + resolved.grid.height());
+            final Optional<MapGrid> oriented = OmTerrainMapgenPlacer.extractOrientedOmtSubmap(
+                resolved.grid,
+                resolved.definition.getOmTerrainGrid().orElse(null),
+                resolved.piece.getOvermapId()
+            );
+            final int blitW = oriented.map(MapGrid::width).orElse(resolved.grid.width());
+            final int blitH = oriented.map(MapGrid::height).orElse(resolved.grid.height());
+            maxX = Math.max(maxX, originX + blitW);
+            maxY = Math.max(maxY, originY + blitH);
         }
         if (minOriginX == Integer.MAX_VALUE) {
             minOriginX = 0;
@@ -213,15 +241,18 @@ public final class OmtStitchComposer {
         private final CityBuildingPiece piece;
         private final JsonMapgenDefinition definition;
         private final MapGrid grid;
+        private final JsonMapgenRunOptions pieceOptions;
 
         private ResolvedPiece(
             final CityBuildingPiece piece,
             final JsonMapgenDefinition definition,
-            final MapGrid grid
+            final MapGrid grid,
+            final JsonMapgenRunOptions pieceOptions
         ) {
             this.piece = piece;
             this.definition = definition;
             this.grid = grid;
+            this.pieceOptions = pieceOptions;
         }
     }
 

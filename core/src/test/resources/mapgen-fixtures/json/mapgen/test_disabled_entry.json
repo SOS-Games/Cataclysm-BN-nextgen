@@ -1,0 +1,23 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_disabled_entry",
+    "disabled": true,
+    "object": {
+      "fill_ter": "t_floor",
+      "rows": [ "XXX", "XXX", "XXX" ],
+      "terrain": { "X": "t_wall" }
+    }
+  },
+  {
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": "test_disabled_entry",
+    "object": {
+      "fill_ter": "t_floor",
+      "rows": [ "...", "...", "..." ],
+      "terrain": { ".": "t_floor" }
+    }
+  }
+]

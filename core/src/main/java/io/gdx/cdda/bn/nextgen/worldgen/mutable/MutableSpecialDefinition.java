@@ -1,5 +1,6 @@
 package io.gdx.cdda.bn.nextgen.worldgen.mutable;
 
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.Map;
 public final class MutableSpecialDefinition {
 
     private final String id;
+    private final Path sourceFile;
     private final String rootPieceId;
     private final Map<String, MutableOvermapNode> nodes;
     private final List<MutableSpecialPhase> phases;
@@ -21,7 +23,19 @@ public final class MutableSpecialDefinition {
         final List<MutableSpecialPhase> phases,
         final Map<String, String> joinOpposites
     ) {
+        this(id, null, rootPieceId, nodes, phases, joinOpposites);
+    }
+
+    public MutableSpecialDefinition(
+        final String id,
+        final Path sourceFile,
+        final String rootPieceId,
+        final Map<String, MutableOvermapNode> nodes,
+        final List<MutableSpecialPhase> phases,
+        final Map<String, String> joinOpposites
+    ) {
         this.id = id;
+        this.sourceFile = sourceFile;
         this.rootPieceId = rootPieceId;
         this.nodes = nodes == null
             ? Collections.emptyMap()
@@ -34,6 +48,10 @@ public final class MutableSpecialDefinition {
 
     public String getId() {
         return id;
+    }
+
+    public Path getSourceFile() {
+        return sourceFile;
     }
 
     public String getRootPieceId() {

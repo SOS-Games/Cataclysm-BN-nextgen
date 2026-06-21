@@ -48,6 +48,10 @@ public final class MapGrid {
         get(x, y).setFurnitureId(furnitureId);
     }
 
+    public void clearFurniture(final int x, final int y) {
+        get(x, y).setFurnitureId(null);
+    }
+
     public void fill(final String terrainId) {
         validateTerrainId(terrainId);
         for (int i = 0; i < cells.length; i++) {
@@ -62,18 +66,40 @@ public final class MapGrid {
         final int destY,
         final String unsetFillTer
     ) {
+        return blitFrom(source, 0, 0, source.width(), source.height(), destX, destY, unsetFillTer);
+    }
+
+    /** Copies a sub-rectangle from {@code source} into this grid. Returns overlap count. */
+    public int blitFrom(
+        final MapGrid source,
+        final int sourceX,
+        final int sourceY,
+        final int copyWidth,
+        final int copyHeight,
+        final int destX,
+        final int destY,
+        final String unsetFillTer
+    ) {
         if (source == null) {
             throw new IllegalArgumentException("source is required");
         }
+        if (copyWidth <= 0 || copyHeight <= 0) {
+            throw new IllegalArgumentException("copyWidth and copyHeight must be > 0");
+        }
         int overlaps = 0;
-        for (int y = 0; y < source.height(); y++) {
-            for (int x = 0; x < source.width(); x++) {
+        for (int y = 0; y < copyHeight; y++) {
+            for (int x = 0; x < copyWidth; x++) {
+                final int srcX = sourceX + x;
+                final int srcY = sourceY + y;
+                if (srcX < 0 || srcY < 0 || srcX >= source.width() || srcY >= source.height()) {
+                    continue;
+                }
                 final int targetX = destX + x;
                 final int targetY = destY + y;
                 if (targetX < 0 || targetY < 0 || targetX >= width || targetY >= height) {
                     continue;
                 }
-                final MapCell src = source.get(x, y);
+                final MapCell src = source.get(srcX, srcY);
                 final MapCell dest = get(targetX, targetY);
                 if (!isUnsetCell(dest, unsetFillTer) && contentDiffers(dest, src)) {
                     overlaps++;

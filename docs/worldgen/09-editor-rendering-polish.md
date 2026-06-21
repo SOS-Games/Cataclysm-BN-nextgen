@@ -3,7 +3,7 @@
 Draw-time and UX improvements for **map editor** (and worldgen overmap view). Generation logic
 stays in [mapgen-preview](../mapgen-preview/README.md) and [worldgen](./README.md).
 
-**Status:** todo. **Canonical specs:** [map-editor v2](../map-editor/v2-implementation-plan.md).
+**Status:** done. **Canonical specs:** [map-editor v2](../map-editor/v2-implementation-plan.md).
 
 ---
 

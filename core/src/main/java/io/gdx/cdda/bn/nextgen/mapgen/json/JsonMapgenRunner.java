@@ -7,9 +7,11 @@ import io.gdx.cdda.bn.nextgen.map.MapGridRotator;
 import io.gdx.cdda.bn.nextgen.mapgen.region.RegionContext;
 import io.gdx.cdda.bn.nextgen.mapgen.region.RegionalTerrainResolver;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.MergedCharMap;
+import io.gdx.cdda.bn.nextgen.mapgen.palette.MergedFormatPlacings;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteParser;
 import io.gdx.cdda.bn.nextgen.mapgen.palette.PaletteRegistry;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -55,8 +57,11 @@ public final class JsonMapgenRunner {
         final JsonMapgenRunOptions runOptions = options == null ? new JsonMapgenRunOptions() : options;
 
         final JsonValue object = definition.getObjectRoot();
-        final String fillTer = readFillTer(object, runOptions);
-        final MergedCharMap merged = buildMergedCharMap(object, palettes, runOptions);
+        final Random rng = runOptions.createRng(definition);
+        final JsonMapgenRunOptions scopedOptions = scopeParameters(object, runOptions, rng);
+        final String fillTer = readFillTer(object, scopedOptions);
+        final MergedCharMap merged = buildMergedCharMap(object, palettes, scopedOptions);
+        final MergedFormatPlacings formatPlacings = buildFormatPlacings(object, palettes, scopedOptions);
 
         final List<String> rows = RowsInterpreter.readRows(object);
         if (rows.isEmpty()) {
@@ -83,7 +88,7 @@ public final class JsonMapgenRunner {
                 definition,
                 catalog,
                 palettes,
-                runOptions,
+                scopedOptions,
                 predecessorDepth
             );
         } else if (hasPredecessor) {
@@ -92,14 +97,13 @@ public final class JsonMapgenRunner {
             );
         }
 
-        final int totalTurns = totalRotationTurns(object, runOptions);
+        final int totalTurns = totalRotationTurns(object, scopedOptions);
         if (hasPredecessor && totalTurns != 0) {
             activeGrid = MapGridRotator.rotate(activeGrid, (4 - totalTurns) % 4);
         }
         final MapGrid paintGrid = activeGrid;
 
-        final Random rng = runOptions.createRng(definition);
-        SetmapApplier.apply(paintGrid, object.get("set"), runOptions, rng);
+        SetmapApplier.apply(paintGrid, object.get("set"), scopedOptions, rng);
         for (int y = 0; y < rows.size(); y++) {
             final String row = rows.get(y);
             final int rowWidth = RowsInterpreter.rowWidth(row);
@@ -111,12 +115,23 @@ public final class JsonMapgenRunner {
                 merged.furnitureForCodePoint(codePoint).ifPresent(furn -> paintGrid.setFurniture(cellX, cellY, furn));
             }
         }
-        PlaceSpawnerApplier.applyTerrainAndFurniture(paintGrid, object, runOptions, rng);
-        PlaceSpawnerApplier.collectEntitySpawns(object, paintGrid, runOptions, rng);
+        PlaceSpawnerApplier.applyTerrainAndFurniture(paintGrid, object, scopedOptions, rng);
+        final List<SpawnMarker> collected = new ArrayList<>();
+        collected.addAll(FormatPlacingCollector.collectFromRows(rows, formatPlacings, scopedOptions, rng));
+        collected.addAll(PlaceSpawnerApplier.collectEntitySpawns(object, paintGrid, scopedOptions, rng));
+        final int nestedMarkerStart = runOptions.getSpawnMarkers().size();
         if (catalog != null) {
-            NestedMapgenRunner.apply(paintGrid, object, rows, catalog, palettes, runOptions, rng, 0);
+            NestedMapgenRunner.apply(paintGrid, object, rows, catalog, palettes, scopedOptions, rng, 0);
         }
-        applyRegionalResolve(paintGrid, runOptions);
+        collected.addAll(runOptions.drainSpawnMarkersSince(nestedMarkerStart));
+        addRotatedSpawnMarkers(
+            runOptions,
+            collected,
+            paintGrid.width(),
+            paintGrid.height(),
+            totalTurns
+        );
+        applyRegionalResolve(paintGrid, scopedOptions);
         return MapGridRotator.rotate(paintGrid, totalTurns);
     }
 
@@ -136,11 +151,13 @@ public final class JsonMapgenRunner {
         }
         final JsonMapgenRunOptions runOptions = options == null ? new JsonMapgenRunOptions() : options;
         final JsonValue object = definition.getObjectRoot();
-        final MergedCharMap merged = buildMergedCharMap(object, palettes, runOptions);
-        final List<String> rows = RowsInterpreter.readRows(object);
         final Random rng = runOptions.createRng(definition);
+        final JsonMapgenRunOptions scopedOptions = scopeParameters(object, runOptions, rng);
+        final MergedCharMap merged = buildMergedCharMap(object, palettes, scopedOptions);
+        final MergedFormatPlacings formatPlacings = buildFormatPlacings(object, palettes, scopedOptions);
+        final List<String> rows = RowsInterpreter.readRows(object);
 
-        SetmapApplier.apply(grid, object.get("set"), runOptions, rng);
+        SetmapApplier.apply(grid, object.get("set"), scopedOptions, rng);
         for (int y = 0; y < rows.size(); y++) {
             final String row = rows.get(y);
             final int rowWidth = RowsInterpreter.rowWidth(row);
@@ -152,12 +169,73 @@ public final class JsonMapgenRunner {
                 merged.furnitureForCodePoint(codePoint).ifPresent(furn -> grid.setFurniture(cellX, cellY, furn));
             }
         }
-        PlaceSpawnerApplier.applyTerrainAndFurniture(grid, object, runOptions, rng);
-        PlaceSpawnerApplier.collectEntitySpawns(object, grid, runOptions, rng);
+        PlaceSpawnerApplier.applyTerrainAndFurniture(grid, object, scopedOptions, rng);
+        final List<SpawnMarker> collected = new ArrayList<>();
+        collected.addAll(FormatPlacingCollector.collectFromRows(rows, formatPlacings, scopedOptions, rng));
+        collected.addAll(PlaceSpawnerApplier.collectEntitySpawns(object, grid, scopedOptions, rng));
+        final int nestedMarkerStart = runOptions.getSpawnMarkers().size();
         if (catalog != null) {
-            NestedMapgenRunner.apply(grid, object, rows, catalog, palettes, runOptions, rng, nestedDepth);
+            NestedMapgenRunner.apply(grid, object, rows, catalog, palettes, scopedOptions, rng, nestedDepth);
         }
-        applyRegionalResolve(grid, runOptions);
+        collected.addAll(runOptions.drainSpawnMarkersSince(nestedMarkerStart));
+        runOptions.addSpawnMarkers(collected);
+        applyRegionalResolve(grid, scopedOptions);
+    }
+
+    private static void addRotatedSpawnMarkers(
+        final JsonMapgenRunOptions runOptions,
+        final List<SpawnMarker> markers,
+        final int gridWidth,
+        final int gridHeight,
+        final int quarterTurnsClockwise
+    ) {
+        if (markers == null || markers.isEmpty()) {
+            return;
+        }
+        if (Math.floorMod(quarterTurnsClockwise, 4) == 0) {
+            runOptions.addSpawnMarkers(markers);
+            return;
+        }
+        final List<SpawnMarker> rotated = new ArrayList<>(markers.size());
+        for (final SpawnMarker marker : markers) {
+            final int[] point = MapGridRotator.rotatePointClockwise(
+                marker.x,
+                marker.y,
+                gridWidth,
+                gridHeight,
+                quarterTurnsClockwise
+            );
+            rotated.add(
+                new SpawnMarker(
+                    marker.kind,
+                    marker.groupId,
+                    marker.displayName,
+                    point[0],
+                    point[1],
+                    marker.density
+                )
+            );
+        }
+        runOptions.addSpawnMarkers(rotated);
+    }
+
+    private static JsonMapgenRunOptions scopeParameters(
+        final JsonValue object,
+        final JsonMapgenRunOptions options,
+        final Random rng
+    ) {
+        if (object == null || !object.has("parameters")) {
+            return options;
+        }
+        final java.util.Map<String, String> rolled = MapgenParameterRoller.roll(
+            object.get("parameters"),
+            rng,
+            options::addWarning
+        );
+        if (rolled.isEmpty()) {
+            return options;
+        }
+        return options.withRolledParameters(rolled);
     }
 
     private static int totalRotationTurns(final JsonValue object, final JsonMapgenRunOptions options) {
@@ -179,6 +257,25 @@ public final class JsonMapgenRunner {
             return fillTer;
         }
         return options.getDefaultFillTer();
+    }
+
+    private static MergedFormatPlacings buildFormatPlacings(
+        final JsonValue object,
+        final PaletteRegistry palettes,
+        final JsonMapgenRunOptions options
+    ) {
+        final JsonMapgenRunOptions runOptions = options == null ? new JsonMapgenRunOptions() : options;
+        final List<String> mergeWarnings = new ArrayList<>();
+        final MergedFormatPlacings placings = MergedFormatPlacings.merge(
+            palettes,
+            RowsInterpreter.readPaletteIds(object),
+            object,
+            mergeWarnings
+        );
+        for (final String warning : mergeWarnings) {
+            runOptions.addWarning(warning);
+        }
+        return placings;
     }
 
     private static MergedCharMap buildMergedCharMap(
@@ -208,7 +305,8 @@ public final class JsonMapgenRunner {
             PaletteParser.parseCharSectionNodes(terrainOverrides),
             PaletteParser.parseCharSectionNodes(furnitureOverrides),
             runOptions.paletteRng(),
-            runOptions::addWarning
+            runOptions::addWarning,
+            runOptions.getRolledParameters()
         );
     }
 }
