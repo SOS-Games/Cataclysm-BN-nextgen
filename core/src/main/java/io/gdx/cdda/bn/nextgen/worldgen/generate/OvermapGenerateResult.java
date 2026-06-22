@@ -1,6 +1,7 @@
 package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingIndex;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,6 +17,7 @@ public final class OvermapGenerateResult {
     private final int mutableSpecialsPlaced;
     private final int riverCellsCarved;
     private final int roadCellsPlaced;
+    private final PlacedBuildingIndex placementIndex;
 
     public OvermapGenerateResult(
         final OvermapGrid grid,
@@ -23,7 +25,7 @@ public final class OvermapGenerateResult {
         final int cityBuildingsPlaced,
         final int staticSpecialsPlaced
     ) {
-        this(grid, warnings, cityBuildingsPlaced, staticSpecialsPlaced, 0, 0, 0);
+        this(grid, warnings, cityBuildingsPlaced, staticSpecialsPlaced, 0, 0, 0, PlacedBuildingIndex.EMPTY);
     }
 
     public OvermapGenerateResult(
@@ -34,7 +36,8 @@ public final class OvermapGenerateResult {
         final int riverCellsCarved,
         final int roadCellsPlaced
     ) {
-        this(grid, warnings, cityBuildingsPlaced, staticSpecialsPlaced, 0, riverCellsCarved, roadCellsPlaced);
+        this(grid, warnings, cityBuildingsPlaced, staticSpecialsPlaced, 0, riverCellsCarved, roadCellsPlaced,
+            PlacedBuildingIndex.EMPTY);
     }
 
     public OvermapGenerateResult(
@@ -46,6 +49,28 @@ public final class OvermapGenerateResult {
         final int riverCellsCarved,
         final int roadCellsPlaced
     ) {
+        this(
+            grid,
+            warnings,
+            cityBuildingsPlaced,
+            staticSpecialsPlaced,
+            mutableSpecialsPlaced,
+            riverCellsCarved,
+            roadCellsPlaced,
+            PlacedBuildingIndex.EMPTY
+        );
+    }
+
+    public OvermapGenerateResult(
+        final OvermapGrid grid,
+        final List<String> warnings,
+        final int cityBuildingsPlaced,
+        final int staticSpecialsPlaced,
+        final int mutableSpecialsPlaced,
+        final int riverCellsCarved,
+        final int roadCellsPlaced,
+        final PlacedBuildingIndex placementIndex
+    ) {
         this.grid = grid;
         this.warnings = warnings == null
             ? Collections.emptyList()
@@ -55,6 +80,7 @@ public final class OvermapGenerateResult {
         this.mutableSpecialsPlaced = mutableSpecialsPlaced;
         this.riverCellsCarved = riverCellsCarved;
         this.roadCellsPlaced = roadCellsPlaced;
+        this.placementIndex = placementIndex == null ? PlacedBuildingIndex.EMPTY : placementIndex;
     }
 
     public OvermapGrid getGrid() {
@@ -83,5 +109,9 @@ public final class OvermapGenerateResult {
 
     public int getRoadCellsPlaced() {
         return roadCellsPlaced;
+    }
+
+    public PlacedBuildingIndex getPlacementIndex() {
+        return placementIndex;
     }
 }

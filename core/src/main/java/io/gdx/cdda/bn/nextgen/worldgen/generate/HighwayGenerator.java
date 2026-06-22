@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-/** Connects placed city/special sites with road OMT ids (W5 v1). */
+/** Connects placed city/special sites with road OMT ids (W5 v1, W11c directional). */
 public final class HighwayGenerator {
 
     private HighwayGenerator() {}
@@ -30,32 +30,62 @@ public final class HighwayGenerator {
         if (connection == null) {
             return 0;
         }
-        final String preferredRoad = connection.resolveTerrainId();
-        String roadId = OrthogonalPathCarver.resolveTerrainId(preferredRoad, "road", registry);
-        if (registry != null && !registry.contains(roadId)) {
-            roadId = OrthogonalPathCarver.resolveTerrainId("test_road", preferredRoad, registry);
-        }
-        if (registry != null && !registry.contains(roadId)) {
+        final String fallbackRoad = OrthogonalPathCarver.resolveTerrainId(
+            connection.resolveTerrainId(),
+            "road",
+            registry
+        );
+        String roadId = OrthogonalPathCarver.resolveTerrainId(fallbackRoad, "test_road", registry);
+        if (registry != null && !registry.contains(roadId) && !hasAnySubtype(registry, connection)) {
             addWarning(warnings, "road terrain '" + roadId + "' not in registry; skipping roads");
             return 0;
         }
 
-        final Set<String> overwritable = OrthogonalPathCarver.terrainOverwritableIds(
-            options,
-            registry,
-            roadId,
-            options.getRiverCenterId(),
-            options.getRiverBankId()
+        final java.util.HashSet<String> overwritable = new java.util.HashSet<>(
+            OrthogonalPathCarver.terrainOverwritableIds(
+                options,
+                registry,
+                roadId,
+                options.getRiverCenterId(),
+                options.getRiverBankId()
+            )
         );
+        if (connection.getBridgeTerrain() != null && !connection.getBridgeTerrain().isEmpty()) {
+            overwritable.add(options.getRiverCenterId());
+            overwritable.add("test_river");
+        }
 
         int painted = 0;
         for (int i = 0; i < sites.size() - 1; i++) {
             final int[] from = sites.get(i);
             final int[] to = sites.get(i + 1);
             final List<int[]> path = OrthogonalPathCarver.buildPath(from[0], from[1], to[0], to[1], rng);
-            painted += OrthogonalPathCarver.paintPath(grid, path, roadId, overwritable);
+            painted += OrthogonalPathCarver.paintDirectionalPath(
+                grid,
+                path,
+                (fromX, fromY, x, y, existing) -> {
+                    final String picked = connection.pickTerrainForStep(fromX, fromY, x, y, existing, options);
+                    return OrthogonalPathCarver.resolveTerrainId(picked, roadId, registry);
+                },
+                overwritable
+            );
         }
         return painted;
+    }
+
+    private static boolean hasAnySubtype(
+        final OvermapTerrainRegistry registry,
+        final OvermapConnectionDefinition connection
+    ) {
+        if (registry == null) {
+            return true;
+        }
+        for (final String terrainId : connection.getSubtypeTerrains()) {
+            if (registry.contains(terrainId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static OvermapConnectionDefinition resolveConnection(

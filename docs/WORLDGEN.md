@@ -4,7 +4,7 @@ Procedural **overmap layout** and **on-demand submap generation** for Cataclysm-
 This is a **separate track** from [mapgen preview](./MAPGEN_PREVIEW.md) (single-building import).
 
 **Spec index:** [`docs/worldgen/`](./worldgen/README.md)  
-**Plan:** [`worldgen/implementation-plan.md`](./worldgen/implementation-plan.md)
+**Plan:** [`worldgen/implementation-plan.md`](./worldgen/implementation-plan.md) (W1–W6) · [`worldgen/v2-implementation-plan.md`](./worldgen/v2-implementation-plan.md) (W7–W11)
 
 ---
 
@@ -52,6 +52,22 @@ Detail: [01-overview-and-scope](./worldgen/01-overview-and-scope.md).
 | **W6** | Mutable specials + joins | [07](./worldgen/07-mutable-specials-and-joins.md) |
 
 **First playable milestone:** W2 + W3 — pan a small overmap, click an OMT, see generated terrain.
+
+---
+
+## Milestones v2 (W7–W11)
+
+| PR | Focus | Unit doc |
+| --- | --- | --- |
+| **W7** | Building-aware visit (`MapVolumeBuilder`) | [13](./worldgen/13-building-aware-visit.md) |
+| **W8** | Multi-z visit | [14](./worldgen/14-multi-z-visit.md) |
+| **W9** | Region settings terrain | [15](./worldgen/15-region-settings-terrain.md) |
+| **W10** | Overmap scale (64–180) | [16](./worldgen/16-overmap-scale.md) |
+| **W11** | Procedural layout v2 | [17](./worldgen/17-procedural-layout-v2.md) |
+
+**Roadmap:** [12-v2-parity-roadmap](./worldgen/12-v2-parity-roadmap.md) · **Plan:** [v2-implementation-plan](./worldgen/v2-implementation-plan.md)
+
+**Start v2 with W7** — overmap visit should match mapgen picker for placed buildings.
 
 ---
 

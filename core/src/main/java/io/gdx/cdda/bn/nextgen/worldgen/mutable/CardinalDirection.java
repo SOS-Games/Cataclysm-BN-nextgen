@@ -39,6 +39,11 @@ public enum CardinalDirection {
         }
     }
 
+    public CardinalDirection rotateClockwise(final int quarterTurns) {
+        final CardinalDirection[] order = values();
+        return order[Math.floorMod(ordinal() + quarterTurns, order.length)];
+    }
+
     public static CardinalDirection fromJsonKey(final String key) {
         if (key == null) {
             return null;

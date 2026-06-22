@@ -25,7 +25,8 @@ class MutableSpecialPlacerIntegrationTest {
         service.setWorldSeed(900L);
         final OvermapGenerateOptions options = OvermapGenerateOptions.forSize(16, 16)
             .withSeed(900L)
-            .withQuotas(1, 0, 1);
+            .withQuotas(1, 0, 1)
+            .withLegacyGenerationOrder(true);
         final OvermapGenerateResult result = service.generateOvermap(options);
         assertTrue(result.getMutableSpecialsPlaced() >= 1);
 

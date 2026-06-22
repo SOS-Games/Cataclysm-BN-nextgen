@@ -36,7 +36,14 @@ public final class MutableSpecialBuildingConverter {
         if (assembled.getPieces().size() < 2) {
             return Optional.empty();
         }
-        return Optional.of(toBuilding(definition, assembled));
+        return Optional.of(fromAssembledLayout(definition, assembled));
+    }
+
+    public static CityBuildingDefinition fromAssembledLayout(
+        final MutableSpecialDefinition definition,
+        final AssembledSpecialLayout layout
+    ) {
+        return toBuilding(definition, layout);
     }
 
     private static CityBuildingDefinition toBuilding(
@@ -51,7 +58,7 @@ public final class MutableSpecialBuildingConverter {
                 piece.getOffsetX() - minX,
                 piece.getOffsetY() - minY,
                 0,
-                piece.getOvermapTerrainId()
+                piece.resolveOvermapTerrainId()
             ));
         }
         pieces.sort(Comparator

@@ -54,5 +54,39 @@
         { "overmap": "se", "max": 1 }
       ]
     ]
+  },
+  {
+    "type": "overmap_special",
+    "id": "test_mutable_multiphase",
+    "subtype": "mutable",
+    "root": "nw",
+    "joins": [ "test_join" ],
+    "overmaps": {
+      "nw": {
+        "overmap": "test_mutable_nw_north",
+        "east": "test_join",
+        "south": "test_join"
+      },
+      "ne": {
+        "overmap": "test_mutable_ne_north",
+        "west": "test_join",
+        "south": "test_join"
+      },
+      "sw": {
+        "overmap": "test_mutable_sw_north",
+        "east": "test_join",
+        "north": "test_join"
+      },
+      "se": {
+        "overmap": "test_mutable_se_north",
+        "west": "test_join",
+        "north": "test_join"
+      }
+    },
+    "phases": [
+      [ { "overmap": "ne", "max": 1 } ],
+      [ { "overmap": "sw", "max": 1 } ],
+      [ { "overmap": "se", "max": 1 } ]
+    ]
   }
 ]

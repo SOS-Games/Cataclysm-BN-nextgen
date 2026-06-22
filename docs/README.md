@@ -6,14 +6,14 @@
 | [GAME_DATA_LOADER.md](./GAME_DATA_LOADER.md) | Game JSON loader — **PR slices G1–G5** + end-to-end timeline |
 | [MAP_EDITOR.md](./MAP_EDITOR.md) | Paintable grid — **M1–M4 done**; **v2 R1–R3, M5–M7** ([plan](./map-editor/v2-implementation-plan.md)) |
 | [MAPGEN_PREVIEW.md](./MAPGEN_PREVIEW.md) | JSON mapgen → grid preview — **P1–P7c + v2 P8–P15 done** |
-| [WORLDGEN.md](./WORLDGEN.md) | Overmap + submap world generation — **W1–W6** ([plan](./worldgen/implementation-plan.md)) |
+| [WORLDGEN.md](./WORLDGEN.md) | Overmap + submap world generation — **W1–W6 done**; **W7–W11** ([v2 plan](./worldgen/v2-implementation-plan.md)) |
 | [SPRITE_VIEWER.md](./SPRITE_VIEWER.md) | In-game sprite browser (`TileDisplayScreen`) |
 | [INCREMENTAL_LOADING.md](./INCREMENTAL_LOADING.md) | Frame-sliced tileset load (`TilesetLoadSession`) |
 | [tileset-loader/README.md](./tileset-loader/README.md) | Gfx loader specification index |
 | [game-data-loader/README.md](./game-data-loader/README.md) | Game data specification index |
 | [map-editor/README.md](./map-editor/README.md) | Map editor specification index |
 | [mapgen-preview/README.md](./mapgen-preview/README.md) | Mapgen preview specification index (units 01–21, v2 plan) |
-| [worldgen/README.md](./worldgen/README.md) | World generation specification index (units 01–11, W1–W6 plan) |
+| [worldgen/README.md](./worldgen/README.md) | World generation specification index (units 01–17, W1–W11 plans) |
 
 ## Specification sources
 

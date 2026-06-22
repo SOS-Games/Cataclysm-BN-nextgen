@@ -5,6 +5,10 @@ import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingIndex;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,31 +26,59 @@ public final class OvermapGenerator {
         final OvermapConnectionRegistry connectionRegistry,
         final MutableSpecialRegistry mutableSpecials
     ) {
+        return generate(
+            options,
+            buildings,
+            oterRegistry,
+            connectionRegistry,
+            mutableSpecials,
+            RegionSettingsRegistry.empty()
+        );
+    }
+
+    public static OvermapGenerateResult generate(
+        final OvermapGenerateOptions options,
+        final CityBuildingRegistry buildings,
+        final OvermapTerrainRegistry oterRegistry,
+        final OvermapConnectionRegistry connectionRegistry,
+        final MutableSpecialRegistry mutableSpecials,
+        final RegionSettingsRegistry regionSettings
+    ) {
         if (options == null) {
             throw new IllegalArgumentException("options is required");
         }
         final List<String> warnings = new ArrayList<>();
         final Random rng = new Random(options.getSeed() ^ 0x504C4143L);
+        final RegionSettingsDefinition region = resolveRegion(options, regionSettings, warnings);
         final OvermapGrid grid = new OvermapGrid(
             options.getWidth(),
             options.getHeight(),
             options.getFieldId()
         );
 
-        BaseTerrainFiller.fill(grid, options, oterRegistry, rng);
+        BaseTerrainFiller.fill(grid, options, region, oterRegistry, rng);
 
-        final int riversCarved = RiverGenerator.carve(grid, options, oterRegistry, rng, warnings);
+        int riversCarved;
+        if (options.isLegacyGenerationOrder()) {
+            riversCarved = RiverGenerator.carve(grid, options, oterRegistry, rng, warnings);
+        } else {
+            LakeGenerator.fill(grid, options, region, oterRegistry, rng, warnings);
+            riversCarved = RiverGenerator.carve(grid, options, oterRegistry, rng, warnings);
+        }
 
         final CityBuildingRegistry registry = buildings == null ? CityBuildingRegistry.empty() : buildings;
         final List<int[]> placedSites = new ArrayList<>();
+        final List<PlacedBuildingRecord> placements = new ArrayList<>();
         final int cities = CityPlacer.placeAll(
             grid,
             registry,
             oterRegistry,
             options,
+            region,
             rng,
             warnings,
-            placedSites
+            placedSites,
+            placements
         );
         final int specials = StaticSpecialPlacer.placeAll(
             grid,
@@ -55,7 +87,8 @@ public final class OvermapGenerator {
             options,
             rng,
             warnings,
-            placedSites
+            placedSites,
+            placements
         );
         final int mutablePlaced = MutableSpecialPlacer.placeAll(
             grid,
@@ -64,7 +97,8 @@ public final class OvermapGenerator {
             options,
             rng,
             warnings,
-            placedSites
+            placedSites,
+            placements
         );
 
         final int roadCells = HighwayGenerator.connectSites(
@@ -77,6 +111,8 @@ public final class OvermapGenerator {
             warnings
         );
 
+        final PlacedBuildingIndex placementIndex = PlacedBuildingIndex.fromRecords(placements, warnings);
+
         return new OvermapGenerateResult(
             grid,
             warnings,
@@ -84,7 +120,34 @@ public final class OvermapGenerator {
             specials,
             mutablePlaced,
             riversCarved,
-            roadCells
+            roadCells,
+            placementIndex
         );
+    }
+
+    private static RegionSettingsDefinition resolveRegion(
+        final OvermapGenerateOptions options,
+        final RegionSettingsRegistry regionSettings,
+        final List<String> warnings
+    ) {
+        if (regionSettings == null || regionSettings.size() == 0) {
+            return null;
+        }
+        final String regionId = options.getRegionId();
+        final java.util.Optional<RegionSettingsDefinition> resolved = regionSettings.find(regionId);
+        if (resolved.isPresent()) {
+            return resolved.get();
+        }
+        final java.util.Optional<RegionSettingsDefinition> fallback = regionSettings.find("default");
+        if (!"default".equals(regionId)) {
+            addWarning(warnings, "unknown regionId '" + regionId + "'; using default region settings if present");
+        }
+        return fallback.orElse(null);
+    }
+
+    private static void addWarning(final List<String> warnings, final String message) {
+        if (warnings != null) {
+            warnings.add(message);
+        }
     }
 }

@@ -1,0 +1,75 @@
+package io.gdx.cdda.bn.nextgen.worldgen.generate;
+
+import io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions;
+import io.gdx.cdda.bn.nextgen.worldgen.WorldgenTestFixtures;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainScanOptions;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoader;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class BaseTerrainFillerRegionTest {
+
+    private OvermapTerrainRegistry oterRegistry;
+    private io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition forestHeavy;
+    private io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition forestLight;
+
+    @BeforeEach
+    void loadFixtures() throws Exception {
+        oterRegistry = OvermapTerrainLoader.load(
+            OvermapTerrainScanOptions.fromDataRoot(WorldgenTestFixtures.fixtureDataRoot())
+        ).getRegistry();
+        final io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsRegistry regions = RegionSettingsLoader.load(
+            MapgenScanOptions.fromDataRoot(WorldgenTestFixtures.fixtureDataRoot())
+        ).getRegistry();
+        forestHeavy = regions.find("forest_heavy").orElseThrow();
+        forestLight = regions.find("forest_light").orElseThrow();
+    }
+
+    @Test
+    void sameSeedIsStableForRegionFill() {
+        final OvermapGenerateOptions options = OvermapGenerateOptions.forSize(16, 16)
+            .withSeed(4242L)
+            .withTerrainIds("open_air", "test_field");
+        final OvermapGrid first = new OvermapGrid(16, 16, "open_air");
+        final OvermapGrid second = new OvermapGrid(16, 16, "open_air");
+        BaseTerrainFiller.fill(first, options, forestHeavy, oterRegistry, null);
+        BaseTerrainFiller.fill(second, options, forestHeavy, oterRegistry, null);
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                assertEquals(first.getOmtId(x, y), second.getOmtId(x, y));
+            }
+        }
+    }
+
+    @Test
+    void heavyRegionHasMoreForestThanLightRegion() {
+        final OvermapGenerateOptions options = OvermapGenerateOptions.forSize(32, 32)
+            .withSeed(9001L)
+            .withTerrainIds("open_air", "test_field");
+        final OvermapGrid heavy = new OvermapGrid(32, 32, "open_air");
+        final OvermapGrid light = new OvermapGrid(32, 32, "open_air");
+        BaseTerrainFiller.fill(heavy, options, forestHeavy, oterRegistry, null);
+        BaseTerrainFiller.fill(light, options, forestLight, oterRegistry, null);
+
+        assertTrue(countForest(heavy, "test_field") > countForest(light, "test_field"));
+    }
+
+    private static int countForest(final OvermapGrid grid, final String forestId) {
+        int count = 0;
+        for (int y = 0; y < grid.height(); y++) {
+            for (int x = 0; x < grid.width(); x++) {
+                if (forestId.equals(grid.getOmtId(x, y))) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+}

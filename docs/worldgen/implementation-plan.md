@@ -183,3 +183,10 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/worldgen/
 2. Implement one W slice; wire through existing loaders — do not fork mapgen runner
 3. Add fixture under `core/src/test/resources/worldgen-fixtures/`
 4. Update unit doc **Status** when done
+
+---
+
+## v2 (W7–W11)
+
+W1–W6 complete. Continue with [v2-implementation-plan.md](./v2-implementation-plan.md) —
+start **W7** building-aware visit ([13](./13-building-aware-visit.md)).

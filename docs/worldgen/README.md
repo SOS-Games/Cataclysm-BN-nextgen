@@ -39,7 +39,20 @@ Specs for **BN-style overmap layout + on-demand submap generation** in LibGDX ne
 | [06](./06-rivers-roads-connections.md) | Rivers, highways, `overmap_connection` | **W5** | done |
 | [07](./07-mutable-specials-and-joins.md) | Procedural specials, joins, phases | **W6** | done |
 
-**Plan:** [implementation-plan.md](./implementation-plan.md)
+**Plan:** [implementation-plan.md](./implementation-plan.md) (W1–W6) · [v2-implementation-plan.md](./v2-implementation-plan.md) (W7–W11)
+
+---
+
+## Worldgen v2 milestones (W7–W11)
+
+| Unit | Topic | PR | Status |
+| --- | --- | --- | --- |
+| [12](./12-v2-parity-roadmap.md) | v2 gap inventory; suggested order | — | draft |
+| [13](./13-building-aware-visit.md) | `MapVolumeBuilder` on overmap visit | **W7** | done |
+| [14](./14-multi-z-visit.md) | z-aware pick; floor visit | **W8** | done |
+| [15](./15-region-settings-terrain.md) | `region_settings` base fill | **W9** | done |
+| [16](./16-overmap-scale.md) | 64×64–180×180; culling | **W10** | done |
+| [17](./17-procedural-layout-v2.md) | Rivers, roads, mutable, joins | **W11** | done |
 
 ---
 
@@ -66,6 +79,14 @@ flowchart TD
     W4 --> W5[W5 rivers roads]
     W5 --> W6[W6 mutable specials]
 
+    W6 --> W7[W7 building visit]
+    W7 --> W8[W8 multi-z]
+    W7 --> W10[W10 scale]
+    W4 --> W9[W9 region terrain]
+    W9 --> W10
+    W5 --> W11[W11 layout v2]
+    W6 --> W11
+
     MP[Mapgen preview v2] --> W3
     GD[Game data G1-G5] --> W1
     ME[Map editor] --> W2
@@ -82,7 +103,7 @@ flowchart TD
 | `data/json/overmap/multitile_city_buildings.json` | City building footprints |
 | `data/json/overmap/overmap_special/` | Static special layouts |
 | `data/json/overmap/overmap_mutable/` | Procedural special rules |
-| `data/json/region_settings/` | Region id for worldgen |
+| `data/json/regional_map_settings.json` | Region settings (`type: region_settings`) |
 | `data/json/mapgen/` | Submap recipes (via mapgen preview loader) |
 
 ---

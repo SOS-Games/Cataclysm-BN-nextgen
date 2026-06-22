@@ -117,5 +117,37 @@
     "sym": "4",
     "color": "magenta",
     "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_lake",
+    "name": "test lake",
+    "sym": "o",
+    "color": "blue",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_ns",
+    "name": "road ns",
+    "sym": "|",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_ew",
+    "name": "road ew",
+    "sym": "-",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_bridge",
+    "name": "bridge",
+    "sym": "#",
+    "color": "brown",
+    "flags": [ "NO_ROTATE" ]
   }
 ]

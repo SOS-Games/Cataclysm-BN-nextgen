@@ -16,9 +16,14 @@ import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridFactory;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoadResult;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoader;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingIndex;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoadResult;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapCache;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapGenerator;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.VisitResult;
+import io.gdx.cdda.bn.nextgen.worldgen.visit.VolumeCache;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,14 +33,18 @@ import java.util.List;
 /** Facade for overmap terrain + visit-tile submap generation (W3). */
 public final class WorldgenPreviewService {
 
-    private static final int DEFAULT_CACHE_SIZE = 64;
+    private static final int DEFAULT_CACHE_SIZE = 128;
+    private static final int DEFAULT_VOLUME_CACHE_SIZE = 16;
 
     private final MapgenPreviewService mapgenPreviewService = new MapgenPreviewService();
-    private final SubmapCache submapCache = new SubmapCache(DEFAULT_CACHE_SIZE);
+    private SubmapCache submapCache = new SubmapCache(DEFAULT_CACHE_SIZE);
+    private VolumeCache volumeCache = new VolumeCache(DEFAULT_VOLUME_CACHE_SIZE);
 
     private OvermapTerrainRegistry overmapTerrainRegistry = new OvermapTerrainRegistry();
     private OvermapConnectionRegistry overmapConnectionRegistry = new OvermapConnectionRegistry();
     private MutableSpecialRegistry mutableSpecialRegistry = new MutableSpecialRegistry();
+    private RegionSettingsRegistry regionSettingsRegistry = RegionSettingsRegistry.empty();
+    private PlacedBuildingIndex placementIndex = PlacedBuildingIndex.EMPTY;
     private List<String> overmapLoadWarnings = Collections.emptyList();
     private LoadedGameData gameData;
     private long worldSeed = 12345L;
@@ -65,6 +74,10 @@ public final class WorldgenPreviewService {
         return mutableSpecialRegistry;
     }
 
+    public RegionSettingsRegistry getRegionSettingsRegistry() {
+        return regionSettingsRegistry;
+    }
+
     public List<String> getOvermapLoadWarnings() {
         return overmapLoadWarnings;
     }
@@ -76,6 +89,7 @@ public final class WorldgenPreviewService {
     public void setWorldSeed(final long worldSeed) {
         this.worldSeed = worldSeed;
         submapCache.clear();
+        volumeCache.clear();
     }
 
     public void setGameData(final LoadedGameData gameData) {
@@ -84,6 +98,27 @@ public final class WorldgenPreviewService {
 
     public void clearSubmapCache() {
         submapCache.clear();
+        volumeCache.clear();
+    }
+
+    public int getSubmapCacheCapacity() {
+        return submapCache.getMaxEntries();
+    }
+
+    public void setSubmapCacheCapacity(final int capacity) {
+        submapCache = new SubmapCache(Math.max(1, capacity));
+    }
+
+    public int getVolumeCacheCapacity() {
+        return volumeCache.getMaxEntries();
+    }
+
+    public void setVolumeCacheCapacity(final int capacity) {
+        volumeCache = new VolumeCache(Math.max(1, capacity));
+    }
+
+    public PlacedBuildingIndex getPlacementIndex() {
+        return placementIndex;
     }
 
     public synchronized void ensureLoaded(final WorldgenScanOptions options) throws IOException {
@@ -110,6 +145,10 @@ public final class WorldgenPreviewService {
         mutableSpecialRegistry = mutableResult.getRegistry();
         overmapLoadWarnings.addAll(mutableResult.getWarnings());
 
+        final RegionSettingsLoadResult regionResult = RegionSettingsLoader.load(scanOptions.getMapgenScanOptions());
+        regionSettingsRegistry = regionResult.getRegistry();
+        overmapLoadWarnings.addAll(regionResult.getWarnings());
+
         mapgenPreviewService.ensureLoaded(scanOptions.getMapgenScanOptions());
         loaded = true;
     }
@@ -117,6 +156,7 @@ public final class WorldgenPreviewService {
     public OvermapGrid createTestOvermap(final int width, final int height, final long seed) {
         worldSeed = seed;
         submapCache.clear();
+        volumeCache.clear();
         if (!isLoaded()) {
             return OvermapGridFactory.empty(width, height, defaultFillId());
         }
@@ -142,13 +182,17 @@ public final class WorldgenPreviewService {
         }
         final OvermapGenerateOptions resolved = resolveGenerateOptions(options);
         submapCache.clear();
-        return OvermapGenerator.generate(
+        volumeCache.clear();
+        final OvermapGenerateResult result = OvermapGenerator.generate(
             resolved,
             mapgenPreviewService.getCityBuildings(),
             overmapTerrainRegistry,
             overmapConnectionRegistry,
-            mutableSpecialRegistry
+            mutableSpecialRegistry,
+            regionSettingsRegistry
         );
+        placementIndex = result.getPlacementIndex();
+        return result;
     }
 
     private OvermapGenerateOptions resolveGenerateOptions(final OvermapGenerateOptions options) {
@@ -233,9 +277,12 @@ public final class WorldgenPreviewService {
             z,
             worldSeed,
             submapCache,
+            volumeCache,
+            placementIndex,
             mapgenPreviewService,
             overmapTerrainRegistry,
-            gameData
+            gameData,
+            mutableSpecialRegistry
         );
     }
 

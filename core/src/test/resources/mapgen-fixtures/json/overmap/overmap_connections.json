@@ -3,8 +3,21 @@
     "type": "overmap_connection",
     "id": "test_local_road",
     "default_terrain": "test_road",
+    "bridge_terrain": "test_bridge",
     "subtypes": [
-      { "terrain": "test_road", "locations": [ "test_field" ] }
+      { "terrain": "test_road", "locations": [ "test_field" ] },
+      { "terrain": "test_road_ns" },
+      { "terrain": "test_road_ew" }
+    ]
+  },
+  {
+    "type": "overmap_connection",
+    "id": "test_directional_road",
+    "default_terrain": "test_road",
+    "bridge_terrain": "test_bridge",
+    "subtypes": [
+      { "terrain": "test_road_ns" },
+      { "terrain": "test_road_ew" }
     ]
   }
 ]

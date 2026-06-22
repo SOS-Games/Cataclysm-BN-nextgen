@@ -43,4 +43,8 @@ public final class SubmapCache {
     public int size() {
         return entries.size();
     }
+
+    public int getMaxEntries() {
+        return maxEntries;
+    }
 }

@@ -6,6 +6,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.json.MapgenCatalog;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.MapgenRef;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.visit.ZLevelResolver;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,11 +31,8 @@ public final class MapgenPicker {
         if (omtId == null || omtId.isEmpty() || catalog == null) {
             return Optional.empty();
         }
-        if (z != 0) {
-            addWarning(warnings, "z=" + z + " visit not fully supported; using z=0 mapgen for " + omtId);
-        }
 
-        final List<JsonMapgenDefinition> candidates = new ArrayList<>();
+        List<JsonMapgenDefinition> candidates = new ArrayList<>();
         for (final JsonMapgenDefinition definition
             : OterMapgenIndex.candidatesForOmt(omtId, registry, catalog)) {
             if (definition.isJsonPreviewSupported()) {
@@ -43,6 +41,8 @@ public final class MapgenPicker {
                 addWarning(warnings, "skipped non-json mapgen method '" + definition.getMethod() + "' for " + omtId);
             }
         }
+
+        candidates = filterCandidatesByZ(candidates, omtId, z, warnings);
 
         if (candidates.isEmpty()) {
             warnNonJsonMapgenRefs(omtId, registry, warnings);
@@ -53,6 +53,50 @@ public final class MapgenPicker {
             return Optional.of(candidates.get(0));
         }
         return pickWeighted(candidates, rng);
+    }
+
+    private static List<JsonMapgenDefinition> filterCandidatesByZ(
+        final List<JsonMapgenDefinition> candidates,
+        final String omtId,
+        final int requestedZ,
+        final List<String> warnings
+    ) {
+        if (candidates == null || candidates.isEmpty()) {
+            return candidates;
+        }
+        final Optional<Integer> inferred = ZLevelResolver.inferFromOmtIdOptional(omtId);
+        final int targetZ = inferred.isPresent() ? inferred.get() : requestedZ;
+        if (targetZ == 0 && !inferred.isPresent()) {
+            return candidates;
+        }
+        final List<JsonMapgenDefinition> filtered = new ArrayList<>();
+        for (final JsonMapgenDefinition definition : candidates) {
+            if (definitionMatchesZ(definition, targetZ)) {
+                filtered.add(definition);
+            }
+        }
+        if (!filtered.isEmpty()) {
+            return filtered;
+        }
+        if (requestedZ != 0 || inferred.isPresent()) {
+            addWarning(
+                warnings,
+                "no z-specific mapgen for z=" + targetZ + " on " + omtId + "; using all candidates"
+            );
+        }
+        return candidates;
+    }
+
+    private static boolean definitionMatchesZ(final JsonMapgenDefinition definition, final int targetZ) {
+        if (definition.getOmTerrain().isEmpty()) {
+            return targetZ == 0;
+        }
+        for (final String omTerrain : definition.getOmTerrain()) {
+            if (ZLevelResolver.omTerrainMatchesZ(omTerrain, targetZ)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Optional<JsonMapgenDefinition> pickWeighted(

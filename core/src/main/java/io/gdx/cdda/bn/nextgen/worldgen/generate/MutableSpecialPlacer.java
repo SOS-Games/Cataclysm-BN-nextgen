@@ -1,10 +1,13 @@
 package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
+import io.gdx.cdda.bn.nextgen.mapgen.building.MutableSpecialBuildingConverter;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.AssembledSpecialLayout;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.PlacedMutablePiece;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.SpecialPhaseAssembler;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.MutableSpecialPlacer;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 
@@ -27,7 +30,8 @@ public final class MutableSpecialPlacer {
         final OvermapGenerateOptions options,
         final Random rng,
         final List<String> warnings,
-        final List<int[]> placedCenters
+        final List<int[]> placedCenters,
+        final List<PlacedBuildingRecord> placedBuildings
     ) {
         if (grid == null || mutables == null || options.getMutableSpecialQuota() <= 0) {
             return 0;
@@ -45,7 +49,7 @@ public final class MutableSpecialPlacer {
         while (placed < options.getMutableSpecialQuota() && attempts < maxAttempts && !candidates.isEmpty()) {
             attempts++;
             final MutableSpecialDefinition special = candidates.get(rng.nextInt(candidates.size()));
-            if (tryPlace(special, grid, oterRegistry, clearable, rng, warnings, placedCenters)) {
+            if (tryPlace(special, grid, oterRegistry, clearable, rng, warnings, placedCenters, placedBuildings)) {
                 placed++;
             }
         }
@@ -59,7 +63,8 @@ public final class MutableSpecialPlacer {
         final Set<String> clearableIds,
         final Random rng,
         final List<String> warnings,
-        final List<int[]> placedCenters
+        final List<int[]> placedCenters,
+        final List<PlacedBuildingRecord> placedBuildings
     ) {
         if (special == null) {
             return false;
@@ -87,7 +92,7 @@ public final class MutableSpecialPlacer {
             if (oterRegistry != null && !oterRegistry.contains(piece.getOvermapTerrainId())) {
                 addWarning(warnings, "unknown overmap terrain '" + piece.getOvermapTerrainId() + "'");
             }
-            grid.setOmtId(x, y, piece.getOvermapTerrainId());
+            grid.setOmtId(x, y, piece.resolveOvermapTerrainId());
             blitted++;
         }
         if (blitted > 0 && placedCenters != null) {
@@ -95,6 +100,14 @@ public final class MutableSpecialPlacer {
                 baseX + layout.getMinOffsetX() + (layout.getWidth() - 1) / 2,
                 baseY + layout.getMinOffsetY() + (layout.getHeight() - 1) / 2
             });
+        }
+        if (blitted >= 2 && placedBuildings != null) {
+            placedBuildings.add(PlacedBuildingRecord.ofMutable(
+                MutableSpecialBuildingConverter.fromAssembledLayout(special, layout),
+                baseX,
+                baseY,
+                layout
+            ));
         }
         return blitted >= 2;
     }
@@ -179,7 +192,18 @@ public final class MutableSpecialPlacer {
         if (!layout.isPresent()) {
             return true;
         }
-        return layout.get().getWidth() > grid.width() || layout.get().getHeight() > grid.height();
+        return layout.get().getWidth() > maxFootprint(grid) || layout.get().getHeight() > maxFootprint(grid);
+    }
+
+    private static int maxFootprint(final OvermapGrid grid) {
+        final int side = Math.min(grid.width(), grid.height());
+        if (side >= 64) {
+            return 8;
+        }
+        if (side >= 32) {
+            return 6;
+        }
+        return Math.max(2, side / 2);
     }
 
     private static void shuffle(final List<MutableSpecialDefinition> candidates, final Random rng) {

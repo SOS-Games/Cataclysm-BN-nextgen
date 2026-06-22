@@ -66,6 +66,51 @@ final class OrthogonalPathCarver {
         return painted;
     }
 
+    static int paintDirectionalPath(
+        final OvermapGrid grid,
+        final List<int[]> path,
+        final StepTerrainResolver resolver,
+        final Set<String> overwritableIds
+    ) {
+        if (grid == null || path == null || path.isEmpty() || resolver == null) {
+            return 0;
+        }
+        int painted = 0;
+        int prevX = path.get(0)[0];
+        int prevY = path.get(0)[1];
+        for (int i = 0; i < path.size(); i++) {
+            final int x = path.get(i)[0];
+            final int y = path.get(i)[1];
+            if (x < 0 || y < 0 || x >= grid.width() || y >= grid.height()) {
+                prevX = x;
+                prevY = y;
+                continue;
+            }
+            final String existing = grid.getOmtId(x, y);
+            final String terrainId = resolver.resolve(prevX, prevY, x, y, existing);
+            if (terrainId == null || terrainId.isEmpty()) {
+                prevX = x;
+                prevY = y;
+                continue;
+            }
+            final boolean riverBridge = existing != null && !overwritableIds.contains(existing);
+            if (!riverBridge && !overwritableIds.contains(existing)) {
+                prevX = x;
+                prevY = y;
+                continue;
+            }
+            grid.setOmtId(x, y, terrainId);
+            painted++;
+            prevX = x;
+            prevY = y;
+        }
+        return painted;
+    }
+
+    interface StepTerrainResolver {
+        String resolve(int fromX, int fromY, int toX, int toY, String existingOmtId);
+    }
+
     static Set<String> terrainOverwritableIds(
         final OvermapGenerateOptions options,
         final OvermapTerrainRegistry registry,

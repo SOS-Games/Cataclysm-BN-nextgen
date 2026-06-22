@@ -76,7 +76,8 @@ public final class SpecialPhaseAssembler {
                     node.getPieceId(),
                     at[0],
                     at[1],
-                    node.getOvermapTerrainId()
+                    node.getOvermapTerrainId(),
+                    at.length > 2 ? at[2] : 0
                 ));
                 attached++;
             }

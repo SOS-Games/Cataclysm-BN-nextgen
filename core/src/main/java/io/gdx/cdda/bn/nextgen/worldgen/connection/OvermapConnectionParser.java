@@ -23,8 +23,9 @@ public final class OvermapConnectionParser {
             return null;
         }
         final String defaultTerrain = root.getString("default_terrain", "road");
+        final String bridgeTerrain = root.getString("bridge_terrain", null);
         final List<String> subtypeTerrains = parseSubtypeTerrains(root.get("subtypes"));
-        return new OvermapConnectionDefinition(id, defaultTerrain, subtypeTerrains);
+        return new OvermapConnectionDefinition(id, defaultTerrain, bridgeTerrain, subtypeTerrains);
     }
 
     private static List<String> parseSubtypeTerrains(final JsonValue subtypesValue) {

@@ -36,20 +36,9 @@ class OvermapGeneratorTest {
     @Test
     void placesCityBuildingsOn16x16() {
         service.setWorldSeed(100L);
-        final OvermapGenerateResult result = service.generateOvermap(16, 16);
+        final OvermapGenerateResult result = generateLegacy16();
         assertTrue(result.getCityBuildingsPlaced() >= 1, "expected at least one city building");
-
-        boolean foundBuildingOmt = false;
-        final OvermapGrid grid = result.getGrid();
-        for (int y = 0; y < grid.height(); y++) {
-            for (int x = 0; x < grid.width(); x++) {
-                final String id = grid.getOmtId(x, y);
-                if (id.contains("test_duplex") || id.contains("test_multitile")) {
-                    foundBuildingOmt = true;
-                }
-            }
-        }
-        assertTrue(foundBuildingOmt, "grid should contain fixture building omt ids");
+        assertTrue(result.getPlacementIndex().cellCount() >= 2, "expected indexed building cells");
     }
 
     @Test
@@ -70,5 +59,13 @@ class OvermapGeneratorTest {
         if (result.getCityBuildingsPlaced() >= 2) {
             assertTrue(result.getRoadCellsPlaced() >= 1, "expected roads between cities");
         }
+    }
+
+    private OvermapGenerateResult generateLegacy16() {
+        return service.generateOvermap(
+            OvermapGenerateOptions.forSize(16, 16)
+                .withSeed(service.getWorldSeed())
+                .withLegacyGenerationOrder(true)
+        );
     }
 }

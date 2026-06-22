@@ -1,0 +1,46 @@
+[
+  {
+    "type": "region_settings",
+    "id": "default",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "forest_heavy",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.9,
+      "oter_forest": "test_field"
+    },
+    "city": {
+      "houses": {
+        "test_multitile": 100,
+        "test_duplex": 1
+      }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "forest_light",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.1,
+      "oter_forest": "test_field"
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "lake_test",
+    "default_oter": "open_air",
+    "overmap_lake_settings": {
+      "noise_threshold_lake": 0.1,
+      "lake_size_min": 4,
+      "oter_lake": "test_lake",
+      "shore_extendable_overmap_terrain": [ "test_field", "open_air" ]
+    }
+  }
+]

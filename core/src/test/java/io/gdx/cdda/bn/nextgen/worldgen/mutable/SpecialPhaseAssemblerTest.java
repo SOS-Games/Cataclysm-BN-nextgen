@@ -62,4 +62,16 @@ class SpecialPhaseAssemblerTest {
         assertTrue(foundNw);
         assertTrue(foundSe);
     }
+
+    @Test
+    void assemblesThreePhaseFootprint() {
+        final MutableSpecialDefinition multiphase = registry.find("test_mutable_multiphase").orElseThrow();
+        assertEquals(3, multiphase.getPhases().size());
+        final AssembledSpecialLayout layout = SpecialPhaseAssembler.assemble(
+            multiphase,
+            new Random(4L),
+            new ArrayList<String>()
+        ).orElseThrow();
+        assertTrue(layout.getPieces().size() >= 4);
+    }
 }

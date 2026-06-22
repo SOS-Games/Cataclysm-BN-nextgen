@@ -82,9 +82,10 @@ Specs: **`docs/worldgen/`**. Overmap grid + visit-tile submaps; reuses `JsonMapg
 | --- | --- |
 | Guide | `docs/WORLDGEN.md` |
 | Spec index | `docs/worldgen/README.md` |
-| Plan | `docs/worldgen/implementation-plan.md` |
+| Plan | `docs/worldgen/implementation-plan.md` (W1–W6) · `docs/worldgen/v2-implementation-plan.md` (W7–W11) |
 
-**PR slices:** W1–W6 (overmap_terrain → mini-overmap → visit → cities → rivers → mutable specials).
+**PR slices:** W1–W6 done (overmap_terrain → mini-overmap → visit → cities → rivers → mutable specials).
+**Next:** W7 building-aware visit — [13-building-aware-visit](docs/worldgen/13-building-aware-visit.md).
 Parallel: [08–11](docs/worldgen/08-mapgen-post-v2-polish.md).
 
 | Docs index | `docs/README.md` |
@@ -167,7 +168,7 @@ gradlew.bat test
 
 **Mapgen preview:** P1–P7c + v2 P8–P15 done — `docs/mapgen-preview/v2-implementation-plan.md`.
 
-**World generation:** W1–W6 planned — `docs/worldgen/implementation-plan.md` (start with W1 `OvermapTerrainRegistry`).
+**World generation:** W1–W6 done — `docs/worldgen/implementation-plan.md`. **W7–W11:** `docs/worldgen/v2-implementation-plan.md` (start with W7).
 
 **Loading:** use `TilesetLoadSession` for UI; never `TilesetLoader.load` on a worker thread
 (see `docs/INCREMENTAL_LOADING.md`).

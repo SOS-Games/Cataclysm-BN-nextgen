@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Matches join ids between mutable special pieces (W6). */
+/** Matches join ids between mutable special pieces (W6, W11a rotation). */
 public final class JoinMatcher {
 
     private JoinMatcher() {}
@@ -37,30 +37,49 @@ public final class JoinMatcher {
             return Optional.empty();
         }
         final Map<String, String> joinOpposites = definition.getJoinOpposites();
-        for (final PlacedMutablePiece placedPiece : placed) {
-            final MutableOvermapNode placedNode = definition.getNode(placedPiece.getPieceId());
-            if (placedNode == null) {
-                continue;
-            }
-            for (final CardinalDirection direction : CardinalDirection.values()) {
-                final String outgoingJoin = placedNode.getEdgeJoin(direction);
-                if (outgoingJoin == null) {
+        for (int rotation = 0; rotation < 4; rotation++) {
+            for (final PlacedMutablePiece placedPiece : placed) {
+                final MutableOvermapNode placedNode = definition.getNode(placedPiece.getPieceId());
+                if (placedNode == null) {
                     continue;
                 }
-                final CardinalDirection incomingDirection = direction.opposite();
-                final String incomingJoin = candidate.getEdgeJoin(incomingDirection);
-                if (!joinsMatch(outgoingJoin, incomingJoin, joinOpposites)) {
-                    continue;
+                for (final CardinalDirection direction : CardinalDirection.values()) {
+                    final String outgoingJoin = edgeJoinAtWorldDirection(
+                        placedNode,
+                        direction,
+                        placedPiece.getRotation()
+                    );
+                    if (outgoingJoin == null) {
+                        continue;
+                    }
+                    final CardinalDirection incomingDirection = direction.opposite();
+                    final String incomingJoin = edgeJoinAtWorldDirection(
+                        candidate,
+                        incomingDirection,
+                        rotation
+                    );
+                    if (!joinsMatch(outgoingJoin, incomingJoin, joinOpposites)) {
+                        continue;
+                    }
+                    final int targetX = placedPiece.getOffsetX() + direction.getDx();
+                    final int targetY = placedPiece.getOffsetY() + direction.getDy();
+                    if (isOccupied(placed, targetX, targetY)) {
+                        continue;
+                    }
+                    return Optional.of(new int[] { targetX, targetY, rotation });
                 }
-                final int targetX = placedPiece.getOffsetX() + direction.getDx();
-                final int targetY = placedPiece.getOffsetY() + direction.getDy();
-                if (isOccupied(placed, targetX, targetY)) {
-                    continue;
-                }
-                return Optional.of(new int[] { targetX, targetY });
             }
         }
         return Optional.empty();
+    }
+
+    private static String edgeJoinAtWorldDirection(
+        final MutableOvermapNode node,
+        final CardinalDirection worldDirection,
+        final int rotation
+    ) {
+        final CardinalDirection localDirection = worldDirection.rotateClockwise(4 - Math.floorMod(rotation, 4));
+        return node.getEdgeJoin(localDirection);
     }
 
     private static boolean isOccupied(

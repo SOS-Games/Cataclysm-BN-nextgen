@@ -76,6 +76,7 @@ class CityPlacerTest {
             OvermapGenerateOptions.forSize(16, 16).withQuotas(2, 0),
             new Random(99L),
             new ArrayList<>(),
+            new ArrayList<>(),
             new ArrayList<>()
         );
         assertEquals(2, placed);

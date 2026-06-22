@@ -2,6 +2,8 @@ package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacementSource;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 
@@ -23,7 +25,8 @@ public final class StaticSpecialPlacer {
         final OvermapGenerateOptions options,
         final Random rng,
         final List<String> warnings,
-        final List<int[]> placedCenters
+        final List<int[]> placedCenters,
+        final List<PlacedBuildingRecord> placedBuildings
     ) {
         if (grid == null || buildings == null || options.getStaticSpecialQuota() <= 0) {
             return 0;
@@ -41,7 +44,17 @@ public final class StaticSpecialPlacer {
         while (placed < options.getStaticSpecialQuota() && attempts < maxAttempts && !candidates.isEmpty()) {
             attempts++;
             final CityBuildingDefinition special = candidates.get(rng.nextInt(candidates.size()));
-            if (CityPlacer.tryPlace(special, grid, oterRegistry, clearable, rng, warnings, placedCenters)) {
+            if (CityPlacer.tryPlace(
+                special,
+                grid,
+                oterRegistry,
+                clearable,
+                rng,
+                warnings,
+                placedCenters,
+                placedBuildings,
+                PlacementSource.STATIC_SPECIAL
+            )) {
                 placed++;
             }
         }

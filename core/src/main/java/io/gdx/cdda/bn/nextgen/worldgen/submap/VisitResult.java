@@ -1,11 +1,16 @@
 package io.gdx.cdda.bn.nextgen.worldgen.submap;
 
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
 import io.gdx.cdda.bn.nextgen.mapgen.json.SpawnMarker;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /** Result of visiting one OMT cell (W3). */
 public final class VisitResult {
@@ -15,6 +20,9 @@ public final class VisitResult {
     private final List<SpawnMarker> spawnMarkers;
     private final boolean fromCache;
     private final String omtId;
+    private final MapVolume volume;
+    private final CityBuildingDefinition building;
+    private final Map<Integer, List<SpawnMarker>> spawnMarkersByZ;
 
     public VisitResult(
         final MapGrid grid,
@@ -32,6 +40,19 @@ public final class VisitResult {
         final boolean fromCache,
         final String omtId
     ) {
+        this(grid, warnings, spawnMarkers, fromCache, omtId, null, null, Collections.emptyMap());
+    }
+
+    public VisitResult(
+        final MapGrid grid,
+        final List<String> warnings,
+        final List<SpawnMarker> spawnMarkers,
+        final boolean fromCache,
+        final String omtId,
+        final MapVolume volume,
+        final CityBuildingDefinition building,
+        final Map<Integer, List<SpawnMarker>> spawnMarkersByZ
+    ) {
         this.grid = grid;
         this.warnings = warnings == null
             ? Collections.emptyList()
@@ -41,6 +62,48 @@ public final class VisitResult {
             : Collections.unmodifiableList(new ArrayList<>(spawnMarkers));
         this.fromCache = fromCache;
         this.omtId = omtId == null ? "" : omtId;
+        this.volume = volume;
+        this.building = building;
+        if (spawnMarkersByZ == null || spawnMarkersByZ.isEmpty()) {
+            this.spawnMarkersByZ = Collections.emptyMap();
+        } else {
+            this.spawnMarkersByZ = Collections.unmodifiableMap(new LinkedHashMap<>(spawnMarkersByZ));
+        }
+    }
+
+    public static VisitResult forBuilding(
+        final MapGrid grid,
+        final List<String> warnings,
+        final MapVolume volume,
+        final CityBuildingDefinition building,
+        final Map<Integer, List<SpawnMarker>> spawnMarkersByZ,
+        final boolean fromCache,
+        final String omtId
+    ) {
+        final List<SpawnMarker> activeMarkers = volume == null
+            ? Collections.emptyList()
+            : markersAtZ(spawnMarkersByZ, volume.getActiveZ());
+        return new VisitResult(
+            grid,
+            warnings,
+            activeMarkers,
+            fromCache,
+            omtId,
+            volume,
+            building,
+            spawnMarkersByZ
+        );
+    }
+
+    private static List<SpawnMarker> markersAtZ(
+        final Map<Integer, List<SpawnMarker>> spawnMarkersByZ,
+        final int zLevel
+    ) {
+        if (spawnMarkersByZ == null || spawnMarkersByZ.isEmpty()) {
+            return Collections.emptyList();
+        }
+        final List<SpawnMarker> markers = spawnMarkersByZ.get(zLevel);
+        return markers == null ? Collections.emptyList() : markers;
     }
 
     public MapGrid getGrid() {
@@ -65,5 +128,21 @@ public final class VisitResult {
 
     public boolean hasGrid() {
         return grid != null;
+    }
+
+    public boolean isBuildingVisit() {
+        return volume != null;
+    }
+
+    public Optional<MapVolume> getVolume() {
+        return Optional.ofNullable(volume);
+    }
+
+    public Optional<CityBuildingDefinition> getBuilding() {
+        return Optional.ofNullable(building);
+    }
+
+    public Map<Integer, List<SpawnMarker>> getSpawnMarkersByZ() {
+        return spawnMarkersByZ;
     }
 }
