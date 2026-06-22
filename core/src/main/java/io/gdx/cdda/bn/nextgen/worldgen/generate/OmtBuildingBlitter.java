@@ -82,6 +82,47 @@ public final class OmtBuildingBlitter {
         return Optional.of(candidates.get(rng.nextInt(candidates.size())));
     }
 
+    public static Optional<int[]> findClearOriginNearSites(
+        final OvermapGrid grid,
+        final BuildingFootprint footprint,
+        final Set<String> clearableIds,
+        final List<int[]> citySites,
+        final int citySize,
+        final Random rng
+    ) {
+        if (footprint.isEmpty() || citySites == null || citySites.isEmpty()) {
+            return findClearOrigin(grid, footprint, clearableIds, rng);
+        }
+        final List<int[]> candidates = new ArrayList<>();
+        final List<int[]> shuffledSites = new ArrayList<>(citySites);
+        if (rng != null) {
+            for (int i = shuffledSites.size() - 1; i > 0; i--) {
+                final int j = rng.nextInt(i + 1);
+                java.util.Collections.swap(shuffledSites, i, j);
+            }
+        }
+        for (final int[] site : shuffledSites) {
+            final int radius = Math.max(1, citySize);
+            for (int attempt = 0; attempt < radius * radius * 2; attempt++) {
+                final int baseX = site[0] + (rng == null ? 0 : rng.nextInt(radius * 2 + 1) - radius);
+                final int baseY = site[1] + (rng == null ? 0 : rng.nextInt(radius * 2 + 1) - radius);
+                if (!CitySitePicker.isWithinCityBlob(citySites, citySize, baseX, baseY)) {
+                    continue;
+                }
+                if (canPlaceAt(grid, baseX, baseY, footprint, clearableIds)) {
+                    candidates.add(new int[] { baseX, baseY });
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+        if (rng == null) {
+            return Optional.of(candidates.get(0));
+        }
+        return Optional.of(candidates.get(rng.nextInt(candidates.size())));
+    }
+
     public static Set<String> defaultClearableIds(
         final OvermapGenerateOptions options,
         final OvermapTerrainRegistry registry

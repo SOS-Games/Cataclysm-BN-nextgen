@@ -39,6 +39,14 @@ class OvermapGridTest {
     }
 
     @Test
+    void extraLargeGridAlloc() {
+        final OvermapGrid grid = OvermapGridFactory.empty(256, 256, "open_air");
+        assertEquals(256, grid.width());
+        grid.setOmtId(255, 255, "field");
+        assertEquals("field", grid.getOmtId(255, 255));
+    }
+
+    @Test
     void smokeFromCatalogPlacesVisitableOmts() throws Exception {
         final MapgenPreviewService service = new MapgenPreviewService();
         service.ensureLoaded(MapgenScanOptions.fromDataRoot(WorldgenTestFixtures.fixtureDataRoot()));

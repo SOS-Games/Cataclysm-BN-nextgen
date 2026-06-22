@@ -47,7 +47,9 @@ import io.gdx.cdda.bn.nextgen.tileset.model.TileDefinition;
 import io.gdx.cdda.bn.nextgen.tileset.model.TilesetFxType;
 
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateResult;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridExporter;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridFactory;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainLoadResult;
@@ -62,6 +64,8 @@ import io.gdx.cdda.bn.nextgen.worldgen.visit.ZLevelResolver;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -79,6 +83,7 @@ public final class MapEditorScreen {
     private static final int HUD_MARGIN = 8;
     private static final int HUD_LINES = 6;
     private static final Path DEFAULT_MAP_PATH = Paths.get("maps/autosave.json");
+    private static final Path DEFAULT_OVERMAP_EXPORT_PATH = Paths.get("maps/overmap_export.json");
     private static final int[][] GRID_PRESETS = {
         { 10, 10 },
         { 20, 20 },
@@ -98,7 +103,7 @@ public final class MapEditorScreen {
 
     private static final float OMT_BASE_CELL_PX = 24f;
     private static final float OVERMAP_SYMBOL_MIN_CELL_PX = 10f;
-    private static final int[] OVERMAP_SIZE_PRESETS = { 8, 16, 32, 64, 128, 180 };
+    private static final int[] OVERMAP_SIZE_PRESETS = { 8, 16, 32, 64, 128, 180, 256 };
     private static final int DEFAULT_OVERMAP_SIZE = 16;
     private static final int LARGE_OVERMAP_CONFIRM_SIZE = 180;
 
@@ -174,6 +179,7 @@ public final class MapEditorScreen {
     private long overmapSeed = 12345L;
     private int overmapSize = DEFAULT_OVERMAP_SIZE;
     private boolean overmapSmokeLayoutPending = true;
+    private OvermapGenerateResult lastOvermapGeneration;
 
     public MapEditorScreen(final SpriteBatch batch) {
         this.batch = batch;
@@ -321,9 +327,15 @@ public final class MapEditorScreen {
         if (Gdx.input.isKeyPressed(Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Keys.CONTROL_RIGHT)) {
             final boolean shift = Gdx.input.isKeyPressed(Keys.SHIFT_LEFT)
                 || Gdx.input.isKeyPressed(Keys.SHIFT_RIGHT);
-            if (shift && keycode == Keys.C && mapVolume != null) {
-                copyBuildingPieceDebug();
-                return true;
+            if (shift && keycode == Keys.C) {
+                if (editorMode == EditorMode.OVERMAP && overmapGrid != null) {
+                    copyOvermapDebug();
+                    return true;
+                }
+                if (mapVolume != null) {
+                    copyBuildingPieceDebug();
+                    return true;
+                }
             }
             if (keycode == Keys.S) {
                 saveMap();
@@ -941,6 +953,7 @@ public final class MapEditorScreen {
 
     private void applyOvermapGeneration(final OvermapGenerateResult generated) {
         overmapGrid = generated.getGrid();
+        lastOvermapGeneration = generated;
         overmapSmokeLayoutPending = false;
         selectedOmtX = -1;
         selectedOmtY = -1;
@@ -955,14 +968,16 @@ public final class MapEditorScreen {
     }
 
     private void applyOvermapCacheSizing() {
-        if (overmapSize >= 180) {
+        if (overmapSize >= 256) {
+            worldgenPreviewService.setSubmapCacheCapacity(512);
+        } else if (overmapSize >= 180) {
             worldgenPreviewService.setSubmapCacheCapacity(256);
         } else if (overmapSize >= 64) {
             worldgenPreviewService.setSubmapCacheCapacity(128);
         } else {
             worldgenPreviewService.setSubmapCacheCapacity(64);
         }
-        worldgenPreviewService.setVolumeCacheCapacity(16);
+        worldgenPreviewService.setVolumeCacheCapacity(overmapSize >= 128 ? 24 : 16);
     }
 
     private void cycleOvermapSize(final int direction) {
@@ -1712,7 +1727,7 @@ public final class MapEditorScreen {
             + "  seed=" + overmapSeed
             + "  |  OMT types " + overmapTerrainRegistry.size();
         final String line4 = "Hover: " + hover + "  |  Selected: " + selection + "  |  zoom " + formatViewZoom();
-        final String line5 = "Click a building cell — Enter visit — [ ] size (8…180) — R new layout — [M] submap";
+        final String line5 = "Click a building cell — Enter visit — [ ] size (8…256) — R new layout — [M] submap";
         final String line6 = overmapTerrainLoaded
             ? "[M] submap mode  |  F1 help  |  Esc clear selection  |  F3 debug"
             : "Overmap terrain not loaded";
@@ -1750,6 +1765,30 @@ public final class MapEditorScreen {
         Gdx.app.log("mapgen", text);
     }
 
+    private void copyOvermapDebug() {
+        if (overmapGrid == null) {
+            statusMessage = "No overmap loaded";
+            return;
+        }
+        final String regionId = OvermapGenerateOptions.forSize(overmapSize, overmapSize).getRegionId();
+        final String json = OvermapGridExporter.toJson(
+            overmapGrid,
+            overmapSeed,
+            regionId,
+            lastOvermapGeneration
+        );
+        Gdx.app.getClipboard().setContents(json);
+        try {
+            Files.createDirectories(DEFAULT_OVERMAP_EXPORT_PATH.getParent());
+            Files.write(DEFAULT_OVERMAP_EXPORT_PATH, json.getBytes(StandardCharsets.UTF_8));
+            statusMessage = "Overmap copied — clipboard + " + DEFAULT_OVERMAP_EXPORT_PATH
+                + " (" + overmapGrid.width() + "×" + overmapGrid.height() + ", seed=" + overmapSeed + ")";
+        } catch (final IOException e) {
+            statusMessage = "Overmap copied to clipboard (file write failed: " + e.getMessage() + ")";
+        }
+        Gdx.app.log("overmap", json);
+    }
+
     private String buildingFloorHudSuffix() {
         if (mapVolume == null) {
             return "";
@@ -1771,9 +1810,9 @@ public final class MapEditorScreen {
         final String floorHint = mapVolume != null && mapVolume.floorCount() > 1
             ? "  [PgUp/PgDn] floor  [T] cutaway"
             : "  [[ ]] tileset";
-        final String pieceHint = mapVolume != null
-            ? "  [Ctrl+Shift+C] copy piece layout"
-            : "";
+        final String pieceHint = editorMode == EditorMode.OVERMAP && overmapGrid != null
+            ? "  [Ctrl+Shift+C] export overmap"
+            : (mapVolume != null ? "  [Ctrl+Shift+C] copy piece layout" : "");
         return "[F] furniture  [L] brush layer  [O] spawns  [B] chunks  [P] anim  [G] grid" + modeHint + floorHint + pieceHint + "  |  F1 help  |  F3 debug  |  Esc menu";
     }
 

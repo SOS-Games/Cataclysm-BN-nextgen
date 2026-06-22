@@ -24,6 +24,7 @@ public final class JsonMapgenRunOptions {
     private List<String> neighborOmtIds = Collections.emptyList();
     private Map<String, String> neighborsByDirection = Collections.emptyMap();
     private Set<String> activeJoins = Collections.emptySet();
+    private Map<String, String> connectionsByDirection = Collections.emptyMap();
     private Map<String, String> rolledParameters = Collections.emptyMap();
     private LoadedGameData gameData;
     private final List<String> warnings = new ArrayList<>();
@@ -88,6 +89,7 @@ public final class JsonMapgenRunOptions {
         derived.neighborOmtIds = neighborOmtIds;
         derived.neighborsByDirection = neighborsByDirection;
         derived.activeJoins = activeJoins;
+        derived.connectionsByDirection = connectionsByDirection;
         derived.rolledParameters = rolledParameters;
         derived.gameData = gameData;
         derived.omtRotation = Math.floorMod(omtRotation, 4);
@@ -129,6 +131,19 @@ public final class JsonMapgenRunOptions {
             this.activeJoins = Collections.emptySet();
         } else {
             this.activeJoins = Collections.unmodifiableSet(new HashSet<>(activeJoins));
+        }
+        return this;
+    }
+
+    public Map<String, String> getConnectionsByDirection() {
+        return connectionsByDirection;
+    }
+
+    public JsonMapgenRunOptions withConnectionsByDirection(final Map<String, String> connectionsByDirection) {
+        if (connectionsByDirection == null || connectionsByDirection.isEmpty()) {
+            this.connectionsByDirection = Collections.emptyMap();
+        } else {
+            this.connectionsByDirection = Collections.unmodifiableMap(new HashMap<>(connectionsByDirection));
         }
         return this;
     }

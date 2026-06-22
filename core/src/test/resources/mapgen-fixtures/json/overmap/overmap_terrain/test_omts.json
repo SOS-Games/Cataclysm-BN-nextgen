@@ -149,5 +149,29 @@
     "sym": "#",
     "color": "brown",
     "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_swamp",
+    "name": "test swamp",
+    "sym": "s",
+    "color": "green",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_beach",
+    "name": "test beach",
+    "sym": ".",
+    "color": "yellow",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_forest_thick",
+    "name": "thick forest",
+    "sym": "F",
+    "color": "green",
+    "flags": [ "NO_ROTATE" ]
   }
 ]

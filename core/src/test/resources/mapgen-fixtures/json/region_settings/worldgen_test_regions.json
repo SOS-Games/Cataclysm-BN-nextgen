@@ -42,5 +42,52 @@
       "oter_lake": "test_lake",
       "shore_extendable_overmap_terrain": [ "test_field", "open_air" ]
     }
+  },
+  {
+    "type": "region_settings",
+    "id": "special_heavy",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
+    },
+    "overmap_special_settings": {
+      "specials": { "test_farm_stack": 100, "test_special_wide": 10 },
+      "min": 2,
+      "max": 4
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "sparse_cities",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
+    },
+    "city": {
+      "city_size": 3,
+      "city_spacing": 12,
+      "houses": { "test_duplex": 1, "test_multitile": 1 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "swamp_heavy",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field",
+      "noise_threshold_swamp_adjacent_water": 0.85,
+      "noise_threshold_swamp_isolated": 0.95,
+      "oter_swamp": "test_swamp",
+      "oter_beach": "test_beach"
+    },
+    "overmap_lake_settings": {
+      "noise_threshold_lake": 0.15,
+      "lake_size_min": 3,
+      "oter_lake": "test_lake",
+      "shore_extendable_overmap_terrain": [ "test_field", "open_air" ]
+    }
   }
 ]

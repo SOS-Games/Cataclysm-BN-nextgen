@@ -31,6 +31,16 @@ public final class MapVolumeBuilder {
         final PaletteRegistry palettes,
         final JsonMapgenRunOptions runOptions
     ) {
+        return build(building, catalog, palettes, runOptions, null);
+    }
+
+    public static MapVolumeBuildResult build(
+        final CityBuildingDefinition building,
+        final MapgenCatalog catalog,
+        final PaletteRegistry palettes,
+        final JsonMapgenRunOptions runOptions,
+        final BuildingPlacementContext placementContext
+    ) {
         if (building == null) {
             throw new IllegalArgumentException("building is required");
         }
@@ -61,7 +71,8 @@ public final class MapVolumeBuilder {
                 palettes,
                 options,
                 warnings,
-                zLevel
+                zLevel,
+                placementContext
             );
             floor.ifPresent(value -> rawFloors.put(zLevel, value));
         }
@@ -186,7 +197,8 @@ public final class MapVolumeBuilder {
         final PaletteRegistry palettes,
         final JsonMapgenRunOptions options,
         final List<String> warnings,
-        final int zLevel
+        final int zLevel,
+        final BuildingPlacementContext placementContext
     ) {
         if (pieces.isEmpty()) {
             warnings.add("no pieces at z=" + zLevel);
@@ -214,7 +226,8 @@ public final class MapVolumeBuilder {
                 pieces,
                 catalog,
                 palettes,
-                options
+                options,
+                placementContext
             );
             warnings.addAll(stitched.getWarnings());
             if (!stitched.getGrid().isPresent()) {
@@ -229,7 +242,7 @@ public final class MapVolumeBuilder {
                 List.copyOf(options.getSpawnMarkers())
             ));
         }
-        return runSinglePiece(pieces.get(0), catalog, palettes, options, warnings, zLevel);
+        return runSinglePiece(pieces.get(0), catalog, palettes, options, warnings, zLevel, placementContext);
     }
 
     private static Optional<FloorBuildResult> runSinglePiece(
@@ -238,7 +251,8 @@ public final class MapVolumeBuilder {
         final PaletteRegistry palettes,
         final JsonMapgenRunOptions options,
         final List<String> warnings,
-        final int zLevel
+        final int zLevel,
+        final BuildingPlacementContext placementContext
     ) {
         final Optional<JsonMapgenDefinition> definition = OvermapTerrainResolver.resolveMapgen(
             catalog,
@@ -253,9 +267,10 @@ public final class MapVolumeBuilder {
             return Optional.empty();
         }
         final boolean multitileCrop = definition.get().getOmTerrainGrid().isPresent();
-        final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
-            MapGridRotator.runnerOmtRotation(multitileCrop, piece.getOvermapId())
-        );
+        final int pieceRotation = MapGridRotator.runnerOmtRotation(multitileCrop, piece.getOvermapId());
+        final JsonMapgenRunOptions pieceOptions = placementContext == null
+            ? options.deriveWithOmtRotation(pieceRotation)
+            : placementContext.forPiece(piece, options, pieceRotation);
         final MapGrid grid = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
         warnings.addAll(pieceOptions.getWarnings());
         options.addSpawnMarkers(pieceOptions.getSpawnMarkers());

@@ -64,11 +64,29 @@ public final class OvermapGenerator {
         } else {
             LakeGenerator.fill(grid, options, region, oterRegistry, rng, warnings);
             riversCarved = RiverGenerator.carve(grid, options, oterRegistry, rng, warnings);
+            ThickForestGenerator.upgrade(grid, options, region, oterRegistry, warnings);
+            SwampGenerator.fill(grid, options, region, oterRegistry, rng, warnings);
+            BeachGenerator.paint(grid, options, region, oterRegistry, warnings);
         }
 
         final CityBuildingRegistry registry = buildings == null ? CityBuildingRegistry.empty() : buildings;
         final List<int[]> placedSites = new ArrayList<>();
         final List<PlacedBuildingRecord> placements = new ArrayList<>();
+
+        final int regionSpecials = options.isLegacyGenerationOrder()
+            ? 0
+            : RegionSpecialPlacer.placeAll(
+                grid,
+                registry,
+                oterRegistry,
+                options,
+                region,
+                rng,
+                warnings,
+                placedSites,
+                placements
+            );
+
         final int cities = CityPlacer.placeAll(
             grid,
             registry,
@@ -80,7 +98,7 @@ public final class OvermapGenerator {
             placedSites,
             placements
         );
-        final int specials = StaticSpecialPlacer.placeAll(
+        final int specials = regionSpecials + StaticSpecialPlacer.placeAll(
             grid,
             registry,
             oterRegistry,

@@ -6,6 +6,7 @@ import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
 import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacementSource;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.region.CitySizeSettings;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
 
 import java.util.ArrayList;
@@ -67,6 +68,15 @@ public final class CityPlacer {
         }
         shuffle(candidates, rng);
 
+        final CitySizeSettings citySize = region == null
+            ? CitySizeSettings.disabled()
+            : region.getCitySizeSettings();
+        final List<int[]> citySites = CitySitePicker.pickSites(grid, citySize, options, rng);
+        final int maxBuildingsPerSite = citySize.getCitySize() > 0
+            ? citySize.getCitySize()
+            : options.getCityBuildingQuota();
+        final java.util.Map<Integer, Integer> buildingsPerSite = new java.util.HashMap<>();
+
         int placed = 0;
         int attempts = 0;
         final int maxAttempts = options.getCityBuildingQuota() * candidates.size() * 2;
@@ -82,7 +92,7 @@ public final class CityPlacer {
             final CityBuildingDefinition building = weighted.isPresent()
                 ? weighted.get()
                 : candidates.get(rng.nextInt(candidates.size()));
-            if (tryPlace(
+            if (tryPlaceWithCitySites(
                 building,
                 grid,
                 oterRegistry,
@@ -91,12 +101,88 @@ public final class CityPlacer {
                 warnings,
                 placedCenters,
                 placedBuildings,
-                PlacementSource.CITY
+                PlacementSource.CITY,
+                citySites,
+                citySize,
+                maxBuildingsPerSite,
+                buildingsPerSite
             )) {
                 placed++;
             }
         }
         return placed;
+    }
+
+    private static boolean tryPlaceWithCitySites(
+        final CityBuildingDefinition building,
+        final OvermapGrid grid,
+        final OvermapTerrainRegistry oterRegistry,
+        final Set<String> clearableIds,
+        final Random rng,
+        final List<String> warnings,
+        final List<int[]> placedCenters,
+        final List<PlacedBuildingRecord> placedBuildings,
+        final PlacementSource source,
+        final List<int[]> citySites,
+        final CitySizeSettings citySize,
+        final int maxBuildingsPerSite,
+        final java.util.Map<Integer, Integer> buildingsPerSite
+    ) {
+        if (building == null) {
+            return false;
+        }
+        final BuildingFootprint footprint = BuildingFootprint.atZ(building, 0);
+        if (footprint.isEmpty()) {
+            return false;
+        }
+        final Optional<int[]> origin = citySites == null || citySites.isEmpty()
+            ? OmtBuildingBlitter.findClearOrigin(grid, footprint, clearableIds, rng)
+            : OmtBuildingBlitter.findClearOriginNearSites(
+                grid,
+                footprint,
+                clearableIds,
+                citySites,
+                citySize.getCitySize(),
+                rng
+            );
+        if (!origin.isPresent()) {
+            addWarning(warnings, "no clear rect for city building " + building.getId());
+            return false;
+        }
+        final int[] at = origin.get();
+        if (citySites != null && !citySites.isEmpty() && maxBuildingsPerSite > 0) {
+            final int nearestSiteKey = nearestSiteKey(citySites, at[0], at[1]);
+            final int count = buildingsPerSite.getOrDefault(nearestSiteKey, 0);
+            if (count >= maxBuildingsPerSite) {
+                return false;
+            }
+            buildingsPerSite.put(nearestSiteKey, count + 1);
+        }
+        final int pieceCount = OmtBuildingBlitter.blitAt(
+            building, grid, at[0], at[1], 0, oterRegistry, warnings
+        );
+        if (pieceCount > 0 && placedCenters != null) {
+            placedCenters.add(siteCenter(footprint, at[0], at[1]));
+        }
+        if (pieceCount > 0 && placedBuildings != null) {
+            placedBuildings.add(PlacedBuildingRecord.of(building, at[0], at[1], source));
+        }
+        return pieceCount > 0;
+    }
+
+    private static int nearestSiteKey(final List<int[]> citySites, final int x, final int y) {
+        int bestKey = CitySitePicker.siteKey(citySites.get(0)[0], citySites.get(0)[1]);
+        int bestDistance = Integer.MAX_VALUE;
+        for (final int[] site : citySites) {
+            final int dx = x - site[0];
+            final int dy = y - site[1];
+            final int distance = dx * dx + dy * dy;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestKey = CitySitePicker.siteKey(site[0], site[1]);
+            }
+        }
+        return bestKey;
     }
 
     public static boolean tryPlace(

@@ -137,7 +137,12 @@ public final class OvermapGenerateOptions {
         final int staticQuota;
         final int mutableQuota;
         final boolean riversEnabled;
-        if (area >= 128 * 128) {
+        if (area >= 256 * 256) {
+            cityQuota = 12;
+            staticQuota = 3;
+            mutableQuota = 1;
+            riversEnabled = true;
+        } else if (area >= 128 * 128) {
             cityQuota = Math.min(12, Math.max(8, area / 2700));
             staticQuota = 3;
             mutableQuota = 1;

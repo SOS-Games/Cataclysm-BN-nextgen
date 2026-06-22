@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Parsed overmap-relevant {@code region_settings} entry (W9). */
+/** Parsed overmap-relevant {@code region_settings} entry (W9, W14). */
 public final class RegionSettingsDefinition {
 
     private final String id;
@@ -12,6 +12,9 @@ public final class RegionSettingsDefinition {
     private final OvermapForestSettings forestSettings;
     private final OvermapLakeSettings lakeSettings;
     private final Map<String, Integer> cityHouseWeights;
+    private final CitySizeSettings citySizeSettings;
+    private final OvermapSpecialSettings specialSettings;
+    private final OvermapTerrainSettings terrainSettings;
 
     public RegionSettingsDefinition(
         final String id,
@@ -19,7 +22,16 @@ public final class RegionSettingsDefinition {
         final OvermapForestSettings forestSettings,
         final Map<String, Integer> cityHouseWeights
     ) {
-        this(id, defaultOter, forestSettings, OvermapLakeSettings.disabled(), cityHouseWeights);
+        this(
+            id,
+            defaultOter,
+            forestSettings,
+            OvermapLakeSettings.disabled(),
+            cityHouseWeights,
+            CitySizeSettings.disabled(),
+            OvermapSpecialSettings.disabled(),
+            OvermapTerrainSettings.disabled()
+        );
     }
 
     public RegionSettingsDefinition(
@@ -28,6 +40,28 @@ public final class RegionSettingsDefinition {
         final OvermapForestSettings forestSettings,
         final OvermapLakeSettings lakeSettings,
         final Map<String, Integer> cityHouseWeights
+    ) {
+        this(
+            id,
+            defaultOter,
+            forestSettings,
+            lakeSettings,
+            cityHouseWeights,
+            CitySizeSettings.disabled(),
+            OvermapSpecialSettings.disabled(),
+            OvermapTerrainSettings.disabled()
+        );
+    }
+
+    public RegionSettingsDefinition(
+        final String id,
+        final String defaultOter,
+        final OvermapForestSettings forestSettings,
+        final OvermapLakeSettings lakeSettings,
+        final Map<String, Integer> cityHouseWeights,
+        final CitySizeSettings citySizeSettings,
+        final OvermapSpecialSettings specialSettings,
+        final OvermapTerrainSettings terrainSettings
     ) {
         this.id = id == null ? "" : id;
         this.defaultOter = defaultOter == null || defaultOter.isEmpty() ? "field" : defaultOter;
@@ -38,6 +72,9 @@ public final class RegionSettingsDefinition {
         } else {
             this.cityHouseWeights = Collections.unmodifiableMap(new LinkedHashMap<>(cityHouseWeights));
         }
+        this.citySizeSettings = citySizeSettings == null ? CitySizeSettings.disabled() : citySizeSettings;
+        this.specialSettings = specialSettings == null ? OvermapSpecialSettings.disabled() : specialSettings;
+        this.terrainSettings = terrainSettings == null ? OvermapTerrainSettings.disabled() : terrainSettings;
     }
 
     public String getId() {
@@ -62,5 +99,17 @@ public final class RegionSettingsDefinition {
 
     public boolean hasCityHouseWeights() {
         return !cityHouseWeights.isEmpty();
+    }
+
+    public CitySizeSettings getCitySizeSettings() {
+        return citySizeSettings;
+    }
+
+    public OvermapSpecialSettings getSpecialSettings() {
+        return specialSettings;
+    }
+
+    public OvermapTerrainSettings getTerrainSettings() {
+        return terrainSettings;
     }
 }

@@ -56,6 +56,32 @@ Specs for **BN-style overmap layout + on-demand submap generation** in LibGDX ne
 
 ---
 
+## Worldgen v3 milestones (W13–W16)
+
+**Plan:** [v3-implementation-plan.md](./v3-implementation-plan.md) · **Roadmap:** [18-world-map-v3-roadmap.md](./18-world-map-v3-roadmap.md)
+
+| Unit | Topic | PR | Status |
+| --- | --- | --- | --- |
+| [18](./18-world-map-v3-roadmap.md) | v3 gap inventory; persistence deferred | — | draft |
+| [19](./19-visit-mapbuffer-fidelity.md) | Stitch / mapbuffer / nested connections | **W13** | done |
+| [20](./20-layout-parity-phase2.md) | Region specials, city size, swamps | **W14** | done |
+| [21](./21-exploration-and-world-coords.md) | Seen/visited, world coords | **W15** | todo |
+| [22](./22-world-persistence.md) | Save/load world (deferred) | **W16** | deferred |
+
+---
+
+## CDDA / BN parity (post–W14 inventory)
+
+What nextgen still lacks vs BN `overmap::generate` after W13–W14 milestones.
+
+| Unit | Topic | Status |
+| --- | --- | --- |
+| [23](./23-cdda-parity-overview.md) | Parity overview; tiers; BN vs nextgen pipeline | draft |
+| [24](./24-cdda-layout-gaps.md) | Layout — cities, roads, hydrology, specials | draft |
+| [25](./25-cdda-region-visit-world-gaps.md) | Region JSON, visit, exploration, persistence | draft |
+
+---
+
 ## Post–mapgen-v2 follow-ups (parallel)
 
 These improve preview/worldgen quality but are **not** overmap layout:
@@ -86,6 +112,12 @@ flowchart TD
     W9 --> W10
     W5 --> W11[W11 layout v2]
     W6 --> W11
+
+    W11 --> W13[W13 visit fidelity]
+    W11 --> W14[W14 layout phase 2]
+    W13 --> W15[W15 exploration]
+    W14 --> W15
+    W15 -.-> W16[W16 persist deferred]
 
     MP[Mapgen preview v2] --> W3
     GD[Game data G1-G5] --> W1

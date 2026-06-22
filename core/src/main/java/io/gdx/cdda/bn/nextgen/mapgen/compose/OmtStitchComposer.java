@@ -45,6 +45,16 @@ public final class OmtStitchComposer {
         final PaletteRegistry palettes,
         final JsonMapgenRunOptions runOptions
     ) {
+        return stitch(pieces, catalog, palettes, runOptions, null);
+    }
+
+    public static StitchResult stitch(
+        final List<CityBuildingPiece> pieces,
+        final MapgenCatalog catalog,
+        final PaletteRegistry palettes,
+        final JsonMapgenRunOptions runOptions,
+        final BuildingPlacementContext placementContext
+    ) {
         if (pieces == null || pieces.isEmpty()) {
             throw new IllegalArgumentException("pieces must not be empty");
         }
@@ -78,9 +88,10 @@ public final class OmtStitchComposer {
                 continue;
             }
             final boolean multitileCrop = definition.get().getOmTerrainGrid().isPresent();
-            final JsonMapgenRunOptions pieceOptions = options.deriveWithOmtRotation(
-                MapGridRotator.runnerOmtRotation(multitileCrop, piece.getOvermapId())
-            );
+            final int pieceRotation = MapGridRotator.runnerOmtRotation(multitileCrop, piece.getOvermapId());
+            final JsonMapgenRunOptions pieceOptions = placementContext == null
+                ? options.deriveWithOmtRotation(pieceRotation)
+                : placementContext.forPiece(piece, options, pieceRotation);
             final MapGrid grid = JsonMapgenRunner.run(definition.get(), catalog, palettes, pieceOptions);
             warnings.addAll(pieceOptions.getWarnings());
             resolvedPieces.add(new ResolvedPiece(piece, definition.get(), grid, pieceOptions));

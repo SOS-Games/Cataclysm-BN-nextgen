@@ -120,10 +120,13 @@ class SubmapGeneratorBuildingTest {
             overmap, anchorX, anchorY, 0, worldSeed, null, new VolumeCache(4), index, mapgenService, null, gameData
         );
         final long previewSeed = SubmapSeed.mix(worldSeed, new SubmapKey(worldSeed, anchorX, anchorY, 0));
+        final io.gdx.cdda.bn.nextgen.mapgen.compose.BuildingPlacementContext placementContext =
+            new io.gdx.cdda.bn.nextgen.mapgen.compose.BuildingPlacementContext(overmap, record, null, null);
         final MapgenPreviewService.MapgenBuildingResult picker = mapgenService.generateBuilding(
             multitile,
             gameData,
-            new io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions().withPreviewSeed(previewSeed)
+            new io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions().withPreviewSeed(previewSeed),
+            placementContext
         );
 
         assertEquals(picker.getVolume().getActiveGrid().width(), visit.getGrid().width());

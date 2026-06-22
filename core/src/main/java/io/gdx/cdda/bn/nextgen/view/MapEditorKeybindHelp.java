@@ -65,11 +65,12 @@ public final class MapEditorKeybindHelp {
             rows.add(KeybindHelpDialog.HelpRow.bind("[ / ]", "Previous / next floor"));
             rows.add(KeybindHelpDialog.HelpRow.bind("T", "Toggle upper-floor cutaway"));
         }
-        rows.add(KeybindHelpDialog.HelpRow.bind("Ctrl+Shift+C", "Copy OMT piece layout to clipboard (building import)"));
+        rows.add(KeybindHelpDialog.HelpRow.bind("Ctrl+Shift+C", "Copy building piece layout (submap) or overmap JSON (overmap mode)"));
 
         if (overmapAvailable) {
             rows.add(KeybindHelpDialog.HelpRow.section("Overmap mode (M)"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Click", "Select OMT cell"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("Ctrl+Shift+C", "Copy overmap JSON to clipboard + maps/overmap_export.json"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Enter", "Visit cell — generate submap"));
             rows.add(KeybindHelpDialog.HelpRow.bind("[ / ]", "Smaller / larger overmap (8…64)"));
             rows.add(KeybindHelpDialog.HelpRow.bind("R", "Regenerate layout (new seed)"));

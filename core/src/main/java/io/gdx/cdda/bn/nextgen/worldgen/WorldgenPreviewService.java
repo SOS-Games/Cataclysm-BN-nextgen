@@ -282,7 +282,8 @@ public final class WorldgenPreviewService {
             mapgenPreviewService,
             overmapTerrainRegistry,
             gameData,
-            mutableSpecialRegistry
+            mutableSpecialRegistry,
+            overmapConnectionRegistry
         );
     }
 

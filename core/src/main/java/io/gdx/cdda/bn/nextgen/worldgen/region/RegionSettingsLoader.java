@@ -85,14 +85,71 @@ public final class RegionSettingsLoader {
         final String defaultOter = root.getString("default_oter", "field");
         final OvermapForestSettings forestSettings = parseForestSettings(root.get("overmap_forest_settings"));
         final OvermapLakeSettings lakeSettings = parseLakeSettings(root.get("overmap_lake_settings"));
-        final Map<String, Integer> cityHouseWeights = parseCityHouseWeights(root.get("city"));
+        final JsonValue cityRoot = root.get("city");
+        final Map<String, Integer> cityHouseWeights = parseCityHouseWeights(cityRoot);
+        final CitySizeSettings citySizeSettings = parseCitySizeSettings(cityRoot);
+        final OvermapSpecialSettings specialSettings = parseSpecialSettings(root.get("overmap_special_settings"));
+        final OvermapTerrainSettings terrainSettings = parseTerrainSettings(root.get("overmap_forest_settings"));
         return java.util.Optional.of(new RegionSettingsDefinition(
             id,
             defaultOter,
             forestSettings,
             lakeSettings,
-            cityHouseWeights
+            cityHouseWeights,
+            citySizeSettings,
+            specialSettings,
+            terrainSettings
         ));
+    }
+
+    private static OvermapSpecialSettings parseSpecialSettings(final JsonValue specialRoot) {
+        if (specialRoot == null || !specialRoot.isObject()) {
+            return OvermapSpecialSettings.disabled();
+        }
+        final JsonValue specialsNode = specialRoot.get("specials");
+        final Map<String, Integer> weights = new LinkedHashMap<>();
+        if (specialsNode != null && specialsNode.isObject()) {
+            for (JsonValue member = specialsNode.child; member != null; member = member.next) {
+                if (member.name == null || member.name.isEmpty() || !member.isNumber()) {
+                    continue;
+                }
+                weights.put(member.name, Math.max(1, member.asInt()));
+            }
+        }
+        final int min = specialRoot.getInt("min", 0);
+        final int max = specialRoot.getInt("max", min);
+        return new OvermapSpecialSettings(weights, min, max);
+    }
+
+    private static CitySizeSettings parseCitySizeSettings(final JsonValue cityRoot) {
+        if (cityRoot == null || !cityRoot.isObject()) {
+            return CitySizeSettings.disabled();
+        }
+        final int citySize = cityRoot.getInt("city_size", 0);
+        final int citySpacing = cityRoot.getInt("city_spacing", 0);
+        final boolean cityIsolated = cityRoot.getBoolean("city_isolated", false);
+        if (citySize <= 0 && citySpacing <= 0 && !cityIsolated) {
+            return CitySizeSettings.disabled();
+        }
+        return new CitySizeSettings(citySize, citySpacing, cityIsolated);
+    }
+
+    private static OvermapTerrainSettings parseTerrainSettings(final JsonValue forestRoot) {
+        if (forestRoot == null || !forestRoot.isObject()) {
+            return OvermapTerrainSettings.disabled();
+        }
+        final double swampAdjacent = forestRoot.getDouble("noise_threshold_swamp_adjacent_water", 0.0);
+        final double swampIsolated = forestRoot.getDouble("noise_threshold_swamp_isolated", 0.0);
+        final String swampOter = forestRoot.getString("oter_swamp", "swamp");
+        final String beachOter = forestRoot.getString("oter_beach", "beach");
+        final boolean enabled = swampAdjacent > 0.0
+            || swampIsolated > 0.0
+            || forestRoot.has("oter_beach")
+            || forestRoot.has("oter_swamp");
+        if (!enabled) {
+            return OvermapTerrainSettings.disabled();
+        }
+        return new OvermapTerrainSettings(enabled, swampAdjacent, swampIsolated, swampOter, beachOter);
     }
 
     private static OvermapLakeSettings parseLakeSettings(final JsonValue lakeRoot) {

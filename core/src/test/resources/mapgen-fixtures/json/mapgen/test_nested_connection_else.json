@@ -1,0 +1,20 @@
+[
+  {
+    "type": "mapgen",
+    "method": "json",
+    "nested_mapgen_id": "test_nested_connection_else",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "fill_ter": "t_floor",
+      "rows": [
+        "....",
+        "....",
+        "....",
+        "...."
+      ],
+      "terrain": {
+        ".": "t_rock_floor"
+      }
+    }
+  }
+]

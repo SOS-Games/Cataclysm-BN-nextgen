@@ -25,5 +25,14 @@ class RegionSettingsLoaderTest {
         assertEquals(0.9, heavy.getForestSettings().getNoiseThresholdForest(), 0.0001);
         assertTrue(heavy.hasCityHouseWeights());
         assertEquals(100, heavy.getCityHouseWeights().get("test_multitile").intValue());
+
+        final RegionSettingsDefinition specialHeavy = result.getRegistry().find("special_heavy").orElseThrow();
+        assertTrue(specialHeavy.getSpecialSettings().isEnabled());
+        assertEquals(2, specialHeavy.getSpecialSettings().getMinCount());
+        assertEquals(4, specialHeavy.getSpecialSettings().getMaxCount());
+
+        final RegionSettingsDefinition sparseCities = result.getRegistry().find("sparse_cities").orElseThrow();
+        assertEquals(12, sparseCities.getCitySizeSettings().getCitySpacing());
+        assertEquals(3, sparseCities.getCitySizeSettings().getCitySize());
     }
 }

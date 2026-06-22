@@ -81,15 +81,43 @@ public final class NestedContextChecker {
         if (connectionsNode == null || !connectionsNode.isObject()) {
             return true;
         }
+        final Map<String, String> actualConnections = options.getConnectionsByDirection();
         for (JsonValue child = connectionsNode.child; child != null; child = child.next) {
             if (child.name == null || child.name.isEmpty()) {
                 continue;
             }
-            if (child.isArray() && child.size > 0) {
-                return false;
+            final String direction = child.name.toLowerCase(Locale.ROOT);
+            final String actual = actualConnections.get(direction);
+            if (child.isString()) {
+                final String required = child.asString();
+                if (required == null || required.isEmpty()) {
+                    continue;
+                }
+                if (actual == null || !required.equals(actual)) {
+                    return false;
+                }
+                continue;
             }
-            if (child.isString() && !child.asString().isEmpty()) {
-                return false;
+            if (child.isArray()) {
+                if (child.size == 0) {
+                    continue;
+                }
+                if (actual == null || actual.isEmpty()) {
+                    return false;
+                }
+                boolean directionMatches = false;
+                for (JsonValue allowed = child.child; allowed != null; allowed = allowed.next) {
+                    if (!allowed.isString()) {
+                        continue;
+                    }
+                    if (actual.equals(allowed.asString())) {
+                        directionMatches = true;
+                        break;
+                    }
+                }
+                if (!directionMatches) {
+                    return false;
+                }
             }
         }
         return true;

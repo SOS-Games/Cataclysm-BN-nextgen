@@ -4,7 +4,7 @@ Procedural **overmap layout** and **on-demand submap generation** for Cataclysm-
 This is a **separate track** from [mapgen preview](./MAPGEN_PREVIEW.md) (single-building import).
 
 **Spec index:** [`docs/worldgen/`](./worldgen/README.md)  
-**Plan:** [`worldgen/implementation-plan.md`](./worldgen/implementation-plan.md) (W1–W6) · [`worldgen/v2-implementation-plan.md`](./worldgen/v2-implementation-plan.md) (W7–W11)
+**Plan:** [`worldgen/implementation-plan.md`](./worldgen/implementation-plan.md) (W1–W6) · [`worldgen/v2-implementation-plan.md`](./worldgen/v2-implementation-plan.md) (W7–W11) · [`worldgen/v3-implementation-plan.md`](./worldgen/v3-implementation-plan.md) (W13–W16)
 
 ---
 
@@ -68,6 +68,23 @@ Detail: [01-overview-and-scope](./worldgen/01-overview-and-scope.md).
 **Roadmap:** [12-v2-parity-roadmap](./worldgen/12-v2-parity-roadmap.md) · **Plan:** [v2-implementation-plan](./worldgen/v2-implementation-plan.md)
 
 **Start v2 with W7** — overmap visit should match mapgen picker for placed buildings.
+
+---
+
+## Milestones v3 (W13–W16)
+
+| PR | Focus | Unit doc |
+| --- | --- | --- |
+| **W13** | Visit / mapbuffer fidelity | [19](./worldgen/19-visit-mapbuffer-fidelity.md) |
+| **W14** | Layout parity phase 2 (region specials, cities) | [20](./worldgen/20-layout-parity-phase2.md) |
+| **W15** | Exploration & world coordinates | [21](./worldgen/21-exploration-and-world-coords.md) |
+| **W16** | World persistence (**deferred**) | [22](./worldgen/22-world-persistence.md) |
+
+**Roadmap:** [18-world-map-v3-roadmap](./worldgen/18-world-map-v3-roadmap.md) · **Plan:** [v3-implementation-plan](./worldgen/v3-implementation-plan.md)
+
+**Start v3 with W13** (stitch audit) or **W14** (region layout) in parallel; **W15** after visit trust is acceptable. **W16** waits until W15 session model exists.
+
+**CDDA parity inventory (post–W14):** [23](./worldgen/23-cdda-parity-overview.md) · [24](./worldgen/24-cdda-layout-gaps.md) · [25](./worldgen/25-cdda-region-visit-world-gaps.md)
 
 ---
 

@@ -197,6 +197,9 @@ public final class MutableSpecialPlacer {
 
     private static int maxFootprint(final OvermapGrid grid) {
         final int side = Math.min(grid.width(), grid.height());
+        if (side >= 128) {
+            return 10;
+        }
         if (side >= 64) {
             return 8;
         }

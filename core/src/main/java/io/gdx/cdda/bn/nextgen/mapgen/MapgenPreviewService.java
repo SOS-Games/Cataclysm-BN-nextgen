@@ -6,6 +6,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingLoader;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingRegistry;
 import io.gdx.cdda.bn.nextgen.mapgen.building.MapgenFileBundleInferrer;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.BuildingPlacementContext;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolumeBuilder;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolumeBuilder.MapVolumeBuildResult;
@@ -155,6 +156,15 @@ public final class MapgenPreviewService {
         final LoadedGameData gameData,
         final JsonMapgenRunOptions runOptions
     ) {
+        return generateBuilding(building, gameData, runOptions, null);
+    }
+
+    public MapgenBuildingResult generateBuilding(
+        final CityBuildingDefinition building,
+        final LoadedGameData gameData,
+        final JsonMapgenRunOptions runOptions,
+        final BuildingPlacementContext placementContext
+    ) {
         if (!loaded || palettes == null || catalog == null) {
             throw new IllegalStateException("call ensureLoaded before generateBuilding");
         }
@@ -167,7 +177,13 @@ public final class MapgenPreviewService {
         if (gameData != null) {
             options.withGameData(gameData);
         }
-        final MapVolumeBuildResult built = MapVolumeBuilder.build(building, catalog, palettes, options);
+        final MapVolumeBuildResult built = MapVolumeBuilder.build(
+            building,
+            catalog,
+            palettes,
+            options,
+            placementContext
+        );
         return new MapgenBuildingResult(
             built.getVolume(),
             built.getWarnings(),

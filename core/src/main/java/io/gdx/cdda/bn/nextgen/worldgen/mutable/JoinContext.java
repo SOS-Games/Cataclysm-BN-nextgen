@@ -1,25 +1,38 @@
 package io.gdx.cdda.bn.nextgen.worldgen.mutable;
 
+import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionResolver;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
 import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacementSource;
 
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/** Neighbor OMT + join context for nested mapgen (W6 stub, W11d active joins). */
+/** Neighbor OMT + join + connection context for nested mapgen (W6, W11d, W13c). */
 public final class JoinContext {
 
     private final Map<CardinalDirection, String> neighborOmtIds;
     private final Set<String> activeJoins;
+    private final Map<String, String> connectionsByDirection;
 
     public JoinContext(
         final Map<CardinalDirection, String> neighborOmtIds,
         final Set<String> activeJoins
+    ) {
+        this(neighborOmtIds, activeJoins, Collections.emptyMap());
+    }
+
+    public JoinContext(
+        final Map<CardinalDirection, String> neighborOmtIds,
+        final Set<String> activeJoins,
+        final Map<String, String> connectionsByDirection
     ) {
         this.neighborOmtIds = neighborOmtIds == null
             ? Collections.emptyMap()
@@ -27,9 +40,21 @@ public final class JoinContext {
         this.activeJoins = activeJoins == null
             ? Collections.emptySet()
             : Collections.unmodifiableSet(new HashSet<>(activeJoins));
+        this.connectionsByDirection = connectionsByDirection == null || connectionsByDirection.isEmpty()
+            ? Collections.emptyMap()
+            : Collections.unmodifiableMap(new HashMap<>(connectionsByDirection));
     }
 
     public static JoinContext fromOvermap(final OvermapGrid overmap, final int omtX, final int omtY) {
+        return fromOvermap(overmap, omtX, omtY, null);
+    }
+
+    public static JoinContext fromOvermap(
+        final OvermapGrid overmap,
+        final int omtX,
+        final int omtY,
+        final OvermapConnectionRegistry connectionRegistry
+    ) {
         if (overmap == null) {
             return new JoinContext(Collections.emptyMap(), Collections.emptySet());
         }
@@ -38,7 +63,13 @@ public final class JoinContext {
         putNeighbor(overmap, omtX, omtY, CardinalDirection.EAST, neighbors);
         putNeighbor(overmap, omtX, omtY, CardinalDirection.SOUTH, neighbors);
         putNeighbor(overmap, omtX, omtY, CardinalDirection.WEST, neighbors);
-        return new JoinContext(neighbors, Collections.emptySet());
+        final Map<String, String> connections = OvermapConnectionResolver.connectionsByDirection(
+            overmap,
+            omtX,
+            omtY,
+            connectionRegistry
+        );
+        return new JoinContext(neighbors, Collections.emptySet(), connections);
     }
 
     public static JoinContext fromPlacement(
@@ -48,7 +79,18 @@ public final class JoinContext {
         final int omtY,
         final MutableSpecialDefinition definition
     ) {
-        final JoinContext base = fromOvermap(overmap, omtX, omtY);
+        return fromPlacement(overmap, record, omtX, omtY, definition, null);
+    }
+
+    public static JoinContext fromPlacement(
+        final OvermapGrid overmap,
+        final PlacedBuildingRecord record,
+        final int omtX,
+        final int omtY,
+        final MutableSpecialDefinition definition,
+        final OvermapConnectionRegistry connectionRegistry
+    ) {
+        final JoinContext base = fromOvermap(overmap, omtX, omtY, connectionRegistry);
         if (record == null
             || record.getSource() != PlacementSource.MUTABLE
             || !record.getMutableLayout().isPresent()
@@ -59,7 +101,7 @@ public final class JoinContext {
         final int layoutX = omtX - record.getAnchorX();
         final int layoutY = omtY - record.getAnchorY();
         final Set<String> activeJoins = activeJoinsAt(layout, layoutX, layoutY, definition);
-        return new JoinContext(base.getNeighborOmtIds(), activeJoins);
+        return new JoinContext(base.getNeighborOmtIds(), activeJoins, base.getConnectionsByDirection());
     }
 
     private static Set<String> activeJoinsAt(
@@ -142,5 +184,9 @@ public final class JoinContext {
 
     public Set<String> getActiveJoins() {
         return activeJoins;
+    }
+
+    public Map<String, String> getConnectionsByDirection() {
+        return connectionsByDirection;
     }
 }
