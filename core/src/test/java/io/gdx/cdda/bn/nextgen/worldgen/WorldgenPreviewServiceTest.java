@@ -1,5 +1,7 @@
 package io.gdx.cdda.bn.nextgen.worldgen;
 
+import io.gdx.cdda.bn.nextgen.mapgen.compose.OmtStitchComposer;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateResult;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridFactory;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.VisitResult;
@@ -25,9 +27,24 @@ class WorldgenPreviewServiceTest {
         final VisitResult second = service.visit(overmap, 2, 2);
 
         assertTrue(first.hasGrid());
+        assertTrue(first.isPatchVisit());
         assertFalse(first.isFromCache());
         assertTrue(second.isFromCache());
         assertEquals("test_room", first.getOmtId());
-        assertEquals(5, first.getGrid().width());
+        assertEquals(OmtStitchComposer.DEFAULT_OMT_SIZE * 3, first.getGrid().width());
+    }
+
+    @Test
+    void generateOvermapUsesConfiguredRegionId() throws Exception {
+        final WorldgenPreviewService service = new WorldgenPreviewService();
+        service.ensureLoaded(WorldgenScanOptions.fromDataRoot(WorldgenTestFixtures.fixtureDataRoot()));
+        service.setWorldSeed(4242L);
+        service.setRegionId("urban_heavy");
+
+        final OvermapGenerateResult urban = service.generateOvermap(64, 64);
+        service.setRegionId("sparse_cities");
+        final OvermapGenerateResult sparse = service.generateOvermap(64, 64);
+
+        assertTrue(urban.getUrbanOmtsPlaced() > sparse.getUrbanOmtsPlaced());
     }
 }

@@ -19,14 +19,30 @@ public final class DataPaths {
         "../Cataclysm-BN/data"
     );
 
+    /** Nextgen preview JSON (region_settings overlays); appended after BN roots when present. */
+    private static final List<String> OVERLAY_RELATIVE_ROOTS = Arrays.asList(
+        "data",
+        "../data"
+    );
+
     private DataPaths() {}
 
     public static List<Path> gameDataRoots() {
         final List<Path> fromProperty = pathsFromProperty(DATA_ROOTS_PROPERTY);
         if (!fromProperty.isEmpty()) {
-            return fromProperty;
+            return appendOverlayRoots(fromProperty);
         }
-        return existingDirectories(DEFAULT_RELATIVE_GAME_ROOTS);
+        return appendOverlayRoots(existingDirectories(DEFAULT_RELATIVE_GAME_ROOTS));
+    }
+
+    private static List<Path> appendOverlayRoots(final List<Path> roots) {
+        final List<Path> merged = new ArrayList<>(roots);
+        for (final Path overlay : existingDirectories(OVERLAY_RELATIVE_ROOTS)) {
+            if (!merged.contains(overlay)) {
+                merged.add(overlay);
+            }
+        }
+        return merged;
     }
 
     public static Path primaryDataRoot() {

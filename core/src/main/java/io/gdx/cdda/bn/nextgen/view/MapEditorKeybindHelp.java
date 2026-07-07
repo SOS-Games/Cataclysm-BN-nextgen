@@ -72,7 +72,8 @@ public final class MapEditorKeybindHelp {
             rows.add(KeybindHelpDialog.HelpRow.bind("Click", "Select OMT cell"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Ctrl+Shift+C", "Copy overmap JSON to clipboard + maps/overmap_export.json"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Enter", "Visit cell — generate submap"));
-            rows.add(KeybindHelpDialog.HelpRow.bind("[ / ]", "Smaller / larger overmap (8…64)"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("G", "Choose region_settings profile"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("[ / ]", "Smaller / larger overmap (8…256)"));
             rows.add(KeybindHelpDialog.HelpRow.bind("R", "Regenerate layout (new seed)"));
             rows.add(KeybindHelpDialog.HelpRow.bind("M", "Return to submap view"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Esc", "Clear OMT selection"));
@@ -82,6 +83,12 @@ public final class MapEditorKeybindHelp {
         rows.add(KeybindHelpDialog.HelpRow.bind("Up / Down", "Move selection"));
         rows.add(KeybindHelpDialog.HelpRow.bind("Enter", "Import selected mapgen"));
         rows.add(KeybindHelpDialog.HelpRow.bind("R", "Random weighted variant"));
+        rows.add(KeybindHelpDialog.HelpRow.bind("Type", "Filter list"));
+        rows.add(KeybindHelpDialog.HelpRow.bind("Esc", "Cancel"));
+
+        rows.add(KeybindHelpDialog.HelpRow.section("Region picker (overmap G)"));
+        rows.add(KeybindHelpDialog.HelpRow.bind("Up / Down", "Move selection"));
+        rows.add(KeybindHelpDialog.HelpRow.bind("Enter", "Apply region and regenerate"));
         rows.add(KeybindHelpDialog.HelpRow.bind("Type", "Filter list"));
         rows.add(KeybindHelpDialog.HelpRow.bind("Esc", "Cancel"));
 

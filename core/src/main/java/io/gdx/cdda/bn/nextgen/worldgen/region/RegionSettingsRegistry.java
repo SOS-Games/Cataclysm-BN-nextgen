@@ -46,6 +46,28 @@ public final class RegionSettingsRegistry {
         return Collections.unmodifiableList(ids);
     }
 
+    /** Preview layout profiles first, then {@code default}, then remaining BN regions. */
+    public List<String> regionIdsForPicker() {
+        final List<String> preview = new ArrayList<>();
+        final List<String> rest = new ArrayList<>();
+        for (final String id : byId.keySet()) {
+            if (RegionProfileSummary.isLayoutPreviewProfile(id)) {
+                preview.add(id);
+            } else if (!"default".equals(id)) {
+                rest.add(id);
+            }
+        }
+        preview.sort(String::compareToIgnoreCase);
+        rest.sort(String::compareToIgnoreCase);
+        final List<String> ordered = new ArrayList<>(preview.size() + rest.size() + 1);
+        ordered.addAll(preview);
+        if (byId.containsKey("default")) {
+            ordered.add("default");
+        }
+        ordered.addAll(rest);
+        return Collections.unmodifiableList(ordered);
+    }
+
     public int size() {
         return byId.size();
     }

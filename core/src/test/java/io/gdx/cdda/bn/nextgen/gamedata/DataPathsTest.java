@@ -48,6 +48,20 @@ class DataPathsTest {
     }
 
     @Test
+    void appendsNextgenOverlayDataRootWhenPresent() {
+        final Path overlay = Paths.get("").toAbsolutePath().resolve("data").normalize();
+        assumeTrue(Files.isDirectory(overlay), "nextgen data/ overlay not found from cwd");
+
+        final String previous = System.getProperty(DataPaths.DATA_ROOTS_PROPERTY);
+        System.clearProperty(DataPaths.DATA_ROOTS_PROPERTY);
+        try {
+            assertTrue(DataPaths.gameDataRoots().contains(overlay));
+        } finally {
+            restoreProperty(DataPaths.DATA_ROOTS_PROPERTY, previous);
+        }
+    }
+
+    @Test
     void integrationScanBnJsonWhenPropertySet() throws Exception {
         final String rootProperty = System.getProperty(DataPaths.DATA_ROOTS_PROPERTY);
         assumeTrue(rootProperty != null && !rootProperty.isEmpty(), "Set -Dcdda.data.roots=... to run");

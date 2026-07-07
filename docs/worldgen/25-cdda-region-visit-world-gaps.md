@@ -63,11 +63,18 @@ Loader: `worldgen/region/RegionSettingsLoader.java` → `RegionSettingsRegistry`
 | Topic | BN | Nextgen |
 | --- | --- | --- |
 | Active region | World / scenario choice | `OvermapGenerateOptions.regionId` (default `"default"`) |
+| City size / spacing when omitted | `CITY_SIZE` / `CITY_SPACING` (8 / 4) | `WorldgenWorldOptions.bnDefaults()` on `OvermapGenerateOptions` |
 | UI picker | In-game world setup | **Missing** — no region dropdown in map editor |
 | Data path | Loaded at game start | `WorldgenPreviewService` loads registry when BN `data/` roots resolve |
 
-**Workaround for testing:** `OvermapGenerateOptions.forSize(w, h).withRegionId("your_region")`
-in code, or extend `MapEditorScreen` regenerate path to pass selected region id.
+**World options:** `WorldgenWorldOptions.bnDefaults()` matches BN new-world defaults. Region JSON
+omitting `city_size` / `city_spacing` uses sentinel `-1` → resolved at generate time. Explicit
+`city_size: 0` disables cities (`noCities()` preset). Editor `generateOvermap(w,h)` applies
+`WorldgenPreviewService.getWorldOptions()`; per-call overrides use
+`OvermapGenerateOptions.withWorldOptions(...)`.
+
+**Workaround for testing:** `service.setWorldOptions(WorldgenWorldOptions.noCities())` or
+`withRegionId("urban_heavy")` on options.
 
 Exported overmap JSON includes `regionId` for reproducibility (`OvermapGridExporter`).
 

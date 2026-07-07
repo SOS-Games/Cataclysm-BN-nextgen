@@ -32,6 +32,7 @@ import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingPiece;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.BuildingPieceDebugFormatter;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.OmtPieceRect;
+import io.gdx.cdda.bn.nextgen.mapgen.compose.OmtStitchComposer;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenDefinition;
 import io.gdx.cdda.bn.nextgen.mapgen.json.JsonMapgenRunOptions;
 import io.gdx.cdda.bn.nextgen.mapgen.json.SpawnMarker;
@@ -47,7 +48,6 @@ import io.gdx.cdda.bn.nextgen.tileset.model.TileDefinition;
 import io.gdx.cdda.bn.nextgen.tileset.model.TilesetFxType;
 
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
-import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateResult;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridExporter;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridFactory;
@@ -58,7 +58,10 @@ import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainScanOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.WorldgenPreviewService;
 import io.gdx.cdda.bn.nextgen.worldgen.WorldgenScanOptions;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionProfileSummary;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.VisitResult;
+import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
 import io.gdx.cdda.bn.nextgen.worldgen.visit.ZLevelResolver;
 
 import java.io.IOException;
@@ -81,7 +84,7 @@ public final class MapEditorScreen {
 
     private static final long ANIMATION_TICK_MS = 17L;
     private static final int HUD_MARGIN = 8;
-    private static final int HUD_LINES = 6;
+    private static final int HUD_LINES = 7;
     private static final Path DEFAULT_MAP_PATH = Paths.get("maps/autosave.json");
     private static final Path DEFAULT_OVERMAP_EXPORT_PATH = Paths.get("maps/overmap_export.json");
     private static final int[][] GRID_PRESETS = {
@@ -162,6 +165,7 @@ public final class MapEditorScreen {
 
     private final WorldgenPreviewService worldgenPreviewService = new WorldgenPreviewService();
     private final MapgenPickerDialog mapgenPicker = new MapgenPickerDialog();
+    private final RegionPickerDialog regionPicker = new RegionPickerDialog();
     private final ImportFailedDialog importFailedDialog = new ImportFailedDialog();
     private final KeybindHelpDialog keybindHelp = new KeybindHelpDialog();
     private MapVolume mapVolume;
@@ -177,6 +181,7 @@ public final class MapEditorScreen {
     private int selectedOmtX = -1;
     private int selectedOmtY = -1;
     private long overmapSeed = 12345L;
+    private String overmapRegionId = "default";
     private int overmapSize = DEFAULT_OVERMAP_SIZE;
     private boolean overmapSmokeLayoutPending = true;
     private OvermapGenerateResult lastOvermapGeneration;
@@ -226,9 +231,11 @@ public final class MapEditorScreen {
             drawBusyLoadingOverlay();
         }
         mapgenPicker.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
+        regionPicker.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
         importFailedDialog.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
         keybindHelp.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
         pollMapgenPickerSelection();
+        pollRegionPickerSelection();
         batch.end();
     }
 
@@ -247,6 +254,14 @@ public final class MapEditorScreen {
                 return true;
             }
             mapgenPicker.cancel();
+            return true;
+        }
+        if (regionPicker.isOpen()) {
+            if (regionPicker.isFilterEditing() && !regionPicker.getFilterQuery().isEmpty()) {
+                regionPicker.clearFilter();
+                return true;
+            }
+            regionPicker.cancel();
             return true;
         }
         if (palette.isFilterEditing()) {
@@ -279,6 +294,12 @@ public final class MapEditorScreen {
             }
             return !mapgenPicker.isFilterEditing();
         }
+        if (regionPicker.isOpen()) {
+            if (regionPicker.onKeyDown(keycode)) {
+                return true;
+            }
+            return !regionPicker.isFilterEditing();
+        }
         if (palette.isFilterEditing() && palette.onKeyDown(keycode)) {
             return true;
         }
@@ -306,6 +327,10 @@ public final class MapEditorScreen {
             }
             if (keycode == Keys.R) {
                 requestOvermapRegeneration();
+                return true;
+            }
+            if (keycode == Keys.G) {
+                openRegionPicker();
                 return true;
             }
         }
@@ -439,6 +464,9 @@ public final class MapEditorScreen {
         if (mapgenPicker.isOpen() && mapgenPicker.onKeyTyped(character)) {
             return true;
         }
+        if (regionPicker.isOpen() && regionPicker.onKeyTyped(character)) {
+            return true;
+        }
         if (palette.isFilterEditing()) {
             return palette.onKeyTyped(character);
         }
@@ -454,6 +482,9 @@ public final class MapEditorScreen {
         }
         if (mapgenPicker.isOpen()) {
             return mapgenPicker.onScroll(amountY);
+        }
+        if (regionPicker.isOpen()) {
+            return true;
         }
         final int mouseX = ScreenInput.pointerX();
         final int mouseY = ScreenInput.pointerY();
@@ -488,6 +519,14 @@ public final class MapEditorScreen {
         }
         if (mapgenPicker.isOpen()) {
             return mapgenPicker.onTouchDown(
+                screenX,
+                ScreenInput.fromInputY(screenY),
+                viewportPixelWidth(),
+                viewportPixelHeight()
+            );
+        }
+        if (regionPicker.isOpen()) {
+            return regionPicker.onTouchDown(
                 screenX,
                 ScreenInput.fromInputY(screenY),
                 viewportPixelWidth(),
@@ -559,7 +598,7 @@ public final class MapEditorScreen {
     }
 
     public boolean onTouchDragged(final int screenX, final int screenY) {
-        if (mapgenPicker.isOpen() || keybindHelp.isOpen() || loadingMapgenCatalog || generatingOvermap) {
+        if (mapgenPicker.isOpen() || regionPicker.isOpen() || keybindHelp.isOpen() || loadingMapgenCatalog || generatingOvermap) {
             return true;
         }
         final int y = ScreenInput.fromInputY(screenY);
@@ -587,7 +626,7 @@ public final class MapEditorScreen {
     }
 
     public boolean onTouchUp(final int screenX, final int screenY, final int button) {
-        if (mapgenPicker.isOpen() || keybindHelp.isOpen() || loadingMapgenCatalog || generatingOvermap) {
+        if (mapgenPicker.isOpen() || regionPicker.isOpen() || keybindHelp.isOpen() || loadingMapgenCatalog || generatingOvermap) {
             return true;
         }
         final int y = ScreenInput.fromInputY(screenY);
@@ -907,6 +946,7 @@ public final class MapEditorScreen {
 
     private void regenerateOvermapLayout() {
         worldgenPreviewService.setWorldSeed(overmapSeed);
+        worldgenPreviewService.setRegionId(overmapRegionId);
         applyOvermapCacheSizing();
         if (overmapSize > 32) {
             startAsyncOvermapGeneration();
@@ -926,6 +966,7 @@ public final class MapEditorScreen {
         new Thread(() -> {
             try {
                 worldgenPreviewService.setWorldSeed(seed);
+                worldgenPreviewService.setRegionId(overmapRegionId);
                 final OvermapGenerateResult generated = worldgenPreviewService.generateOvermap(size, size);
                 Gdx.app.postRunnable(() -> {
                     generatingOvermap = false;
@@ -960,11 +1001,14 @@ public final class MapEditorScreen {
         centerCamera();
         statusMessage = "Generated overmap " + overmapSize + "×" + overmapSize + " — "
             + generated.getCityBuildingsPlaced() + " buildings, "
+            + generated.getUrbanOmtsPlaced() + " urban, "
             + generated.getStaticSpecialsPlaced() + " specials, "
-            + generated.getMutableSpecialsPlaced() + " mutable, "
             + generated.getRiverCellsCarved() + " river, "
-            + generated.getRoadCellsPlaced() + " road, seed=" + overmapSeed
-            + " — click a building cell, Enter to visit";
+            + generated.getRoadCellsPlaced() + " road, "
+            + generated.getForestTrailCellsPlaced() + " trail, "
+            + generated.getUndergroundCellsPlaced() + " underground"
+            + " — region=" + overmapRegionId
+            + ", seed=" + overmapSeed;
     }
 
     private void applyOvermapCacheSizing() {
@@ -1102,9 +1146,11 @@ public final class MapEditorScreen {
             activeBuilding = null;
         }
         editorMode = EditorMode.SUBMAP;
-        centerCamera();
+        centerCameraOnVisit(result);
         final String cacheNote = result.isFromCache() ? " (cached)" : "";
-        final String visitKind = result.isBuildingVisit() ? "building" : "submap";
+        final String visitKind = result.isBuildingVisit()
+            ? "building"
+            : (result.isPatchVisit() ? "connected patch" : "submap");
         final String floorNote = result.isBuildingVisit() && mapVolume != null
             ? " floor z=" + mapVolume.getActiveZ()
             : (visitZ != 0 ? " visit z=" + visitZ : "");
@@ -1120,6 +1166,7 @@ public final class MapEditorScreen {
         if (worldgenPreviewService.isLoaded()) {
             overmapTerrainRegistry = worldgenPreviewService.getOvermapTerrainRegistry();
             overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
+            syncOvermapRegionFromRegistry();
             onReady.run();
             return;
         }
@@ -1139,6 +1186,7 @@ public final class MapEditorScreen {
                     loadingMapgenCatalog = false;
                     overmapTerrainRegistry = worldgenPreviewService.getOvermapTerrainRegistry();
                     overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
+                    syncOvermapRegionFromRegistry();
                     logMapgenLoadWarnings();
                     for (final String warning : worldgenPreviewService.getOvermapLoadWarnings()) {
                         Gdx.app.log("overmap", warning);
@@ -1243,35 +1291,70 @@ public final class MapEditorScreen {
                 final String omtId = overmapGrid.getOmtId(x, y);
                 final float worldX = cameraX + x * cellPx;
                 final float worldY = cellBottomY(y);
-                final OvermapTerrainDefinition definition = overmapTerrainRegistry.find(omtId).orElse(null);
-                final Color fill = definition == null
-                    ? OvermapTerrainColors.hashColor(omtId)
-                    : OvermapTerrainColors.resolve(definition.getColor(), omtId);
-                batch.setColor(fill);
-                batch.draw(whitePixel, worldX, worldY, cellPx, cellPx);
-                batch.setColor(Color.WHITE);
-                if (!drawSymbols) {
+                if (drawOvermapOmtSprite(omtId, worldX, worldY, cellPx)) {
                     continue;
                 }
-                if (definition != null && definition.hasSymbol()) {
-                    final String label = definition.getSymbol();
-                    glyphLayout.setText(font, label);
-                    font.draw(
-                        batch,
-                        label,
-                        worldX + (cellPx - glyphLayout.width) / 2f,
-                        worldY + (cellPx + glyphLayout.height) / 2f
-                    );
-                } else if (definition == null) {
-                    glyphLayout.setText(font, "?");
-                    font.draw(
-                        batch,
-                        "?",
-                        worldX + (cellPx - glyphLayout.width) / 2f,
-                        worldY + (cellPx + glyphLayout.height) / 2f
-                    );
-                }
+                drawOvermapOmtFallback(omtId, worldX, worldY, cellPx, drawSymbols);
             }
+        }
+    }
+
+    private boolean drawOvermapOmtSprite(
+        final String omtId,
+        final float worldX,
+        final float worldY,
+        final float cellPx
+    ) {
+        if (tileset == null) {
+            return false;
+        }
+        final OvermapOmtSpriteResolver.Resolve resolved =
+            OvermapOmtSpriteResolver.resolve(tileset, omtId).orElse(null);
+        if (resolved == null) {
+            return false;
+        }
+        final TileDefinition tile = tileset.findTile(resolved.getTileId()).orElse(null);
+        if (tile == null) {
+            return false;
+        }
+        drawCellTile(tile, worldX, worldY, cellPx, false, resolved.getRotationIndex(), 1f);
+        return true;
+    }
+
+    private void drawOvermapOmtFallback(
+        final String omtId,
+        final float worldX,
+        final float worldY,
+        final float cellPx,
+        final boolean drawSymbols
+    ) {
+        final OvermapTerrainDefinition definition = overmapTerrainRegistry.find(omtId).orElse(null);
+        final Color fill = definition == null
+            ? OvermapTerrainColors.hashColor(omtId)
+            : OvermapTerrainColors.resolve(definition.getColor(), omtId);
+        batch.setColor(fill);
+        batch.draw(whitePixel, worldX, worldY, cellPx, cellPx);
+        batch.setColor(Color.WHITE);
+        if (!drawSymbols) {
+            return;
+        }
+        if (definition != null && definition.hasSymbol()) {
+            final String label = definition.getSymbol();
+            glyphLayout.setText(font, label);
+            font.draw(
+                batch,
+                label,
+                worldX + (cellPx - glyphLayout.width) / 2f,
+                worldY + (cellPx + glyphLayout.height) / 2f
+            );
+        } else if (definition == null) {
+            glyphLayout.setText(font, "?");
+            font.draw(
+                batch,
+                "?",
+                worldX + (cellPx - glyphLayout.width) / 2f,
+                worldY + (cellPx + glyphLayout.height) / 2f
+            );
         }
     }
 
@@ -1724,10 +1807,11 @@ public final class MapEditorScreen {
         final String line1 = statusMessage;
         final String line2 = "Mode: OVERMAP  "
             + overmapGrid.width() + "×" + overmapGrid.height()
-            + "  seed=" + overmapSeed
-            + "  |  OMT types " + overmapTerrainRegistry.size();
+            + "  region=" + overmapRegionId
+            + "  seed=" + overmapSeed;
+        final String line3 = "Profile: " + describeActiveRegionProfile();
         final String line4 = "Hover: " + hover + "  |  Selected: " + selection + "  |  zoom " + formatViewZoom();
-        final String line5 = "Click a building cell — Enter visit — [ ] size (8…256) — R new layout — [M] submap";
+        final String line5 = "Click building cell — Enter visit — [ ] size — R new seed — G region — [M] submap";
         final String line6 = overmapTerrainLoaded
             ? "[M] submap mode  |  F1 help  |  Esc clear selection  |  F3 debug"
             : "Overmap terrain not loaded";
@@ -1735,9 +1819,17 @@ public final class MapEditorScreen {
         final int top = viewportPixelHeight() - HUD_MARGIN;
         font.draw(batch, line1, HUD_MARGIN, top);
         font.draw(batch, line2, HUD_MARGIN, top - 16);
-        font.draw(batch, line4, HUD_MARGIN, top - 32);
-        font.draw(batch, line5, HUD_MARGIN, top - 48);
-        font.draw(batch, line6, HUD_MARGIN, top - 64);
+        font.draw(batch, line3, HUD_MARGIN, top - 32);
+        font.draw(batch, line4, HUD_MARGIN, top - 48);
+        font.draw(batch, line5, HUD_MARGIN, top - 64);
+        font.draw(batch, line6, HUD_MARGIN, top - 80);
+    }
+
+    private String describeActiveRegionProfile() {
+        final RegionSettingsDefinition region = worldgenPreviewService.getRegionSettingsRegistry()
+            .find(overmapRegionId)
+            .orElse(null);
+        return RegionProfileSummary.describe(region);
     }
 
     private String formatOvermapCursorCell(final int x, final int y) {
@@ -1770,7 +1862,7 @@ public final class MapEditorScreen {
             statusMessage = "No overmap loaded";
             return;
         }
-        final String regionId = OvermapGenerateOptions.forSize(overmapSize, overmapSize).getRegionId();
+        final String regionId = overmapRegionId;
         final String json = OvermapGridExporter.toJson(
             overmapGrid,
             overmapSeed,
@@ -1918,6 +2010,9 @@ public final class MapEditorScreen {
     }
 
     private void eyedropAt(final int screenX, final int screenY) {
+        if (editorMode == EditorMode.OVERMAP) {
+            return;
+        }
         final CellCoord cell = screenToCell(screenX, screenY);
         if (cell == null) {
             return;
@@ -2239,10 +2334,59 @@ public final class MapEditorScreen {
     }
 
     private void openMapgenPicker() {
-        if (mapgenPicker.isOpen() || keybindHelp.isOpen() || loadingMapgenCatalog || generatingOvermap) {
+        if (mapgenPicker.isOpen() || regionPicker.isOpen() || keybindHelp.isOpen() || loadingMapgenCatalog || generatingOvermap) {
             return;
         }
         ensureMapgenCatalogLoaded(this::showMapgenPicker);
+    }
+
+    private void openRegionPicker() {
+        if (regionPicker.isOpen() || mapgenPicker.isOpen() || keybindHelp.isOpen() || loadingMapgenCatalog || generatingOvermap) {
+            return;
+        }
+        ensureWorldgenLoaded(this::showRegionPicker);
+    }
+
+    private void showRegionPicker() {
+        syncOvermapRegionFromRegistry();
+        final List<String> regionIds = worldgenPreviewService.getRegionSettingsRegistry().regionIdsForPicker();
+        if (regionIds.isEmpty()) {
+            statusMessage = "No region_settings loaded from data/";
+            return;
+        }
+        regionPicker.open(regionIds, overmapRegionId);
+    }
+
+    private void syncOvermapRegionFromRegistry() {
+        if (!worldgenPreviewService.getRegionSettingsRegistry().find(overmapRegionId).isPresent()) {
+            if (worldgenPreviewService.getRegionSettingsRegistry().find("default").isPresent()) {
+                overmapRegionId = "default";
+            } else {
+                final List<String> ids = worldgenPreviewService.getRegionSettingsRegistry().regionIdsForPicker();
+                if (!ids.isEmpty()) {
+                    overmapRegionId = ids.get(0);
+                }
+            }
+        }
+        worldgenPreviewService.setRegionId(overmapRegionId);
+    }
+
+    private void pollRegionPickerSelection() {
+        final Optional<String> selection = regionPicker.takeSelection();
+        selection.ifPresent(this::applyOvermapRegionSelection);
+    }
+
+    private void applyOvermapRegionSelection(final String regionId) {
+        if (regionId == null || regionId.isEmpty() || regionId.equals(overmapRegionId)) {
+            return;
+        }
+        overmapRegionId = regionId;
+        worldgenPreviewService.setRegionId(regionId);
+        if (editorMode == EditorMode.OVERMAP && worldgenPreviewService.isLoaded()) {
+            regenerateOvermapLayout();
+            return;
+        }
+        statusMessage = "Region set to " + regionId + " — switch to overmap (M) to regenerate";
     }
 
     private void showMapgenPicker() {
@@ -2483,6 +2627,58 @@ public final class MapEditorScreen {
         final float baseY = (areaBottom + areaTop - gridH) / 2f;
         cameraY = baseY - hudHeight();
         cameraX = (canvasWidth() - gridW) / 2f;
+    }
+
+    private void centerCameraOnVisit(final VisitResult result) {
+        int focusCellX = -1;
+        int focusCellY = -1;
+        if (result.isBuildingVisit() && mapVolume != null && result.getVisitOmtX() >= 0) {
+            final int[] focus = focusCellForBuildingPiece(result.getVisitOmtX(), result.getVisitOmtY());
+            focusCellX = focus[0];
+            focusCellY = focus[1];
+        } else if (result.isPatchVisit()) {
+            final int stride = OmtStitchComposer.DEFAULT_OMT_SIZE;
+            focusCellX = (result.getVisitOmtX() - result.getPatchMinOmtX()) * stride + stride / 2;
+            focusCellY = (result.getVisitOmtY() - result.getPatchMinOmtY()) * stride + stride / 2;
+        }
+        if (focusCellX >= 0 && focusCellY >= 0) {
+            centerCameraOnCell(focusCellX, focusCellY);
+            return;
+        }
+        centerCamera();
+    }
+
+    private int[] focusCellForBuildingPiece(final int omtX, final int omtY) {
+        if (mapVolume == null || worldgenPreviewService == null) {
+            return new int[] { grid.width() / 2, grid.height() / 2 };
+        }
+        final PlacedBuildingRecord record = worldgenPreviewService.getPlacementIndex().findAt(omtX, omtY).orElse(null);
+        if (record == null) {
+            return new int[] { grid.width() / 2, grid.height() / 2 };
+        }
+        final int pieceOffsetX = omtX - record.getAnchorX();
+        final int pieceOffsetY = omtY - record.getAnchorY();
+        final int stride = OmtStitchComposer.DEFAULT_OMT_SIZE;
+        for (final OmtPieceRect piece : mapVolume.getActivePieceLayouts()) {
+            if (piece.getOriginX() / stride == pieceOffsetX && piece.getOriginY() / stride == pieceOffsetY) {
+                return new int[] {
+                    piece.getOriginX() + piece.getWidth() / 2,
+                    piece.getOriginY() + piece.getHeight() / 2
+                };
+            }
+        }
+        return new int[] { grid.width() / 2, grid.height() / 2 };
+    }
+
+    private void centerCameraOnCell(final int cellX, final int cellY) {
+        final float cellPx = activeCellPixelSize();
+        final float gridH = activeGridHeight() * cellPx;
+        final float areaBottom = MapEditorToolbar.HEIGHT + 16;
+        final float areaTop = viewportPixelHeight() - hudHeight() - 8;
+        final float viewMidY = (areaBottom + areaTop) / 2f;
+
+        cameraX = canvasWidth() / 2f - (cellX + 0.5f) * cellPx;
+        cameraY = viewMidY - hudHeight() - gridH + (cellY + 0.5f) * cellPx;
     }
 
     private int canvasWidth() {

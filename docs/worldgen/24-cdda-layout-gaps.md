@@ -212,17 +212,17 @@ Single-overmap preview is **v3 in scope**; cross-overmap continuity is Tier C.
 
 ## Suggested implementation slices (post-W15)
 
+Formal v4 plan — see [26-tier-a-urban-layout](./26-tier-a-urban-layout.md) and
+[v4-implementation-plan](./v4-implementation-plan.md).
+
 | PR slice | Delivers | Depends on |
 | --- | --- | --- |
-| **W17a** | `city.shops` / `city.parks` inside urban blobs | W14b site picker |
-| **W17b** | In-city road grid (subset of `place_cities`) | W17a |
-| **W17c** | `place_roads` v2 — city-to-city highways, not MST-only | W17b |
+| **W17a** | `city.shops` / `city.parks` / finales + urban OMT fill | W14b site picker |
+| **W17b** | In-city road grid (`local_road`) | W17a |
+| **W17c** | `place_roads` v2 — city-to-city highways + generate reorder | W17b |
 | **W17d** | Multi-river + `polish_rivers` lite | W11b hydrology |
 | **W17e** | Forest trails + trailheads | Region `forest_trail` |
 | **W17f** | W14d subways/rails | Connection registry + carve |
-
-These are **proposed** ids — not yet in [v3-implementation-plan](./v3-implementation-plan.md).
-Add a v4 plan when Tier A is approved.
 
 ---
 
@@ -247,4 +247,4 @@ Add a v4 plan when Tier A is approved.
 1. Each BN `place_*` function maps to done / partial / missing
 2. City and road sections explain the “roads in wilderness” symptom
 3. W14d deferral cross-links [20](./20-layout-parity-phase2.md)
-4. Proposed W17 slices are optional — document only until plan approved
+4. Proposed W17 slices link to [26](./26-tier-a-urban-layout.md) and [v4-implementation-plan](./v4-implementation-plan.md)

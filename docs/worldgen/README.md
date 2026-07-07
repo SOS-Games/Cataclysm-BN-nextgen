@@ -82,6 +82,19 @@ What nextgen still lacks vs BN `overmap::generate` after W13–W14 milestones.
 
 ---
 
+## Worldgen v4 milestones (W17 — Tier A layout)
+
+**Plan:** [v4-implementation-plan.md](./v4-implementation-plan.md) · **Roadmap:** [27-world-map-v4-roadmap.md](./27-world-map-v4-roadmap.md)
+
+| Unit | Topic | PR | Status |
+| --- | --- | --- | --- |
+| [27](./27-world-map-v4-roadmap.md) | v4 Tier A roadmap; W17 dependency graph | — | draft |
+| [26](./26-tier-a-urban-layout.md) | Urban fill, local roads, highways | **W17** | W17a–f done |
+
+W17 sub-PRs: **W17a** urban OMT ✓ · **W17b** local roads ✓ · **W17c** highways ✓ · **W17d** hydrology ✓ · **W17e** trails ✓ · **W17f** underground ✓.
+
+---
+
 ## Post–mapgen-v2 follow-ups (parallel)
 
 These improve preview/worldgen quality but are **not** overmap layout:
@@ -118,6 +131,9 @@ flowchart TD
     W13 --> W15[W15 exploration]
     W14 --> W15
     W15 -.-> W16[W16 persist deferred]
+
+    W14 --> W17[W17 Tier A layout]
+    W17 --> W17c[W17c highways]
 
     MP[Mapgen preview v2] --> W3
     GD[Game data G1-G5] --> W1

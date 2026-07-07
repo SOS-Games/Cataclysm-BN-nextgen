@@ -1,5 +1,7 @@
 package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
+import io.gdx.cdda.bn.nextgen.worldgen.WorldgenWorldOptions;
+
 /** Options for procedural mini-overmap generation (W4). */
 public final class OvermapGenerateOptions {
 
@@ -20,6 +22,7 @@ public final class OvermapGenerateOptions {
     private final String lakeId;
     private final boolean lakesEnabled;
     private final boolean legacyGenerationOrder;
+    private final WorldgenWorldOptions worldOptions;
 
     public OvermapGenerateOptions(
         final int width,
@@ -54,7 +57,8 @@ public final class OvermapGenerateOptions {
             riverBankId,
             "lake",
             true,
-            false
+            false,
+            WorldgenWorldOptions.bnDefaults()
         );
     }
 
@@ -75,7 +79,8 @@ public final class OvermapGenerateOptions {
         final String riverBankId,
         final String lakeId,
         final boolean lakesEnabled,
-        final boolean legacyGenerationOrder
+        final boolean legacyGenerationOrder,
+        final WorldgenWorldOptions worldOptions
     ) {
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("width and height must be positive");
@@ -97,6 +102,7 @@ public final class OvermapGenerateOptions {
         this.lakeId = lakeId == null || lakeId.isEmpty() ? "lake" : lakeId;
         this.lakesEnabled = lakesEnabled;
         this.legacyGenerationOrder = legacyGenerationOrder;
+        this.worldOptions = worldOptions == null ? WorldgenWorldOptions.bnDefaults() : worldOptions;
     }
 
     public static OvermapGenerateOptions forSize(final int width, final int height) {
@@ -179,19 +185,19 @@ public final class OvermapGenerateOptions {
     public OvermapGenerateOptions withSeed(final long seed) {
         return copyWith(seed, regionId, cityBuildingQuota, staticSpecialQuota, mutableSpecialQuota, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
     }
 
     public OvermapGenerateOptions withRegionId(final String regionId) {
         return copyWith(seed, regionId, cityBuildingQuota, staticSpecialQuota, mutableSpecialQuota, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
     }
 
     public OvermapGenerateOptions withQuotas(final int cityBuildings, final int staticSpecials) {
         return copyWith(seed, regionId, cityBuildings, staticSpecials, mutableSpecialQuota, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
     }
 
     public OvermapGenerateOptions withQuotas(
@@ -201,13 +207,13 @@ public final class OvermapGenerateOptions {
     ) {
         return copyWith(seed, regionId, cityBuildings, staticSpecials, mutableSpecials, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
     }
 
     public OvermapGenerateOptions withTerrainIds(final String fieldId, final String forestId) {
         return copyWith(seed, regionId, cityBuildingQuota, staticSpecialQuota, mutableSpecialQuota, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
     }
 
     public OvermapGenerateOptions withConnectivity(
@@ -219,19 +225,25 @@ public final class OvermapGenerateOptions {
     ) {
         return copyWith(seed, regionId, cityBuildingQuota, staticSpecialQuota, mutableSpecialQuota, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
     }
 
     public OvermapGenerateOptions withLegacyGenerationOrder(final boolean legacyGenerationOrder) {
         return copyWith(seed, regionId, cityBuildingQuota, staticSpecialQuota, mutableSpecialQuota, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
     }
 
     public OvermapGenerateOptions withLakesEnabled(final boolean lakesEnabled) {
         return copyWith(seed, regionId, cityBuildingQuota, staticSpecialQuota, mutableSpecialQuota, fieldId, forestId,
             riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
-            legacyGenerationOrder);
+            legacyGenerationOrder, worldOptions);
+    }
+
+    public OvermapGenerateOptions withWorldOptions(final WorldgenWorldOptions worldOptions) {
+        return copyWith(seed, regionId, cityBuildingQuota, staticSpecialQuota, mutableSpecialQuota, fieldId, forestId,
+            riversEnabled, roadsEnabled, connectionId, riverCenterId, riverBankId, lakeId, lakesEnabled,
+            legacyGenerationOrder, worldOptions);
     }
 
     private OvermapGenerateOptions copyWith(
@@ -249,7 +261,8 @@ public final class OvermapGenerateOptions {
         final String riverBankId,
         final String lakeId,
         final boolean lakesEnabled,
-        final boolean legacyGenerationOrder
+        final boolean legacyGenerationOrder,
+        final WorldgenWorldOptions worldOptions
     ) {
         return new OvermapGenerateOptions(
             width,
@@ -268,7 +281,8 @@ public final class OvermapGenerateOptions {
             riverBankId,
             lakeId,
             lakesEnabled,
-            legacyGenerationOrder
+            legacyGenerationOrder,
+            worldOptions
         );
     }
 
@@ -338,5 +352,9 @@ public final class OvermapGenerateOptions {
 
     public boolean isLegacyGenerationOrder() {
         return legacyGenerationOrder;
+    }
+
+    public WorldgenWorldOptions getWorldOptions() {
+        return worldOptions;
     }
 }

@@ -8,8 +8,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-/** Carves river chains on a mini-overmap (W5 v1, W11b lake-aware). */
+/** Carves river chains on a mini-overmap (W5 v1, W11b lake-aware, W17d multi-pass). */
 public final class RiverGenerator {
+
+    /** XOR mask for the optional second hydrology carve pass (W17d). */
+    public static final long SECOND_PASS_SEED_XOR = 0x52495632L;
 
     private RiverGenerator() {}
 

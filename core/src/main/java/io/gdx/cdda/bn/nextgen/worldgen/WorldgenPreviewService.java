@@ -48,6 +48,8 @@ public final class WorldgenPreviewService {
     private List<String> overmapLoadWarnings = Collections.emptyList();
     private LoadedGameData gameData;
     private long worldSeed = 12345L;
+    private String regionId = "default";
+    private WorldgenWorldOptions worldOptions = WorldgenWorldOptions.bnDefaults();
     private boolean loaded;
 
     public boolean hasDataRoots() {
@@ -88,6 +90,28 @@ public final class WorldgenPreviewService {
 
     public void setWorldSeed(final long worldSeed) {
         this.worldSeed = worldSeed;
+        submapCache.clear();
+        volumeCache.clear();
+    }
+
+    public WorldgenWorldOptions getWorldOptions() {
+        return worldOptions;
+    }
+
+    public void setWorldOptions(final WorldgenWorldOptions worldOptions) {
+        this.worldOptions = worldOptions == null ? WorldgenWorldOptions.bnDefaults() : worldOptions;
+    }
+
+    public String getRegionId() {
+        return regionId;
+    }
+
+    public void setRegionId(final String regionId) {
+        final String next = regionId == null || regionId.isEmpty() ? "default" : regionId;
+        if (next.equals(this.regionId)) {
+            return;
+        }
+        this.regionId = next;
         submapCache.clear();
         volumeCache.clear();
     }
@@ -164,7 +188,12 @@ public final class WorldgenPreviewService {
     }
 
     public OvermapGenerateResult generateOvermap(final int width, final int height) {
-        return generateOvermap(OvermapGenerateOptions.forSize(width, height).withSeed(worldSeed));
+        return generateOvermap(
+            OvermapGenerateOptions.forSize(width, height)
+                .withSeed(worldSeed)
+                .withWorldOptions(worldOptions)
+                .withRegionId(regionId)
+        );
     }
 
     public OvermapGenerateResult generateOvermap(final OvermapGenerateOptions options) {

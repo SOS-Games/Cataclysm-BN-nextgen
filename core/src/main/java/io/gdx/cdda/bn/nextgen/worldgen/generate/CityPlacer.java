@@ -70,7 +70,7 @@ public final class CityPlacer {
 
         final CitySizeSettings citySize = region == null
             ? CitySizeSettings.disabled()
-            : region.getCitySizeSettings();
+            : region.getCitySizeSettings().resolve(options.getWorldOptions());
         final List<int[]> citySites = CitySitePicker.pickSites(grid, citySize, options, rng);
         final int maxBuildingsPerSite = citySize.getCitySize() > 0
             ? citySize.getCitySize()
@@ -105,6 +105,68 @@ public final class CityPlacer {
                 citySites,
                 citySize,
                 maxBuildingsPerSite,
+                buildingsPerSite
+            )) {
+                placed++;
+            }
+        }
+        return placed;
+    }
+
+    /** Places multitile {@code city_building} bundles near pre-picked city sites (W17a). */
+    public static int placeMultitileAtCitySites(
+        final OvermapGrid grid,
+        final CityBuildingRegistry buildings,
+        final OvermapTerrainRegistry oterRegistry,
+        final OvermapGenerateOptions options,
+        final RegionSettingsDefinition region,
+        final Random rng,
+        final List<String> warnings,
+        final List<int[]> placedCenters,
+        final List<PlacedBuildingRecord> placedBuildings,
+        final List<int[]> citySites,
+        final CitySizeSettings citySize,
+        final int maxTotal,
+        final int maxPerSite
+    ) {
+        if (grid == null || buildings == null || citySites == null || citySites.isEmpty() || maxTotal <= 0) {
+            return 0;
+        }
+        final Set<String> clearable = OmtBuildingBlitter.defaultClearableIds(options, oterRegistry);
+        final List<CityBuildingDefinition> candidates = pickCandidates(buildings, grid);
+        if (candidates.isEmpty()) {
+            return 0;
+        }
+        shuffle(candidates, rng);
+        final java.util.Map<Integer, Integer> buildingsPerSite = new java.util.HashMap<>();
+        int placed = 0;
+        int attempts = 0;
+        final int maxAttempts = maxTotal * candidates.size() * 2;
+        while (placed < maxTotal && attempts < maxAttempts && !candidates.isEmpty()) {
+            attempts++;
+            final Optional<CityBuildingDefinition> weighted = pickWeightedBuilding(
+                region,
+                buildings,
+                grid,
+                rng,
+                warnings
+            );
+            final CityBuildingDefinition building = weighted.isPresent()
+                ? weighted.get()
+                : candidates.get(rng.nextInt(candidates.size()));
+            if (tryPlaceWithCitySites(
+                building,
+                grid,
+                oterRegistry,
+                clearable,
+                rng,
+                warnings,
+                placedCenters,
+                placedBuildings,
+                PlacementSource.CITY,
+                citySites,
+                citySize,
+                maxPerSite,
                 buildingsPerSite
             )) {
                 placed++;

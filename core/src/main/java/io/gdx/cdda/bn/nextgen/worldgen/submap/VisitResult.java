@@ -23,6 +23,10 @@ public final class VisitResult {
     private final MapVolume volume;
     private final CityBuildingDefinition building;
     private final Map<Integer, List<SpawnMarker>> spawnMarkersByZ;
+    private final int patchMinOmtX;
+    private final int patchMinOmtY;
+    private final int visitOmtX;
+    private final int visitOmtY;
 
     public VisitResult(
         final MapGrid grid,
@@ -53,6 +57,36 @@ public final class VisitResult {
         final CityBuildingDefinition building,
         final Map<Integer, List<SpawnMarker>> spawnMarkersByZ
     ) {
+        this(
+            grid,
+            warnings,
+            spawnMarkers,
+            fromCache,
+            omtId,
+            volume,
+            building,
+            spawnMarkersByZ,
+            -1,
+            -1,
+            -1,
+            -1
+        );
+    }
+
+    private VisitResult(
+        final MapGrid grid,
+        final List<String> warnings,
+        final List<SpawnMarker> spawnMarkers,
+        final boolean fromCache,
+        final String omtId,
+        final MapVolume volume,
+        final CityBuildingDefinition building,
+        final Map<Integer, List<SpawnMarker>> spawnMarkersByZ,
+        final int patchMinOmtX,
+        final int patchMinOmtY,
+        final int visitOmtX,
+        final int visitOmtY
+    ) {
         this.grid = grid;
         this.warnings = warnings == null
             ? Collections.emptyList()
@@ -69,6 +103,10 @@ public final class VisitResult {
         } else {
             this.spawnMarkersByZ = Collections.unmodifiableMap(new LinkedHashMap<>(spawnMarkersByZ));
         }
+        this.patchMinOmtX = patchMinOmtX;
+        this.patchMinOmtY = patchMinOmtY;
+        this.visitOmtX = visitOmtX;
+        this.visitOmtY = visitOmtY;
     }
 
     public static VisitResult forBuilding(
@@ -78,7 +116,9 @@ public final class VisitResult {
         final CityBuildingDefinition building,
         final Map<Integer, List<SpawnMarker>> spawnMarkersByZ,
         final boolean fromCache,
-        final String omtId
+        final String omtId,
+        final int visitOmtX,
+        final int visitOmtY
     ) {
         final List<SpawnMarker> activeMarkers = volume == null
             ? Collections.emptyList()
@@ -91,8 +131,51 @@ public final class VisitResult {
             omtId,
             volume,
             building,
-            spawnMarkersByZ
+            spawnMarkersByZ,
+            -1,
+            -1,
+            visitOmtX,
+            visitOmtY
         );
+    }
+
+    public static VisitResult forPatch(
+        final MapGrid grid,
+        final List<String> warnings,
+        final List<SpawnMarker> spawnMarkers,
+        final boolean fromCache,
+        final String omtId,
+        final int patchMinOmtX,
+        final int patchMinOmtY,
+        final int visitOmtX,
+        final int visitOmtY
+    ) {
+        return new VisitResult(
+            grid,
+            warnings,
+            spawnMarkers,
+            fromCache,
+            omtId,
+            null,
+            null,
+            Collections.emptyMap(),
+            patchMinOmtX,
+            patchMinOmtY,
+            visitOmtX,
+            visitOmtY
+        );
+    }
+
+    public static VisitResult forBuilding(
+        final MapGrid grid,
+        final List<String> warnings,
+        final MapVolume volume,
+        final CityBuildingDefinition building,
+        final Map<Integer, List<SpawnMarker>> spawnMarkersByZ,
+        final boolean fromCache,
+        final String omtId
+    ) {
+        return forBuilding(grid, warnings, volume, building, spawnMarkersByZ, fromCache, omtId, -1, -1);
     }
 
     private static List<SpawnMarker> markersAtZ(
@@ -144,5 +227,25 @@ public final class VisitResult {
 
     public Map<Integer, List<SpawnMarker>> getSpawnMarkersByZ() {
         return spawnMarkersByZ;
+    }
+
+    public boolean isPatchVisit() {
+        return patchMinOmtX >= 0 && patchMinOmtY >= 0;
+    }
+
+    public int getPatchMinOmtX() {
+        return patchMinOmtX;
+    }
+
+    public int getPatchMinOmtY() {
+        return patchMinOmtY;
+    }
+
+    public int getVisitOmtX() {
+        return visitOmtX;
+    }
+
+    public int getVisitOmtY() {
+        return visitOmtY;
     }
 }

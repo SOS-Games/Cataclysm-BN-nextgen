@@ -1,0 +1,146 @@
+[
+  {
+    "type": "region_settings",
+    "id": "preview_urban",
+    "default_oter": "field",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.4,
+      "oter_forest": "forest"
+    },
+    "city": {
+      "city_size": 6,
+      "city_spacing": 10,
+      "houses": { "house_02": 100, "duplex": 50 },
+      "shops": { "s_gas_rural": 80 },
+      "parks": { "park": 60 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "preview_forest_dense",
+    "default_oter": "field",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.12,
+      "noise_threshold_forest_thick": 0.28,
+      "oter_forest": "forest",
+      "oter_forest_thick": "forest_thick"
+    },
+    "city": {
+      "city_size": 4,
+      "city_spacing": 14,
+      "houses": { "house_02": 100 },
+      "shops": { "s_gas_rural": 40 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "preview_forest_sparse",
+    "default_oter": "field",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.82,
+      "oter_forest": "forest"
+    },
+    "city": {
+      "city_size": 5,
+      "city_spacing": 12,
+      "houses": { "house_02": 100 },
+      "shops": { "s_gas_rural": 40 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "preview_lakes",
+    "default_oter": "field",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "forest"
+    },
+    "overmap_lake_settings": {
+      "noise_threshold_lake": 0.12,
+      "lake_size_min": 5,
+      "oter_lake": "lake",
+      "shore_extendable_overmap_terrain": [ "field", "forest" ]
+    },
+    "city": {
+      "city_size": 4,
+      "city_spacing": 14,
+      "houses": { "house_02": 100 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "preview_swamp",
+    "default_oter": "field",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "forest",
+      "noise_threshold_swamp_adjacent_water": 0.7,
+      "noise_threshold_swamp_isolated": 0.9,
+      "oter_swamp": "swamp",
+      "oter_beach": "beach"
+    },
+    "overmap_lake_settings": {
+      "noise_threshold_lake": 0.15,
+      "lake_size_min": 4,
+      "oter_lake": "lake",
+      "shore_extendable_overmap_terrain": [ "field", "forest" ]
+    },
+    "city": {
+      "city_size": 4,
+      "city_spacing": 14,
+      "houses": { "house_02": 100 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "forest_trails",
+    "default_oter": "field",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.2,
+      "noise_threshold_forest_thick": 0.38,
+      "oter_forest": "forest",
+      "oter_forest_thick": "forest_thick"
+    },
+    "forest_trail_settings": {
+      "chance": 1,
+      "border_point_chance": 1,
+      "minimum_forest_size": 30,
+      "random_point_min": 3,
+      "random_point_max": 12,
+      "random_point_size_scalar": 80,
+      "trailhead_chance": 2,
+      "trailhead_road_distance": 6,
+      "trailheads": {
+        "trailhead_basic": 1,
+        "trailhead_outhouse": 1,
+        "trailhead_shack": 1
+      }
+    },
+    "city": {
+      "city_size": 4,
+      "city_spacing": 14,
+      "houses": { "house_02": 100 },
+      "shops": { "s_gas_rural": 40 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "underground_networks",
+    "default_oter": "field",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "forest"
+    },
+    "city": {
+      "city_size": 5,
+      "city_spacing": 10,
+      "houses": { "house_02": 100, "duplex": 50 },
+      "shops": { "s_gas_rural": 60 }
+    },
+    "underground_network_settings": {
+      "subways": true,
+      "rails": true,
+      "sewers": true
+    }
+  }
+]

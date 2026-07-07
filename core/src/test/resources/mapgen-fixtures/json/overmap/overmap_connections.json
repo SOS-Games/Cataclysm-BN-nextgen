@@ -19,5 +19,37 @@
       { "terrain": "test_road_ns" },
       { "terrain": "test_road_ew" }
     ]
+  },
+  {
+    "type": "overmap_connection",
+    "id": "test_forest_trail",
+    "default_terrain": "test_forest_trail",
+    "subtypes": [
+      { "terrain": "test_forest_trail", "locations": [ "test_field", "test_forest_thick" ] }
+    ]
+  },
+  {
+    "type": "overmap_connection",
+    "id": "test_subway_tunnel",
+    "default_terrain": "test_subway",
+    "subtypes": [
+      { "terrain": "test_subway", "locations": [ "test_field" ] }
+    ]
+  },
+  {
+    "type": "overmap_connection",
+    "id": "test_sewer_tunnel",
+    "default_terrain": "test_sewer",
+    "subtypes": [
+      { "terrain": "test_sewer", "locations": [ "test_field" ] }
+    ]
+  },
+  {
+    "type": "overmap_connection",
+    "id": "test_local_railroad",
+    "default_terrain": "test_railroad",
+    "subtypes": [
+      { "terrain": "test_railroad", "locations": [ "test_field" ] }
+    ]
   }
 ]

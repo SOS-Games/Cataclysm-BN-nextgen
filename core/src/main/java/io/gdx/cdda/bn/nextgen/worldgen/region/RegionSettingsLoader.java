@@ -86,20 +86,60 @@ public final class RegionSettingsLoader {
         final OvermapForestSettings forestSettings = parseForestSettings(root.get("overmap_forest_settings"));
         final OvermapLakeSettings lakeSettings = parseLakeSettings(root.get("overmap_lake_settings"));
         final JsonValue cityRoot = root.get("city");
-        final Map<String, Integer> cityHouseWeights = parseCityHouseWeights(cityRoot);
+        final CityContentWeights cityContentWeights = parseCityContentWeights(cityRoot);
         final CitySizeSettings citySizeSettings = parseCitySizeSettings(cityRoot);
         final OvermapSpecialSettings specialSettings = parseSpecialSettings(root.get("overmap_special_settings"));
         final OvermapTerrainSettings terrainSettings = parseTerrainSettings(root.get("overmap_forest_settings"));
+        final ForestTrailSettings forestTrailSettings = parseForestTrailSettings(root.get("forest_trail_settings"));
+        final UndergroundNetworkSettings undergroundNetworkSettings = parseUndergroundNetworkSettings(
+            root.get("underground_network_settings")
+        );
         return java.util.Optional.of(new RegionSettingsDefinition(
             id,
             defaultOter,
             forestSettings,
             lakeSettings,
-            cityHouseWeights,
+            cityContentWeights,
             citySizeSettings,
             specialSettings,
-            terrainSettings
+            terrainSettings,
+            forestTrailSettings,
+            undergroundNetworkSettings
         ));
+    }
+
+    private static UndergroundNetworkSettings parseUndergroundNetworkSettings(final JsonValue undergroundRoot) {
+        if (undergroundRoot == null || !undergroundRoot.isObject()) {
+            return UndergroundNetworkSettings.disabled();
+        }
+        final boolean subways = undergroundRoot.getBoolean("subways", false);
+        final boolean rails = undergroundRoot.getBoolean("rails", false);
+        final boolean sewers = undergroundRoot.getBoolean("sewers", false);
+        if (!subways && !rails && !sewers) {
+            return UndergroundNetworkSettings.disabled();
+        }
+        return new UndergroundNetworkSettings(subways, rails, sewers);
+    }
+
+    private static ForestTrailSettings parseForestTrailSettings(final JsonValue trailRoot) {
+        if (trailRoot == null || !trailRoot.isObject()) {
+            return ForestTrailSettings.disabled();
+        }
+        final int chance = trailRoot.getInt("chance", 0);
+        if (chance <= 0) {
+            return ForestTrailSettings.disabled();
+        }
+        return new ForestTrailSettings(
+            chance,
+            trailRoot.getInt("border_point_chance", 2),
+            trailRoot.getInt("minimum_forest_size", 50),
+            trailRoot.getInt("random_point_min", 4),
+            trailRoot.getInt("random_point_max", 50),
+            trailRoot.getInt("random_point_size_scalar", 100),
+            trailRoot.getInt("trailhead_chance", 1),
+            trailRoot.getInt("trailhead_road_distance", 6),
+            parseWeightMap(trailRoot.get("trailheads"))
+        );
     }
 
     private static OvermapSpecialSettings parseSpecialSettings(final JsonValue specialRoot) {
@@ -125,12 +165,9 @@ public final class RegionSettingsLoader {
         if (cityRoot == null || !cityRoot.isObject()) {
             return CitySizeSettings.disabled();
         }
-        final int citySize = cityRoot.getInt("city_size", 0);
-        final int citySpacing = cityRoot.getInt("city_spacing", 0);
+        final int citySize = cityRoot.getInt("city_size", CitySizeSettings.USE_WORLD_OPTION);
+        final int citySpacing = cityRoot.getInt("city_spacing", CitySizeSettings.USE_WORLD_OPTION);
         final boolean cityIsolated = cityRoot.getBoolean("city_isolated", false);
-        if (citySize <= 0 && citySpacing <= 0 && !cityIsolated) {
-            return CitySizeSettings.disabled();
-        }
         return new CitySizeSettings(citySize, citySpacing, cityIsolated);
     }
 
@@ -182,16 +219,24 @@ public final class RegionSettingsLoader {
         return new OvermapForestSettings(forest, thick, forestOter, thickOter);
     }
 
-    private static Map<String, Integer> parseCityHouseWeights(final JsonValue cityRoot) {
+    private static CityContentWeights parseCityContentWeights(final JsonValue cityRoot) {
         if (cityRoot == null || !cityRoot.isObject()) {
-            return Collections.emptyMap();
+            return CityContentWeights.empty();
         }
-        final JsonValue houses = cityRoot.get("houses");
-        if (houses == null || !houses.isObject()) {
+        return new CityContentWeights(
+            parseWeightMap(cityRoot.get("houses")),
+            parseWeightMap(cityRoot.get("shops")),
+            parseWeightMap(cityRoot.get("parks")),
+            parseWeightMap(cityRoot.get("finales"))
+        );
+    }
+
+    private static Map<String, Integer> parseWeightMap(final JsonValue weightsRoot) {
+        if (weightsRoot == null || !weightsRoot.isObject()) {
             return Collections.emptyMap();
         }
         final Map<String, Integer> weights = new LinkedHashMap<>();
-        for (JsonValue member = houses.child; member != null; member = member.next) {
+        for (JsonValue member = weightsRoot.child; member != null; member = member.next) {
             if (member.name == null || member.name.isEmpty() || !member.isNumber()) {
                 continue;
             }

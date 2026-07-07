@@ -74,7 +74,7 @@ Specs: **`docs/mapgen-preview/`**. BN JSON mapgen → `MapGrid` (single-building
 
 **PR slices:** P1–P7c + v2 P8–P15 done. Units [14–21](docs/mapgen-preview/14-mod-scan-paths.md).
 
-### World generation (planned)
+### World generation (in progress)
 
 Specs: **`docs/worldgen/`**. Overmap grid + visit-tile submaps; reuses `JsonMapgenRunner`.
 
@@ -82,11 +82,12 @@ Specs: **`docs/worldgen/`**. Overmap grid + visit-tile submaps; reuses `JsonMapg
 | --- | --- |
 | Guide | `docs/WORLDGEN.md` |
 | Spec index | `docs/worldgen/README.md` |
-| Plan | `docs/worldgen/implementation-plan.md` (W1–W6) · `docs/worldgen/v2-implementation-plan.md` (W7–W11) |
+| Plans | W1–W6 · W7–W11 · W13–W16 (v3) · **W17 Tier A (v4)** |
 
-**PR slices:** W1–W6 done (overmap_terrain → mini-overmap → visit → cities → rivers → mutable specials).
-**Next:** W7 building-aware visit — [13-building-aware-visit](docs/worldgen/13-building-aware-visit.md).
-Parallel: [08–11](docs/worldgen/08-mapgen-post-v2-polish.md).
+**Done:** W1–W14 (through layout parity phase 2 + visit fidelity). **W17a–f** Tier A layout
+done. **Next:** W15 exploration or Tier B polish.
+CDDA gaps: [23–25](docs/worldgen/23-cdda-parity-overview.md). v4 plan:
+[docs/worldgen/v4-implementation-plan.md](docs/worldgen/v4-implementation-plan.md).
 
 | Docs index | `docs/README.md` |
 
@@ -168,7 +169,8 @@ gradlew.bat test
 
 **Mapgen preview:** P1–P7c + v2 P8–P15 done — `docs/mapgen-preview/v2-implementation-plan.md`.
 
-**World generation:** W1–W6 done — `docs/worldgen/implementation-plan.md`. **W7–W11:** `docs/worldgen/v2-implementation-plan.md` (start with W7).
+**World generation:** W1–W14 done. **W15** exploration — `docs/worldgen/v3-implementation-plan.md`.
+**W17** Tier A layout — `docs/worldgen/v4-implementation-plan.md` (**W17a–f** done).
 
 **Loading:** use `TilesetLoadSession` for UI; never `TilesetLoader.load` on a worker thread
 (see `docs/INCREMENTAL_LOADING.md`).

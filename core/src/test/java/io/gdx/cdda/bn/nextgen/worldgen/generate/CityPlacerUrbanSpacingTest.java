@@ -1,5 +1,6 @@
 package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
+import io.gdx.cdda.bn.nextgen.worldgen.WorldgenWorldOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.region.CitySizeSettings;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoader;
@@ -19,7 +20,8 @@ class CityPlacerUrbanSpacingTest {
             io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions.fromDataRoot(
                 io.gdx.cdda.bn.nextgen.worldgen.WorldgenTestFixtures.fixtureDataRoot()
             )
-        ).getRegistry().find("sparse_cities").orElseThrow().getCitySizeSettings();
+        ).getRegistry().find("sparse_cities").orElseThrow().getCitySizeSettings()
+            .resolve(WorldgenWorldOptions.bnDefaults());
 
         final OvermapGrid grid = new OvermapGrid(64, 64, "open_air");
         final List<int[]> sites = CitySitePicker.pickSites(

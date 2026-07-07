@@ -47,11 +47,14 @@ Per OMT cell `(omtX, omtY)`:
 
 ```text
 id ← overmapGrid.getOmtId(omtX, omtY)
-def ← overmapTerrainRegistry.find(id)
-if def.hasSymbol():
-    draw char + color from OvermapTerrainDefinition
+if tileset loaded and OvermapOmtSpriteResolver finds art for id:
+    draw tileset sprite (strip _north/_east/… suffix + rotation when needed)
 else:
-    draw colored rect from type hash
+    def ← overmapTerrainRegistry.find(id)
+    if def.hasSymbol():
+        draw char + color from OvermapTerrainDefinition
+    else:
+        draw colored rect from type hash
 if selected:
     highlight border
 ```
@@ -93,7 +96,8 @@ Enter → generate submap
 ## Relationship to R1 / R2
 
 Submap view after visit uses normal tile rendering with multitile + looks_like. Overmap mode
-does **not** use tileset terrain sprites for OMT cells (uses overmap sym/color).
+uses the **same loaded tileset** when an OMT id has drawable art (BN `use_tiles_overmap`
+parity); otherwise falls back to overmap sym/color from W1.
 
 ---
 

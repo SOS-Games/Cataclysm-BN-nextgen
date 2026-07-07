@@ -4,7 +4,7 @@ Procedural **overmap layout** and **on-demand submap generation** for Cataclysm-
 This is a **separate track** from [mapgen preview](./MAPGEN_PREVIEW.md) (single-building import).
 
 **Spec index:** [`docs/worldgen/`](./worldgen/README.md)  
-**Plan:** [`worldgen/implementation-plan.md`](./worldgen/implementation-plan.md) (W1–W6) · [`worldgen/v2-implementation-plan.md`](./worldgen/v2-implementation-plan.md) (W7–W11) · [`worldgen/v3-implementation-plan.md`](./worldgen/v3-implementation-plan.md) (W13–W16)
+**Plan:** [`worldgen/implementation-plan.md`](./worldgen/implementation-plan.md) (W1–W6) · [`worldgen/v2-implementation-plan.md`](./worldgen/v2-implementation-plan.md) (W7–W11) · [`worldgen/v3-implementation-plan.md`](./worldgen/v3-implementation-plan.md) (W13–W16) · [`worldgen/v4-implementation-plan.md`](./worldgen/v4-implementation-plan.md) (W17 Tier A)
 
 ---
 
@@ -85,6 +85,21 @@ Detail: [01-overview-and-scope](./worldgen/01-overview-and-scope.md).
 **Start v3 with W13** (stitch audit) or **W14** (region layout) in parallel; **W15** after visit trust is acceptable. **W16** waits until W15 session model exists.
 
 **CDDA parity inventory (post–W14):** [23](./worldgen/23-cdda-parity-overview.md) · [24](./worldgen/24-cdda-layout-gaps.md) · [25](./worldgen/25-cdda-region-visit-world-gaps.md)
+
+---
+
+## Milestones v4 (W17 — Tier A layout)
+
+| PR | Focus | Unit doc |
+| --- | --- | --- |
+| **W17a** | Urban OMT fill (shops, parks, houses, finales) | [26](./worldgen/26-tier-a-urban-layout.md) |
+| **W17b** | In-city local road grid | [26](./worldgen/26-tier-a-urban-layout.md) |
+| **W17c** | Inter-city highways + generate reorder | [26](./worldgen/26-tier-a-urban-layout.md) |
+| **W17d–f** | Hydrology, trails, underground (optional) | [26](./worldgen/26-tier-a-urban-layout.md) |
+
+**Roadmap:** [27-world-map-v4-roadmap](./worldgen/27-world-map-v4-roadmap.md) · **Plan:** [v4-implementation-plan](./worldgen/v4-implementation-plan.md)
+
+**Start v4 with W17a** — parse `city.shops`/`parks`/`finales` and fill urban blobs. W15/W16 can run in parallel.
 
 ---
 

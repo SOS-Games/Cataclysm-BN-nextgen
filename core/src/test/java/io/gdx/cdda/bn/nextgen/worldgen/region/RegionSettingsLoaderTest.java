@@ -34,5 +34,20 @@ class RegionSettingsLoaderTest {
         final RegionSettingsDefinition sparseCities = result.getRegistry().find("sparse_cities").orElseThrow();
         assertEquals(12, sparseCities.getCitySizeSettings().getCitySpacing());
         assertEquals(3, sparseCities.getCitySizeSettings().getCitySize());
+
+        final RegionSettingsDefinition urbanHeavy = result.getRegistry().find("urban_heavy").orElseThrow();
+        assertEquals(80, urbanHeavy.getCityContentWeights().getShops().get("test_shop").intValue());
+        assertEquals(60, urbanHeavy.getCityContentWeights().getParks().get("test_park").intValue());
+        assertEquals(10, urbanHeavy.getCityContentWeights().getFinales().get("test_finale").intValue());
+
+        final RegionSettingsDefinition forestTrails = result.getRegistry().find("forest_trails").orElseThrow();
+        assertTrue(forestTrails.getForestTrailSettings().isEnabled());
+        assertEquals(20, forestTrails.getForestTrailSettings().getMinimumForestSize());
+        assertEquals(1, forestTrails.getForestTrailSettings().getTrailheads().get("test_trailhead").intValue());
+
+        final RegionSettingsDefinition underground = result.getRegistry().find("underground_networks").orElseThrow();
+        assertTrue(underground.getUndergroundNetworkSettings().isEnabled());
+        assertTrue(underground.getUndergroundNetworkSettings().isSubwaysEnabled());
+        assertTrue(underground.getUndergroundNetworkSettings().isSewersEnabled());
     }
 }

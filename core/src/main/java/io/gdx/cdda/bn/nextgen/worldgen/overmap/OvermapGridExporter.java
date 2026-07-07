@@ -35,7 +35,11 @@ public final class OvermapGridExporter {
             out.append("    \"staticSpecials\": ").append(stats.getStaticSpecialsPlaced()).append(",\n");
             out.append("    \"mutableSpecials\": ").append(stats.getMutableSpecialsPlaced()).append(",\n");
             out.append("    \"riverCells\": ").append(stats.getRiverCellsCarved()).append(",\n");
-            out.append("    \"roadCells\": ").append(stats.getRoadCellsPlaced()).append("\n");
+            out.append("    \"roadCells\": ").append(stats.getRoadCellsPlaced()).append(",\n");
+            out.append("    \"urbanOmts\": ").append(stats.getUrbanOmtsPlaced()).append(",\n");
+            out.append("    \"localRoadCells\": ").append(stats.getLocalRoadCellsPlaced()).append(",\n");
+            out.append("    \"forestTrailCells\": ").append(stats.getForestTrailCellsPlaced()).append(",\n");
+            out.append("    \"undergroundCells\": ").append(stats.getUndergroundCellsPlaced()).append("\n");
             out.append("  },\n");
         }
         out.append("  \"rows\": [\n");

@@ -5,11 +5,13 @@ import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
-/** Connects placed city/special sites with road OMT ids (W5 v1, W11c directional). */
+/** Connects placed city/special sites with road OMT ids (W5 v1, W11c directional, W17c cities). */
 public final class HighwayGenerator {
 
     private HighwayGenerator() {}
@@ -24,6 +26,55 @@ public final class HighwayGenerator {
         final List<String> warnings
     ) {
         if (grid == null || options == null || !options.isRoadsEnabled() || sites == null || sites.size() < 2) {
+            return 0;
+        }
+        final List<int[]> pairs = new ArrayList<>();
+        for (int i = 0; i < sites.size() - 1; i++) {
+            pairs.add(sites.get(i));
+            pairs.add(sites.get(i + 1));
+        }
+        return paintCenterPairs(grid, pairs, connections, options, registry, rng, warnings);
+    }
+
+    /** Inter-city highways using urban blob centers only (W17c). */
+    public static int connectCities(
+        final OvermapGrid grid,
+        final List<UrbanSite> urbanSites,
+        final OvermapConnectionRegistry connections,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry,
+        final Random rng,
+        final List<String> warnings
+    ) {
+        if (grid == null || options == null || !options.isRoadsEnabled() || urbanSites == null || urbanSites.size() < 2) {
+            return 0;
+        }
+        final List<int[]> centers = new ArrayList<>(urbanSites.size());
+        for (final UrbanSite site : urbanSites) {
+            centers.add(site.center());
+        }
+        centers.sort(Comparator.comparingInt((final int[] c) -> c[0]).thenComparingInt(c -> c[1]));
+        return paintCenterPairs(
+            grid,
+            minimumSpanningTreePairs(centers),
+            connections,
+            options,
+            registry,
+            rng,
+            warnings
+        );
+    }
+
+    private static int paintCenterPairs(
+        final OvermapGrid grid,
+        final List<int[]> endpointPairs,
+        final OvermapConnectionRegistry connections,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry,
+        final Random rng,
+        final List<String> warnings
+    ) {
+        if (endpointPairs == null || endpointPairs.size() < 2) {
             return 0;
         }
         final OvermapConnectionDefinition connection = resolveConnection(connections, options, warnings);
@@ -56,9 +107,9 @@ public final class HighwayGenerator {
         }
 
         int painted = 0;
-        for (int i = 0; i < sites.size() - 1; i++) {
-            final int[] from = sites.get(i);
-            final int[] to = sites.get(i + 1);
+        for (int i = 0; i < endpointPairs.size(); i += 2) {
+            final int[] from = endpointPairs.get(i);
+            final int[] to = endpointPairs.get(i + 1);
             final List<int[]> path = OrthogonalPathCarver.buildPath(from[0], from[1], to[0], to[1], rng);
             painted += OrthogonalPathCarver.paintDirectionalPath(
                 grid,
@@ -71,6 +122,47 @@ public final class HighwayGenerator {
             );
         }
         return painted;
+    }
+
+    private static List<int[]> minimumSpanningTreePairs(final List<int[]> centers) {
+        if (centers.size() < 2) {
+            return Collections.emptyList();
+        }
+        final boolean[] inTree = new boolean[centers.size()];
+        inTree[0] = true;
+        final List<int[]> pairs = new ArrayList<>();
+        for (int added = 1; added < centers.size(); added++) {
+            int bestFrom = -1;
+            int bestTo = -1;
+            int bestDistance = Integer.MAX_VALUE;
+            for (int from = 0; from < centers.size(); from++) {
+                if (!inTree[from]) {
+                    continue;
+                }
+                for (int to = 0; to < centers.size(); to++) {
+                    if (inTree[to]) {
+                        continue;
+                    }
+                    final int distance = manhattanDistance(centers.get(from), centers.get(to));
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        bestFrom = from;
+                        bestTo = to;
+                    }
+                }
+            }
+            if (bestFrom < 0 || bestTo < 0) {
+                break;
+            }
+            pairs.add(centers.get(bestFrom));
+            pairs.add(centers.get(bestTo));
+            inTree[bestTo] = true;
+        }
+        return pairs;
+    }
+
+    private static int manhattanDistance(final int[] from, final int[] to) {
+        return Math.abs(from[0] - to[0]) + Math.abs(from[1] - to[1]);
     }
 
     private static boolean hasAnySubtype(

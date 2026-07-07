@@ -129,6 +129,8 @@ Highest impact for overmap screenshots.
 
 See [24](./24-cdda-layout-gaps.md) for per-feature tables.
 
+**Formal plan:** [27-world-map-v4-roadmap](./27-world-map-v4-roadmap.md) · [26-tier-a-urban-layout](./26-tier-a-urban-layout.md) · [v4-implementation-plan](./v4-implementation-plan.md) (W17a–c P0).
+
 ### Tier B — “Feels like CDDA” (visit)
 
 | Item | BN | Priority |

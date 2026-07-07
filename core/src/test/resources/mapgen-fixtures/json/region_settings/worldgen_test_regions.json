@@ -89,5 +89,82 @@
       "oter_lake": "test_lake",
       "shore_extendable_overmap_terrain": [ "test_field", "open_air" ]
     }
+  },
+  {
+    "type": "region_settings",
+    "id": "urban_heavy",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
+    },
+    "city": {
+      "city_size": 4,
+      "city_spacing": 16,
+      "houses": { "test_urban_house": 100 },
+      "shops": { "test_shop": 80 },
+      "parks": { "test_park": 60 },
+      "finales": { "test_finale": 10 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "bn_default_city",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
+    },
+    "city": {
+      "houses": { "test_urban_house": 100 },
+      "shops": { "test_shop": 80 },
+      "parks": { "test_park": 60 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "forest_trails",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
+    },
+    "forest_trail_settings": {
+      "chance": 1,
+      "border_point_chance": 1,
+      "minimum_forest_size": 20,
+      "random_point_min": 2,
+      "random_point_max": 8,
+      "random_point_size_scalar": 10,
+      "trailhead_chance": 1,
+      "trailhead_road_distance": 4,
+      "trailheads": { "test_trailhead": 1 }
+    },
+    "city": {
+      "city_size": 4,
+      "city_spacing": 14,
+      "houses": { "test_urban_house": 100 },
+      "shops": { "test_shop": 40 }
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "underground_networks",
+    "default_oter": "open_air",
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
+    },
+    "city": {
+      "city_size": 4,
+      "city_spacing": 16,
+      "houses": { "test_urban_house": 100 },
+      "shops": { "test_shop": 40 }
+    },
+    "underground_network_settings": {
+      "subways": true,
+      "rails": true,
+      "sewers": true
+    }
   }
 ]

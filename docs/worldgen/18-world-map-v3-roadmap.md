@@ -36,6 +36,9 @@ Gap inventory: [12-v2-parity-roadmap](./12-v2-parity-roadmap.md).
 **Post–W14 CDDA parity (why maps still look unlike BN):** [23](./23-cdda-parity-overview.md) ·
 [24](./24-cdda-layout-gaps.md) · [25](./25-cdda-region-visit-world-gaps.md).
 
+**v4 Tier A (formal):** [27](./27-world-map-v4-roadmap.md) · [26](./26-tier-a-urban-layout.md) ·
+[v4-implementation-plan](./v4-implementation-plan.md).
+
 ---
 
 ## v3 themes (priority order)

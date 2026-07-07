@@ -24,7 +24,6 @@ import io.gdx.cdda.bn.nextgen.worldgen.visit.ZLevelResolver;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -169,6 +168,45 @@ public final class SubmapGenerator {
             }
         }
 
+        return OmtNeighborhoodStitcher.stitch(
+            overmap,
+            omtX,
+            omtY,
+            z,
+            worldSeed,
+            cache,
+            volumeCache,
+            placementIndex,
+            mapgenPreviewService,
+            oterRegistry,
+            gameData,
+            mutableSpecials,
+            connectionRegistry,
+            OmtNeighborhoodStitcher.DEFAULT_RADIUS
+        );
+    }
+
+    static VisitResult visitSingleCell(
+        final OvermapGrid overmap,
+        final int omtX,
+        final int omtY,
+        final int z,
+        final long worldSeed,
+        final SubmapCache cache,
+        final PlacedBuildingIndex placementIndex,
+        final MapgenPreviewService mapgenPreviewService,
+        final OvermapTerrainRegistry oterRegistry,
+        final LoadedGameData gameData,
+        final MutableSpecialRegistry mutableSpecials,
+        final OvermapConnectionRegistry connectionRegistry
+    ) {
+        final String omtId;
+        try {
+            omtId = overmap.getOmtId(omtX, omtY);
+        } catch (final IndexOutOfBoundsException e) {
+            return emptyResult("", Collections.singletonList("OMT out of bounds: (" + omtX + "," + omtY + ")"));
+        }
+
         final SubmapKey key = new SubmapKey(worldSeed, omtX, omtY, z);
         if (cache != null) {
             final Optional<MapGrid> cached = cache.get(key);
@@ -189,9 +227,28 @@ public final class SubmapGenerator {
             warnings
         );
         if (!definition.isPresent()) {
+            final Optional<MapGrid> background = BackgroundOmtSubmapBuilder.buildIfSupported(
+                overmap,
+                omtX,
+                omtY,
+                omtId,
+                previewSeed,
+                connectionRegistry,
+                oterRegistry
+            );
+            if (background.isPresent()) {
+                final MapGrid grid = background.get();
+                if (cache != null) {
+                    cache.put(key, grid);
+                }
+                return new VisitResult(grid, warnings, false, omtId);
+            }
             return new VisitResult(null, warnings, false, omtId);
         }
 
+        final Optional<PlacedBuildingRecord> placement = placementIndex == null
+            ? Optional.empty()
+            : placementIndex.findAt(omtX, omtY);
         final JoinContext joinContext = resolveJoinContext(
             overmap,
             omtX,
@@ -221,7 +278,7 @@ public final class SubmapGenerator {
         return new VisitResult(grid, warnings, generated.getSpawnMarkers(), false, omtId);
     }
 
-    private static VisitResult visitPlacedBuilding(
+    static VisitResult visitPlacedBuilding(
         final OvermapGrid overmap,
         final int omtX,
         final int omtY,
@@ -311,7 +368,9 @@ public final class SubmapGenerator {
             building,
             built.getSpawnMarkersByZ(),
             cached,
-            omtId
+            omtId,
+            omtX,
+            omtY
         );
     }
 
@@ -390,32 +449,6 @@ public final class SubmapGenerator {
         final JsonMapgenRunOptions resolved = options
             .withOmtRotation(MapGridRotator.rotationFromOmSuffix(omtId));
         return Optional.of(mapgenPreviewService.generate(definition.get(), gameData, resolved));
-    }
-
-    private static Map<String, String> collectNeighborsByDirection(
-        final OvermapGrid overmap,
-        final int omtX,
-        final int omtY
-    ) {
-        final Map<String, String> neighbors = new HashMap<>();
-        putNeighborIfPresent(overmap, omtX, omtY - 1, "north", neighbors);
-        putNeighborIfPresent(overmap, omtX + 1, omtY, "east", neighbors);
-        putNeighborIfPresent(overmap, omtX, omtY + 1, "south", neighbors);
-        putNeighborIfPresent(overmap, omtX - 1, omtY, "west", neighbors);
-        return neighbors;
-    }
-
-    private static void putNeighborIfPresent(
-        final OvermapGrid overmap,
-        final int x,
-        final int y,
-        final String direction,
-        final Map<String, String> neighbors
-    ) {
-        if (x < 0 || y < 0 || x >= overmap.width() || y >= overmap.height()) {
-            return;
-        }
-        neighbors.put(direction, overmap.getOmtId(x, y));
     }
 
     private static VisitResult emptyResult(final String omtId, final List<String> warnings) {
