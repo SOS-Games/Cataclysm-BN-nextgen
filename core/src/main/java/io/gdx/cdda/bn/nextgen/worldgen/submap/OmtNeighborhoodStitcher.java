@@ -13,6 +13,7 @@ import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingIndex;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
 import io.gdx.cdda.bn.nextgen.worldgen.visit.VolumeCache;
 import io.gdx.cdda.bn.nextgen.worldgen.visit.VolumeCacheKey;
@@ -45,6 +46,7 @@ public final class OmtNeighborhoodStitcher {
         final LoadedGameData gameData,
         final MutableSpecialRegistry mutableSpecials,
         final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region,
         final int radius
     ) {
         if (overmap == null) {
@@ -110,7 +112,8 @@ public final class OmtNeighborhoodStitcher {
                     gameData,
                     anchorOmtId,
                     mutableSpecials,
-                    connectionRegistry
+                    connectionRegistry,
+                    region
                 );
                 warnings.addAll(buildingVisit.getWarnings());
                 if (!buildingVisit.hasGrid()) {
@@ -145,7 +148,8 @@ public final class OmtNeighborhoodStitcher {
                     oterRegistry,
                     gameData,
                     mutableSpecials,
-                    connectionRegistry
+                    connectionRegistry,
+                    region
                 );
                 warnings.addAll(cellVisit.getWarnings());
                 if (!cellVisit.hasGrid()) {
@@ -163,6 +167,16 @@ public final class OmtNeighborhoodStitcher {
         if (!anyContent) {
             return emptyResult(centerOmtId, warnings);
         }
+
+        final String regionId = region == null ? "default" : region.getId();
+        final long previewSeed = SubmapSeed.mix(worldSeed, new SubmapKey(worldSeed, centerOmtX, centerOmtY, z));
+        VisitRegionalResolver.applyToGrid(
+            canvas,
+            mapgenPreviewService.getRegionContext(),
+            regionId,
+            previewSeed,
+            warnings
+        );
 
         return VisitResult.forPatch(
             canvas,

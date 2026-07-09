@@ -8,6 +8,7 @@ import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateResult;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerator;
+import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapNeighborGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoadResult;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoader;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
@@ -19,6 +20,7 @@ import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingIndex;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoadResult;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoader;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapCache;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapGenerator;
@@ -51,6 +53,9 @@ public final class WorldgenPreviewService {
     private String regionId = "default";
     private WorldgenWorldOptions worldOptions = WorldgenWorldOptions.bnDefaults();
     private boolean loaded;
+    private OvermapNeighborGrid neighborGrid;
+    private int neighborGridWidth;
+    private int neighborGridHeight;
 
     public boolean hasDataRoots() {
         return !WorldgenScanOptions.defaults().getDataRoots().isEmpty();
@@ -92,6 +97,7 @@ public final class WorldgenPreviewService {
         this.worldSeed = worldSeed;
         submapCache.clear();
         volumeCache.clear();
+        clearNeighborGrid();
     }
 
     public WorldgenWorldOptions getWorldOptions() {
@@ -114,6 +120,7 @@ public final class WorldgenPreviewService {
         this.regionId = next;
         submapCache.clear();
         volumeCache.clear();
+        clearNeighborGrid();
     }
 
     public void setGameData(final LoadedGameData gameData) {
@@ -224,9 +231,79 @@ public final class WorldgenPreviewService {
         return result;
     }
 
+    /** Generate one overmap tile with west/north neighbor hydrology stitch (W16). */
+    public OvermapGenerateResult generateOvermapAt(final int omX, final int omY, final int width, final int height) {
+        if (!isLoaded()) {
+            return new OvermapGenerateResult(
+                OvermapGridFactory.empty(width, height, defaultFillId()),
+                Collections.singletonList("worldgen not loaded"),
+                0,
+                0
+            );
+        }
+        final OvermapGenerateOptions resolved = resolveGenerateOptions(
+            OvermapGenerateOptions.forSize(width, height)
+                .withWorldOptions(worldOptions)
+                .withRegionId(regionId)
+        );
+        submapCache.clear();
+        volumeCache.clear();
+        final OvermapNeighborGrid grid = ensureNeighborGrid(resolved);
+        final OvermapGenerateResult result = grid.getOrGenerate(omX, omY);
+        placementIndex = result.getPlacementIndex();
+        return result;
+    }
+
+    /** Generate a rectangular batch with cross-tile hydrology stitch and repolish (W16). */
+    public List<OvermapGenerateResult> generateOvermapBatch(
+        final int originOmX,
+        final int originOmY,
+        final int tilesX,
+        final int tilesY,
+        final int width,
+        final int height
+    ) {
+        if (!isLoaded()) {
+            return Collections.emptyList();
+        }
+        final OvermapGenerateOptions resolved = resolveGenerateOptions(
+            OvermapGenerateOptions.forSize(width, height)
+                .withWorldOptions(worldOptions)
+                .withRegionId(regionId)
+        );
+        submapCache.clear();
+        volumeCache.clear();
+        final OvermapNeighborGrid grid = ensureNeighborGrid(resolved);
+        return grid.generateBatch(originOmX, originOmY, tilesX, tilesY);
+    }
+
+    private OvermapNeighborGrid ensureNeighborGrid(final OvermapGenerateOptions baseOptions) {
+        if (neighborGrid == null
+            || neighborGridWidth != baseOptions.getWidth()
+            || neighborGridHeight != baseOptions.getHeight()) {
+            neighborGrid = new OvermapNeighborGrid(
+                baseOptions,
+                mapgenPreviewService.getCityBuildings(),
+                overmapTerrainRegistry,
+                overmapConnectionRegistry,
+                mutableSpecialRegistry,
+                regionSettingsRegistry
+            );
+            neighborGridWidth = baseOptions.getWidth();
+            neighborGridHeight = baseOptions.getHeight();
+        }
+        return neighborGrid;
+    }
+
+    private void clearNeighborGrid() {
+        neighborGrid = null;
+        neighborGridWidth = 0;
+        neighborGridHeight = 0;
+    }
+
     private OvermapGenerateOptions resolveGenerateOptions(final OvermapGenerateOptions options) {
         final OvermapGenerateOptions base = options == null
-            ? OvermapGenerateOptions.forSize(8, 8)
+            ? OvermapGenerateOptions.forSize(128, 128)
             : options;
         final String fieldId = resolveTerrainId(base.getFieldId(), "field");
         final String forestId = overmapTerrainRegistry.contains(base.getForestId())
@@ -312,8 +389,13 @@ public final class WorldgenPreviewService {
             overmapTerrainRegistry,
             gameData,
             mutableSpecialRegistry,
-            overmapConnectionRegistry
+            overmapConnectionRegistry,
+            resolvedRegion()
         );
+    }
+
+    private RegionSettingsDefinition resolvedRegion() {
+        return regionSettingsRegistry.resolve(regionId).orElse(null);
     }
 
     private String defaultFillId() {

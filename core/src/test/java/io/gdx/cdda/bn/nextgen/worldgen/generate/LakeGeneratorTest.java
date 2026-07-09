@@ -45,14 +45,19 @@ class LakeGeneratorTest {
         );
         assertTrue(painted >= 4, "expected lake cluster, painted=" + painted);
 
-        boolean foundLake = false;
+        boolean foundSurface = false;
+        boolean foundShore = false;
         for (int y = 0; y < grid.height(); y++) {
             for (int x = 0; x < grid.width(); x++) {
-                if ("test_lake".equals(grid.getOmtId(x, y))) {
-                    foundLake = true;
+                final String id = grid.getOmtId(x, y);
+                if ("test_lake_surface".equals(id)) {
+                    foundSurface = true;
+                }
+                if ("test_lake_shore".equals(id)) {
+                    foundShore = true;
                 }
             }
         }
-        assertTrue(foundLake);
+        assertTrue(foundSurface || foundShore, "expected lake surface or shore OMT ids");
     }
 }

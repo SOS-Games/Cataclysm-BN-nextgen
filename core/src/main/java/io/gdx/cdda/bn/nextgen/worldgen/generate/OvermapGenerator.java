@@ -90,6 +90,50 @@ public final class OvermapGenerator {
 
     ) {
 
+        return generate(
+
+            options,
+
+            buildings,
+
+            oterRegistry,
+
+            connectionRegistry,
+
+            mutableSpecials,
+
+            regionSettings,
+
+            OvermapNeighborContext.empty(),
+
+            false
+
+        );
+
+    }
+
+
+
+    public static OvermapGenerateResult generate(
+
+        final OvermapGenerateOptions options,
+
+        final CityBuildingRegistry buildings,
+
+        final OvermapTerrainRegistry oterRegistry,
+
+        final OvermapConnectionRegistry connectionRegistry,
+
+        final MutableSpecialRegistry mutableSpecials,
+
+        final RegionSettingsRegistry regionSettings,
+
+        final OvermapNeighborContext hydrologyNeighbors,
+
+        final boolean deferDirectionalPolish
+
+    ) {
+
         if (options == null) {
 
             throw new IllegalArgumentException("options is required");
@@ -122,25 +166,35 @@ public final class OvermapGenerator {
 
         if (options.isLegacyGenerationOrder()) {
 
-            riversCarved = RiverGenerator.carve(grid, options, oterRegistry, rng, warnings);
+            riversCarved = RiverGenerator.carveSimple(grid, options, region, oterRegistry, rng, warnings);
 
         } else {
 
             LakeGenerator.fill(grid, options, region, oterRegistry, rng, warnings);
 
-            riversCarved = RiverGenerator.carve(grid, options, oterRegistry, rng, warnings);
+            final OvermapNeighborContext neighbors = hydrologyNeighbors == null
+                ? OvermapNeighborContext.empty()
+                : hydrologyNeighbors;
+
+            riversCarved = RiverGenerator.carve(
+                grid, options, region, neighbors, oterRegistry, rng, warnings
+            );
 
             riversCarved += RiverGenerator.carve(
                 grid,
                 options,
+                region,
+                neighbors,
                 oterRegistry,
                 new Random(options.getSeed() ^ RiverGenerator.SECOND_PASS_SEED_XOR),
                 warnings
             );
 
+            riversCarved += LakeOutletConnector.connectAll(grid, options, region, oterRegistry, rng);
+
             riversCarved -= RiverPolisher.smooth(grid, options, oterRegistry, warnings);
 
-            ThickForestGenerator.upgrade(grid, options, region, oterRegistry, warnings);
+            ForestGenerator.placeForests(grid, options, region, oterRegistry, warnings);
 
             SwampGenerator.fill(grid, options, region, oterRegistry, rng, warnings);
 
@@ -362,6 +416,12 @@ public final class OvermapGenerator {
 
 
 
+        if (!options.isLegacyGenerationOrder() && !deferDirectionalPolish) {
+            RiverPolisher.polishDirectional(grid, options, oterRegistry, warnings, neighborsForPolish(hydrologyNeighbors));
+        }
+
+
+
         final PlacedBuildingIndex placementIndex = PlacedBuildingIndex.fromRecords(placements, warnings);
 
 
@@ -394,6 +454,12 @@ public final class OvermapGenerator {
 
         );
 
+    }
+
+
+
+    private static OvermapNeighborContext neighborsForPolish(final OvermapNeighborContext hydrologyNeighbors) {
+        return hydrologyNeighbors == null ? OvermapNeighborContext.empty() : hydrologyNeighbors;
     }
 
 

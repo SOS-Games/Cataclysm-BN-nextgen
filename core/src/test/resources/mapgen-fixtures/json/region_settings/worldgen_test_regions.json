@@ -3,6 +3,13 @@
     "type": "region_settings",
     "id": "default",
     "default_oter": "open_air",
+    "region_terrain_and_furniture": {
+      "terrain": {
+        "t_region_groundcover": { "t_grass": 1 },
+        "t_region_shrub": { "t_underbrush": 1 },
+        "t_region_tree": { "t_tree": 1 }
+      }
+    },
     "overmap_forest_settings": {
       "noise_threshold_forest": 0.35,
       "oter_forest": "test_field"
@@ -13,7 +20,7 @@
     "id": "forest_heavy",
     "default_oter": "open_air",
     "overmap_forest_settings": {
-      "noise_threshold_forest": 0.9,
+      "noise_threshold_forest": 0.05,
       "oter_forest": "test_field"
     },
     "city": {
@@ -27,8 +34,13 @@
     "type": "region_settings",
     "id": "forest_light",
     "default_oter": "open_air",
+    "display_oter": "test_field",
+    "default_groundcover": [
+      ["t_dirt", 3],
+      ["t_grass", 1]
+    ],
     "overmap_forest_settings": {
-      "noise_threshold_forest": 0.1,
+      "noise_threshold_forest": 0.5,
       "oter_forest": "test_field"
     }
   },
@@ -40,7 +52,19 @@
       "noise_threshold_lake": 0.1,
       "lake_size_min": 4,
       "oter_lake": "test_lake",
+      "oter_lake_surface": "test_lake_surface",
+      "oter_lake_shore": "test_lake_shore",
       "shore_extendable_overmap_terrain": [ "test_field", "open_air" ]
+    }
+  },
+  {
+    "type": "region_settings",
+    "id": "no_rivers",
+    "default_oter": "open_air",
+    "river_scale": 0,
+    "overmap_forest_settings": {
+      "noise_threshold_forest": 0.35,
+      "oter_forest": "test_field"
     }
   },
   {
@@ -77,7 +101,7 @@
     "default_oter": "open_air",
     "overmap_forest_settings": {
       "noise_threshold_forest": 0.35,
-      "oter_forest": "test_field",
+      "oter_forest": "test_forest_thick",
       "noise_threshold_swamp_adjacent_water": 0.85,
       "noise_threshold_swamp_isolated": 0.95,
       "oter_swamp": "test_swamp",

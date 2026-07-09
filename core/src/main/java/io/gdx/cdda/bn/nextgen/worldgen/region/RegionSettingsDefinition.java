@@ -8,6 +8,8 @@ public final class RegionSettingsDefinition {
 
     private final String id;
     private final String defaultOter;
+    private final String displayOter;
+    private final RegionGroundcoverSettings defaultGroundcover;
     private final OvermapForestSettings forestSettings;
     private final OvermapLakeSettings lakeSettings;
     private final CityContentWeights cityContentWeights;
@@ -16,6 +18,7 @@ public final class RegionSettingsDefinition {
     private final OvermapTerrainSettings terrainSettings;
     private final ForestTrailSettings forestTrailSettings;
     private final UndergroundNetworkSettings undergroundNetworkSettings;
+    private final double riverScale;
 
     public RegionSettingsDefinition(
         final String id,
@@ -95,8 +98,31 @@ public final class RegionSettingsDefinition {
         final ForestTrailSettings forestTrailSettings,
         final UndergroundNetworkSettings undergroundNetworkSettings
     ) {
+        this(id, defaultOter, "", RegionGroundcoverSettings.defaults(), forestSettings, lakeSettings, cityContentWeights,
+            citySizeSettings, specialSettings, terrainSettings, forestTrailSettings, undergroundNetworkSettings, 4.0);
+    }
+
+    public RegionSettingsDefinition(
+        final String id,
+        final String defaultOter,
+        final String displayOter,
+        final RegionGroundcoverSettings defaultGroundcover,
+        final OvermapForestSettings forestSettings,
+        final OvermapLakeSettings lakeSettings,
+        final CityContentWeights cityContentWeights,
+        final CitySizeSettings citySizeSettings,
+        final OvermapSpecialSettings specialSettings,
+        final OvermapTerrainSettings terrainSettings,
+        final ForestTrailSettings forestTrailSettings,
+        final UndergroundNetworkSettings undergroundNetworkSettings,
+        final double riverScale
+    ) {
         this.id = id == null ? "" : id;
         this.defaultOter = defaultOter == null || defaultOter.isEmpty() ? "field" : defaultOter;
+        this.displayOter = displayOter == null ? "" : displayOter;
+        this.defaultGroundcover = defaultGroundcover == null
+            ? RegionGroundcoverSettings.defaults()
+            : defaultGroundcover;
         this.forestSettings = forestSettings == null ? OvermapForestSettings.defaults() : forestSettings;
         this.lakeSettings = lakeSettings == null ? OvermapLakeSettings.disabled() : lakeSettings;
         this.cityContentWeights = cityContentWeights == null
@@ -111,6 +137,7 @@ public final class RegionSettingsDefinition {
         this.undergroundNetworkSettings = undergroundNetworkSettings == null
             ? UndergroundNetworkSettings.disabled()
             : undergroundNetworkSettings;
+        this.riverScale = riverScale;
     }
 
     /** Compatibility constructor for callers passing house weights only. */
@@ -142,6 +169,22 @@ public final class RegionSettingsDefinition {
 
     public String getDefaultOter() {
         return defaultOter;
+    }
+
+    public String getDisplayOter() {
+        return displayOter;
+    }
+
+    public boolean hasDisplayOter() {
+        return displayOter != null && !displayOter.isEmpty();
+    }
+
+    public RegionGroundcoverSettings getDefaultGroundcover() {
+        return defaultGroundcover;
+    }
+
+    public String getDefaultGroundcoverTerrainId() {
+        return defaultGroundcover.getDefaultTerrainId();
     }
 
     public OvermapForestSettings getForestSettings() {
@@ -182,5 +225,13 @@ public final class RegionSettingsDefinition {
 
     public UndergroundNetworkSettings getUndergroundNetworkSettings() {
         return undergroundNetworkSettings;
+    }
+
+    public double getRiverScale() {
+        return riverScale;
+    }
+
+    public boolean isRiverGenerationEnabled() {
+        return riverScale > 0.0;
     }
 }

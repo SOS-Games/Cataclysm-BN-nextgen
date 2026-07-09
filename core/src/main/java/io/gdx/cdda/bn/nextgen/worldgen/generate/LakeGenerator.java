@@ -13,7 +13,7 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 
-/** Noise-threshold lake clusters on the overmap (W11b). */
+/** Noise-threshold lake clusters on the overmap (W11b, hydrology v2 shore + river merge). */
 public final class LakeGenerator {
 
     private LakeGenerator() {}
@@ -33,13 +33,18 @@ public final class LakeGenerator {
         if (!lakeSettings.isEnabled()) {
             return 0;
         }
-        final String lakeId = OrthogonalPathCarver.resolveTerrainId(
-            lakeSettings.getLakeOterId(),
+        final String lakeSurfaceId = OrthogonalPathCarver.resolveTerrainId(
+            lakeSettings.getLakeSurfaceOterId(),
             options.getLakeId(),
             registry
         );
-        if (registry != null && !registry.contains(lakeId)) {
-            addWarning(warnings, "lake terrain '" + lakeId + "' not in registry; skipping lakes");
+        final String lakeShoreId = OrthogonalPathCarver.resolveTerrainId(
+            lakeSettings.getLakeShoreOterId(),
+            lakeSurfaceId,
+            registry
+        );
+        if (registry != null && !registry.contains(lakeSurfaceId)) {
+            addWarning(warnings, "lake terrain '" + lakeSurfaceId + "' not in registry; skipping lakes");
             return 0;
         }
 
@@ -68,13 +73,114 @@ public final class LakeGenerator {
                 if (cluster.size() < lakeSettings.getLakeSizeMin()) {
                     continue;
                 }
-                for (final int[] cell : cluster) {
-                    grid.setOmtId(cell[0], cell[1], lakeId);
-                    painted++;
-                }
+                final Set<Long> lakeSet = buildLakeSet(grid, cluster, options, registry);
+                absorbTouchingRivers(grid, cluster, lakeSet, options, registry);
+                painted += paintLakeCluster(
+                    grid,
+                    cluster,
+                    lakeSet,
+                    lakeSurfaceId,
+                    lakeShoreId,
+                    lakeSettings
+                );
             }
         }
         return painted;
+    }
+
+    private static Set<Long> buildLakeSet(
+        final OvermapGrid grid,
+        final Set<int[]> cluster,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry
+    ) {
+        final Set<Long> lakeSet = new HashSet<>();
+        for (final int[] cell : cluster) {
+            lakeSet.add(cellKey(cell[0], cell[1]));
+        }
+        for (int y = 0; y < grid.height(); y++) {
+            for (int x = 0; x < grid.width(); x++) {
+                if (HydrologyTerrainClassifier.isRiverOmt(grid.getOmtId(x, y), options, registry)) {
+                    lakeSet.add(cellKey(x, y));
+                }
+            }
+        }
+        return lakeSet;
+    }
+
+    private static void absorbTouchingRivers(
+        final OvermapGrid grid,
+        final Set<int[]> cluster,
+        final Set<Long> lakeSet,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry
+    ) {
+        for (int y = 0; y < grid.height(); y++) {
+            for (int x = 0; x < grid.width(); x++) {
+                if (!HydrologyTerrainClassifier.isRiverOmt(grid.getOmtId(x, y), options, registry)) {
+                    continue;
+                }
+                if (touchesCluster(x, y, cluster)) {
+                    lakeSet.add(cellKey(x, y));
+                    cluster.add(new int[] { x, y });
+                }
+            }
+        }
+    }
+
+    private static boolean touchesCluster(final int x, final int y, final Set<int[]> cluster) {
+        for (final int[] cell : cluster) {
+            final int dx = Math.abs(cell[0] - x);
+            final int dy = Math.abs(cell[1] - y);
+            if (dx + dy == 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int paintLakeCluster(
+        final OvermapGrid grid,
+        final Set<int[]> cluster,
+        final Set<Long> lakeSet,
+        final String lakeSurfaceId,
+        final String lakeShoreId,
+        final OvermapLakeSettings lakeSettings
+    ) {
+        int painted = 0;
+        final boolean distinctShore = lakeSettings.hasDistinctShoreAndSurface()
+            && !lakeSurfaceId.equals(lakeShoreId);
+        for (final int[] cell : cluster) {
+            final int x = cell[0];
+            final int y = cell[1];
+            final String paintId;
+            if (distinctShore && isShoreCell(x, y, lakeSet)) {
+                paintId = lakeShoreId;
+            } else {
+                paintId = lakeSurfaceId;
+            }
+            grid.setOmtId(x, y, paintId);
+            painted++;
+        }
+        return painted;
+    }
+
+    private static boolean isShoreCell(final int x, final int y, final Set<Long> lakeSet) {
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (dx == 0 && dy == 0) {
+                    continue;
+                }
+                if (!lakeSet.contains(cellKey(x + dx, y + dy))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static long cellKey(final int x, final int y) {
+        return ((long) x << 32) | (y & 0xffffffffL);
     }
 
     private static Set<int[]> floodLakeCluster(

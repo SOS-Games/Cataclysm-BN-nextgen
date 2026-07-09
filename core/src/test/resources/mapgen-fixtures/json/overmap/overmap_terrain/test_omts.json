@@ -124,7 +124,39 @@
     "name": "test lake",
     "sym": "o",
     "color": "blue",
-    "flags": [ "NO_ROTATE" ]
+    "flags": [ "NO_ROTATE", "LAKE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_lake_surface",
+    "name": "test lake surface",
+    "sym": "O",
+    "color": "blue",
+    "flags": [ "NO_ROTATE", "LAKE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_lake_shore",
+    "name": "test lake shore",
+    "sym": "o",
+    "color": "cyan",
+    "flags": [ "NO_ROTATE", "LAKE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_river_west",
+    "name": "test river west",
+    "sym": "~",
+    "color": "blue",
+    "flags": [ "NO_ROTATE", "RIVER" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_river_north",
+    "name": "test river north",
+    "sym": "~",
+    "color": "blue",
+    "flags": [ "NO_ROTATE", "RIVER" ]
   },
   {
     "type": "overmap_terrain",

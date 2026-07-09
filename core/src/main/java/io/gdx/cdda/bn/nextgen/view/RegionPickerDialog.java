@@ -9,8 +9,10 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /** Modal picker for active {@code region_settings} id (Tier B). */
@@ -27,6 +29,7 @@ public final class RegionPickerDialog {
 
     private List<String> allRegionIds = Collections.emptyList();
     private List<String> visibleRegionIds = Collections.emptyList();
+    private Map<String, String> regionSummaries = Collections.emptyMap();
     private String filterQuery = "";
     private boolean filterEditing;
     private int selectedIndex;
@@ -49,9 +52,22 @@ public final class RegionPickerDialog {
     }
 
     public void open(final List<String> regionIds, final String selectedRegionId) {
+        open(regionIds, selectedRegionId, Collections.emptyMap());
+    }
+
+    public void open(
+        final List<String> regionIds,
+        final String selectedRegionId,
+        final Map<String, String> summariesByRegionId
+    ) {
         allRegionIds = regionIds == null || regionIds.isEmpty()
             ? Collections.emptyList()
             : Collections.unmodifiableList(new ArrayList<>(regionIds));
+        if (summariesByRegionId == null || summariesByRegionId.isEmpty()) {
+            regionSummaries = Collections.emptyMap();
+        } else {
+            regionSummaries = Collections.unmodifiableMap(new LinkedHashMap<>(summariesByRegionId));
+        }
         pendingSelection = null;
         filterQuery = "";
         filterEditing = false;
@@ -220,8 +236,32 @@ public final class RegionPickerDialog {
 
         drawFilterRow(batch, font, whitePixel, layout);
         drawList(batch, font, whitePixel, layout);
+        drawSelectedSummary(batch, font, layout);
         drawButtons(batch, font, whitePixel, layout);
         font.setColor(old);
+    }
+
+    private void drawSelectedSummary(
+        final SpriteBatch batch,
+        final BitmapFont font,
+        final PanelLayout layout
+    ) {
+        if (visibleRegionIds.isEmpty()) {
+            return;
+        }
+        final String selectedRegion = visibleRegionIds.get(selectedIndex);
+        final String summary = regionSummaries.getOrDefault(selectedRegion, "no profile summary");
+        final float y = layout.buttonY + BUTTON_HEIGHT + 16;
+        font.setColor(0.82f, 0.86f, 0.92f, 1f);
+        font.draw(batch, "Selected: " + selectedRegion, layout.panelX + MARGIN, y + 16);
+        font.setColor(0.70f, 0.75f, 0.84f, 1f);
+        font.draw(
+            batch,
+            fitText(font, summary, PANEL_WIDTH - MARGIN * 2 - 8),
+            layout.panelX + MARGIN,
+            y
+        );
+        font.setColor(0.92f, 0.94f, 0.98f, 1f);
     }
 
     private void drawFilterRow(

@@ -107,7 +107,7 @@ public final class MapEditorScreen {
     private static final float OMT_BASE_CELL_PX = 24f;
     private static final float OVERMAP_SYMBOL_MIN_CELL_PX = 10f;
     private static final int[] OVERMAP_SIZE_PRESETS = { 8, 16, 32, 64, 128, 180, 256 };
-    private static final int DEFAULT_OVERMAP_SIZE = 16;
+    private static final int DEFAULT_OVERMAP_SIZE = 128;
     private static final int LARGE_OVERMAP_CONFIRM_SIZE = 180;
 
     private final SpriteBatch batch;
@@ -1282,6 +1282,9 @@ public final class MapEditorScreen {
         if (overmapGrid == null) {
             return;
         }
+        final RegionSettingsDefinition region = worldgenPreviewService.getRegionSettingsRegistry()
+            .find(overmapRegionId)
+            .orElse(null);
         final float cellPx = activeCellPixelSize();
         final VisibleCellRange visible = visibleOmtCellRange(cellPx);
         final boolean drawSymbols = cellPx >= OVERMAP_SYMBOL_MIN_CELL_PX;
@@ -1289,12 +1292,13 @@ public final class MapEditorScreen {
         for (int y = visible.firstRow; y < visible.lastRow; y++) {
             for (int x = visible.firstCol; x < visible.lastCol; x++) {
                 final String omtId = overmapGrid.getOmtId(x, y);
+                final String displayOmtId = resolveDisplayOmtId(omtId, region);
                 final float worldX = cameraX + x * cellPx;
                 final float worldY = cellBottomY(y);
-                if (drawOvermapOmtSprite(omtId, worldX, worldY, cellPx)) {
+                if (drawOvermapOmtSprite(displayOmtId, worldX, worldY, cellPx)) {
                     continue;
                 }
-                drawOvermapOmtFallback(omtId, worldX, worldY, cellPx, drawSymbols);
+                drawOvermapOmtFallback(displayOmtId, worldX, worldY, cellPx, drawSymbols);
             }
         }
     }
@@ -1834,12 +1838,28 @@ public final class MapEditorScreen {
 
     private String formatOvermapCursorCell(final int x, final int y) {
         final String omtId = overmapGrid.getOmtId(x, y);
+        final RegionSettingsDefinition region = worldgenPreviewService.getRegionSettingsRegistry()
+            .find(overmapRegionId)
+            .orElse(null);
+        final String displayOmtId = resolveDisplayOmtId(omtId, region);
         final OvermapTerrainDefinition definition = overmapTerrainRegistry.find(omtId).orElse(null);
         final String mapgenCount = definition == null
             ? "mapgens=?"
             : "mapgens=" + definition.jsonMapgenRefCount();
         final String rotatable = definition != null && definition.isRotatable() ? " rotatable" : "";
-        return "(" + x + "," + y + ") " + omtId + "  " + mapgenCount + rotatable;
+        final String displaySuffix = omtId.equals(displayOmtId) ? "" : " display=" + displayOmtId;
+        return "(" + x + "," + y + ") " + omtId + displaySuffix + "  " + mapgenCount + rotatable;
+    }
+
+    private static String resolveDisplayOmtId(final String omtId, final RegionSettingsDefinition region) {
+        if (omtId == null || omtId.isEmpty() || region == null || !region.hasDisplayOter()) {
+            return omtId;
+        }
+        if (!omtId.equals(region.getDefaultOter())) {
+            return omtId;
+        }
+        final String display = region.getDisplayOter();
+        return display == null || display.isEmpty() ? omtId : display;
     }
 
     private void copyBuildingPieceDebug() {
@@ -2354,7 +2374,14 @@ public final class MapEditorScreen {
             statusMessage = "No region_settings loaded from data/";
             return;
         }
-        regionPicker.open(regionIds, overmapRegionId);
+        final java.util.Map<String, String> summaries = new java.util.LinkedHashMap<>();
+        for (final String regionId : regionIds) {
+            final RegionSettingsDefinition region = worldgenPreviewService.getRegionSettingsRegistry()
+                .find(regionId)
+                .orElse(null);
+            summaries.put(regionId, RegionProfileSummary.describe(region));
+        }
+        regionPicker.open(regionIds, overmapRegionId, summaries);
     }
 
     private void syncOvermapRegionFromRegistry() {

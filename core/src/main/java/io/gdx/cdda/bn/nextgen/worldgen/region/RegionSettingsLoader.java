@@ -83,20 +83,28 @@ public final class RegionSettingsLoader {
             return java.util.Optional.empty();
         }
         final String defaultOter = root.getString("default_oter", "field");
-        final OvermapForestSettings forestSettings = parseForestSettings(root.get("overmap_forest_settings"));
+        final String displayOter = root.getString("display_oter", "");
+        final RegionGroundcoverSettings defaultGroundcover = RegionGroundcoverSettings.parse(
+            root.get("default_groundcover")
+        );
+        final JsonValue forestRoot = forestSettingsRoot(root);
+        final OvermapForestSettings forestSettings = parseForestSettings(forestRoot);
         final OvermapLakeSettings lakeSettings = parseLakeSettings(root.get("overmap_lake_settings"));
         final JsonValue cityRoot = root.get("city");
         final CityContentWeights cityContentWeights = parseCityContentWeights(cityRoot);
         final CitySizeSettings citySizeSettings = parseCitySizeSettings(cityRoot);
         final OvermapSpecialSettings specialSettings = parseSpecialSettings(root.get("overmap_special_settings"));
-        final OvermapTerrainSettings terrainSettings = parseTerrainSettings(root.get("overmap_forest_settings"));
+        final OvermapTerrainSettings terrainSettings = parseTerrainSettings(forestRoot);
         final ForestTrailSettings forestTrailSettings = parseForestTrailSettings(root.get("forest_trail_settings"));
         final UndergroundNetworkSettings undergroundNetworkSettings = parseUndergroundNetworkSettings(
             root.get("underground_network_settings")
         );
+        final double riverScale = root.getDouble("river_scale", 4.0);
         return java.util.Optional.of(new RegionSettingsDefinition(
             id,
             defaultOter,
+            displayOter,
+            defaultGroundcover,
             forestSettings,
             lakeSettings,
             cityContentWeights,
@@ -104,7 +112,8 @@ public final class RegionSettingsLoader {
             specialSettings,
             terrainSettings,
             forestTrailSettings,
-            undergroundNetworkSettings
+            undergroundNetworkSettings,
+            riverScale
         ));
     }
 
@@ -177,7 +186,7 @@ public final class RegionSettingsLoader {
         }
         final double swampAdjacent = forestRoot.getDouble("noise_threshold_swamp_adjacent_water", 0.0);
         final double swampIsolated = forestRoot.getDouble("noise_threshold_swamp_isolated", 0.0);
-        final String swampOter = forestRoot.getString("oter_swamp", "swamp");
+        final String swampOter = forestRoot.getString("oter_swamp", "forest_water");
         final String beachOter = forestRoot.getString("oter_beach", "beach");
         final boolean enabled = swampAdjacent > 0.0
             || swampIsolated > 0.0
@@ -196,6 +205,8 @@ public final class RegionSettingsLoader {
         final double threshold = lakeRoot.getDouble("noise_threshold_lake", 0.25);
         final int minSize = lakeRoot.getInt("lake_size_min", 20);
         final String lakeOter = lakeRoot.getString("oter_lake", "lake");
+        final String lakeSurface = lakeRoot.getString("oter_lake_surface", "");
+        final String lakeShore = lakeRoot.getString("oter_lake_shore", "");
         final List<String> shoreTerrains = new ArrayList<>();
         final JsonValue shore = lakeRoot.get("shore_extendable_overmap_terrain");
         if (shore != null && shore.isArray()) {
@@ -205,7 +216,22 @@ public final class RegionSettingsLoader {
                 }
             }
         }
-        return new OvermapLakeSettings(true, threshold, minSize, lakeOter, shoreTerrains);
+        return new OvermapLakeSettings(true, threshold, minSize, lakeOter, lakeSurface, lakeShore, shoreTerrains);
+    }
+
+    private static JsonValue forestSettingsRoot(final JsonValue regionRoot) {
+        if (regionRoot == null || !regionRoot.isObject()) {
+            return null;
+        }
+        final JsonValue settings = regionRoot.get("overmap_forest_settings");
+        if (settings != null && settings.isObject()) {
+            return settings;
+        }
+        final JsonValue forest = regionRoot.get("overmap_forest");
+        if (forest != null && forest.isObject()) {
+            return forest;
+        }
+        return null;
     }
 
     private static OvermapForestSettings parseForestSettings(final JsonValue forestRoot) {
@@ -216,7 +242,9 @@ public final class RegionSettingsLoader {
         final double thick = forestRoot.getDouble("noise_threshold_forest_thick", 0.0);
         final String forestOter = forestRoot.getString("oter_forest", "forest");
         final String thickOter = forestRoot.getString("oter_forest_thick", "forest_thick");
-        return new OvermapForestSettings(forest, thick, forestOter, thickOter);
+        final int bufferMin = forestRoot.getInt("river_floodplain_buffer_distance_min", 3);
+        final int bufferMax = forestRoot.getInt("river_floodplain_buffer_distance_max", 15);
+        return new OvermapForestSettings(forest, thick, forestOter, thickOter, bufferMin, bufferMax);
     }
 
     private static CityContentWeights parseCityContentWeights(final JsonValue cityRoot) {

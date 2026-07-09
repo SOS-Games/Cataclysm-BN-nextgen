@@ -2,9 +2,7 @@ package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
-import io.gdx.cdda.bn.nextgen.worldgen.region.OvermapForestSettings;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
-import io.gdx.cdda.bn.nextgen.worldgen.region.RegionTerrainNoise;
 
 import java.util.Random;
 
@@ -42,27 +40,10 @@ public final class BaseTerrainFiller {
         final RegionSettingsDefinition region,
         final OvermapTerrainRegistry registry
     ) {
-        final OvermapForestSettings forest = region.getForestSettings();
         final String defaultId = pickId(region.getDefaultOter(), options.getFieldId(), "field", registry);
-        final String forestId = pickId(forest.getForestOter(), options.getForestId(), "forest", registry);
-        final String thickId = pickId(forest.getForestThickOter(), forestId, forestId, registry);
-        final boolean thickEnabled = forest.hasThickForest()
-            && registry != null
-            && registry.contains(thickId)
-            && !thickId.equals(forestId);
-
         for (int y = 0; y < grid.height(); y++) {
             for (int x = 0; x < grid.width(); x++) {
-                final double noise = RegionTerrainNoise.normalized(options.getSeed(), x, y);
-                final String omtId;
-                if (noise < forest.getNoiseThresholdForest()) {
-                    omtId = forestId;
-                } else if (thickEnabled && noise < forest.getNoiseThresholdForestThick()) {
-                    omtId = thickId;
-                } else {
-                    omtId = defaultId;
-                }
-                grid.setOmtId(x, y, omtId);
+                grid.setOmtId(x, y, defaultId);
             }
         }
     }

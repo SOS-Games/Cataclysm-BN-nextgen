@@ -12,6 +12,8 @@ public final class OvermapLakeSettings {
         0.25,
         20,
         "lake",
+        "",
+        "",
         Collections.<String>emptyList()
     );
 
@@ -19,6 +21,8 @@ public final class OvermapLakeSettings {
     private final double noiseThresholdLake;
     private final int lakeSizeMin;
     private final String lakeOterId;
+    private final String lakeSurfaceOterId;
+    private final String lakeShoreOterId;
     private final List<String> shoreExtendableTerrains;
 
     public OvermapLakeSettings(
@@ -28,10 +32,24 @@ public final class OvermapLakeSettings {
         final String lakeOterId,
         final List<String> shoreExtendableTerrains
     ) {
+        this(enabled, noiseThresholdLake, lakeSizeMin, lakeOterId, "", "", shoreExtendableTerrains);
+    }
+
+    public OvermapLakeSettings(
+        final boolean enabled,
+        final double noiseThresholdLake,
+        final int lakeSizeMin,
+        final String lakeOterId,
+        final String lakeSurfaceOterId,
+        final String lakeShoreOterId,
+        final List<String> shoreExtendableTerrains
+    ) {
         this.enabled = enabled;
         this.noiseThresholdLake = noiseThresholdLake;
         this.lakeSizeMin = Math.max(1, lakeSizeMin);
         this.lakeOterId = lakeOterId == null || lakeOterId.isEmpty() ? "lake" : lakeOterId;
+        this.lakeSurfaceOterId = lakeSurfaceOterId == null ? "" : lakeSurfaceOterId;
+        this.lakeShoreOterId = lakeShoreOterId == null ? "" : lakeShoreOterId;
         if (shoreExtendableTerrains == null || shoreExtendableTerrains.isEmpty()) {
             this.shoreExtendableTerrains = Collections.emptyList();
         } else {
@@ -57,6 +75,18 @@ public final class OvermapLakeSettings {
 
     public String getLakeOterId() {
         return lakeOterId;
+    }
+
+    public String getLakeSurfaceOterId() {
+        return lakeSurfaceOterId.isEmpty() ? lakeOterId : lakeSurfaceOterId;
+    }
+
+    public String getLakeShoreOterId() {
+        return lakeShoreOterId.isEmpty() ? lakeOterId : lakeShoreOterId;
+    }
+
+    public boolean hasDistinctShoreAndSurface() {
+        return !lakeShoreOterId.isEmpty() || !lakeSurfaceOterId.isEmpty();
     }
 
     public List<String> getShoreExtendableTerrains() {

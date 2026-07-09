@@ -96,16 +96,23 @@ public final class RegionContext {
     ) {
         final String requested = regionId == null || regionId.isEmpty() ? "default" : regionId;
         final RegionAliasTable table = regionsById.get(requested);
-        if (table != null) {
+        if (table != null && !table.isEmpty()) {
             return table;
         }
         if (!"default".equals(requested)) {
             final RegionAliasTable fallback = regionsById.get("default");
-            if (fallback != null) {
-                RegionWeightedChoice.emitWarning(
-                    warningSink,
-                    "unknown previewRegionId '" + requested + "'; using default"
-                );
+            if (fallback != null && !fallback.isEmpty()) {
+                if (table != null) {
+                    RegionWeightedChoice.emitWarning(
+                        warningSink,
+                        "region '" + requested + "' has no terrain/furniture aliases; using default"
+                    );
+                } else {
+                    RegionWeightedChoice.emitWarning(
+                        warningSink,
+                        "unknown previewRegionId '" + requested + "'; using default"
+                    );
+                }
                 return fallback;
             }
             RegionWeightedChoice.emitWarning(

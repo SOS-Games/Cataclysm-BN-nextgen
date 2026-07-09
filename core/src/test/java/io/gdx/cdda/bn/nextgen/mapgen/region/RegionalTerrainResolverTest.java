@@ -82,6 +82,23 @@ class RegionalTerrainResolverTest {
     }
 
     @Test
+    void emptyAliasRegionFallsBackToDefault() throws Exception {
+        final RegionContext context = RegionContext.load(
+            MapgenScanOptions.fromDataRoot(MapgenTestFixtures.fixtureDataRoot()),
+            new ArrayList<>()
+        );
+        assertTrue(context.regionIds().contains("forest_trails"));
+        assertEquals(
+            "t_grass",
+            context.resolveTerrain("forest_trails", "t_region_groundcover", null, null)
+        );
+        assertEquals(
+            "t_underbrush",
+            context.resolveTerrain("forest_trails", "t_region_shrub", null, null)
+        );
+    }
+
+    @Test
     void unknownRegionFallsBackToDefaultWithWarning() throws Exception {
         final RegionContext context = RegionContext.load(
             MapgenScanOptions.fromDataRoot(MapgenTestFixtures.fixtureDataRoot()),

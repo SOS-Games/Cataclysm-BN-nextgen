@@ -7,6 +7,8 @@ public final class OvermapForestSettings {
     private final double noiseThresholdForestThick;
     private final String forestOter;
     private final String forestThickOter;
+    private final int riverFloodplainBufferDistanceMin;
+    private final int riverFloodplainBufferDistanceMax;
 
     public OvermapForestSettings(
         final double noiseThresholdForest,
@@ -14,16 +16,32 @@ public final class OvermapForestSettings {
         final String forestOter,
         final String forestThickOter
     ) {
+        this(noiseThresholdForest, noiseThresholdForestThick, forestOter, forestThickOter, 3, 15);
+    }
+
+    public OvermapForestSettings(
+        final double noiseThresholdForest,
+        final double noiseThresholdForestThick,
+        final String forestOter,
+        final String forestThickOter,
+        final int riverFloodplainBufferDistanceMin,
+        final int riverFloodplainBufferDistanceMax
+    ) {
         this.noiseThresholdForest = noiseThresholdForest;
         this.noiseThresholdForestThick = noiseThresholdForestThick;
         this.forestOter = forestOter == null || forestOter.isEmpty() ? "forest" : forestOter;
         this.forestThickOter = forestThickOter == null || forestThickOter.isEmpty()
             ? "forest_thick"
             : forestThickOter;
+        this.riverFloodplainBufferDistanceMin = Math.max(0, riverFloodplainBufferDistanceMin);
+        this.riverFloodplainBufferDistanceMax = Math.max(
+            this.riverFloodplainBufferDistanceMin,
+            riverFloodplainBufferDistanceMax
+        );
     }
 
     public static OvermapForestSettings defaults() {
-        return new OvermapForestSettings(0.35, 0.0, "forest", "forest_thick");
+        return new OvermapForestSettings(0.35, 0.0, "forest", "forest_thick", 3, 15);
     }
 
     public double getNoiseThresholdForest() {
@@ -44,5 +62,13 @@ public final class OvermapForestSettings {
 
     public String getForestThickOter() {
         return forestThickOter;
+    }
+
+    public int getRiverFloodplainBufferDistanceMin() {
+        return riverFloodplainBufferDistanceMin;
+    }
+
+    public int getRiverFloodplainBufferDistanceMax() {
+        return riverFloodplainBufferDistanceMax;
     }
 }

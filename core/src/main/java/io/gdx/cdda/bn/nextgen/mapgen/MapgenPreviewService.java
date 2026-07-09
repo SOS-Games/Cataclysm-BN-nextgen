@@ -84,6 +84,10 @@ public final class MapgenPreviewService {
         return pickerIndex;
     }
 
+    public RegionContext getRegionContext() {
+        return loaded ? regionContext : RegionContext.empty();
+    }
+
     public synchronized void ensureLoaded(final MapgenScanOptions options) throws IOException {
         if (loaded) {
             return;

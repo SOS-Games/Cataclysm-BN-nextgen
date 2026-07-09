@@ -82,6 +82,7 @@ Specs: **`docs/worldgen/`**. Overmap grid + visit-tile submaps; reuses `JsonMapg
 | --- | --- |
 | Guide | `docs/WORLDGEN.md` |
 | Spec index | `docs/worldgen/README.md` |
+| BN C++ reference | `docs/worldgen/reference/README.md` (`overmap::generate` pipeline) |
 | Plans | W1–W6 · W7–W11 · W13–W16 (v3) · **W17 Tier A (v4)** |
 
 **Done:** W1–W14 (through layout parity phase 2 + visit fidelity). **W17a–f** Tier A layout

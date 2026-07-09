@@ -43,6 +43,21 @@ Specs for **BN-style overmap layout + on-demand submap generation** in LibGDX ne
 
 ---
 
+## BN reference (C++ source truth)
+
+Extracted from Cataclysm-BN `src/overmap.cpp` and related files — **not** nextgen PR contracts.
+
+| Resource | Purpose |
+| --- | --- |
+| [reference/README.md](./reference/README.md) | Index: lifecycle, pipeline (04a–d), cities, connections, specials (07a–b), submap |
+| [reference/implementation-plan.md](./reference/implementation-plan.md) | Maps reference units → Java modules / W milestones |
+
+Use reference docs when tracing BN `overmap::generate` phase order, regional JSON fields, or
+connection carve behavior. Pipeline detail: [reference/04-generation-pipeline.md](./reference/04-generation-pipeline.md).
+Use milestone units below when implementing or reviewing nextgen Java.
+
+---
+
 ## Worldgen v2 milestones (W7–W11)
 
 | Unit | Topic | PR | Status |

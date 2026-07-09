@@ -4,6 +4,7 @@ import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
 import io.gdx.cdda.bn.nextgen.map.MapGridRotator;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
+import io.gdx.cdda.bn.nextgen.mapgen.region.RegionContext;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.BuildingPlacementContext;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.MapVolume;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
@@ -18,6 +19,8 @@ import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.JoinContext;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionGroundcoverSettings;
+import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.visit.VolumeCache;
 import io.gdx.cdda.bn.nextgen.worldgen.visit.VolumeCacheKey;
 import io.gdx.cdda.bn.nextgen.worldgen.visit.ZLevelResolver;
@@ -116,6 +119,7 @@ public final class SubmapGenerator {
             oterRegistry,
             gameData,
             mutableSpecials,
+            null,
             null
         );
     }
@@ -133,7 +137,8 @@ public final class SubmapGenerator {
         final OvermapTerrainRegistry oterRegistry,
         final LoadedGameData gameData,
         final MutableSpecialRegistry mutableSpecials,
-        final OvermapConnectionRegistry connectionRegistry
+        final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region
     ) {
         if (overmap == null || mapgenPreviewService == null || !mapgenPreviewService.isLoaded()) {
             return emptyResult("", Collections.singletonList("mapgen catalog not loaded"));
@@ -161,7 +166,8 @@ public final class SubmapGenerator {
                 gameData,
                 omtId,
                 mutableSpecials,
-                connectionRegistry
+                connectionRegistry,
+                region
             );
             if (buildingVisit.hasGrid()) {
                 return buildingVisit;
@@ -182,6 +188,7 @@ public final class SubmapGenerator {
             gameData,
             mutableSpecials,
             connectionRegistry,
+            region,
             OmtNeighborhoodStitcher.DEFAULT_RADIUS
         );
     }
@@ -198,7 +205,8 @@ public final class SubmapGenerator {
         final OvermapTerrainRegistry oterRegistry,
         final LoadedGameData gameData,
         final MutableSpecialRegistry mutableSpecials,
-        final OvermapConnectionRegistry connectionRegistry
+        final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region
     ) {
         final String omtId;
         try {
@@ -208,16 +216,25 @@ public final class SubmapGenerator {
         }
 
         final SubmapKey key = new SubmapKey(worldSeed, omtX, omtY, z);
+        final long previewSeed = SubmapSeed.mix(worldSeed, key);
+        final RegionContext regionContext = mapgenPreviewService.getRegionContext();
+        final String regionId = region == null ? "default" : region.getId();
         if (cache != null) {
             final Optional<MapGrid> cached = cache.get(key);
             if (cached.isPresent()) {
-                return new VisitResult(cached.get(), Collections.emptyList(), true, omtId);
+                final MapGrid grid = cached.get();
+                final List<String> warnings = new ArrayList<>();
+                finishVisitGrid(grid, mapgenPreviewService, regionId, previewSeed, warnings);
+                return new VisitResult(grid, warnings, true, omtId);
             }
         }
 
         final List<String> warnings = new ArrayList<>();
-        final long previewSeed = SubmapSeed.mix(worldSeed, key);
         final Random pickRng = new Random(previewSeed ^ 0x5EEDL);
+        final RegionGroundcoverSettings groundcover = region == null
+            ? RegionGroundcoverSettings.defaults()
+            : region.getDefaultGroundcover();
+        final String visitBaseFillTer = groundcover.pick(new Random(previewSeed ^ 0x47504C41L));
         final Optional<JsonMapgenDefinition> definition = MapgenPicker.pick(
             omtId,
             z,
@@ -234,10 +251,12 @@ public final class SubmapGenerator {
                 omtId,
                 previewSeed,
                 connectionRegistry,
-                oterRegistry
+                oterRegistry,
+                region == null ? RegionGroundcoverSettings.defaults() : region.getDefaultGroundcover()
             );
             if (background.isPresent()) {
                 final MapGrid grid = background.get();
+                finishVisitGrid(grid, mapgenPreviewService, regionId, previewSeed, warnings);
                 if (cache != null) {
                     cache.put(key, grid);
                 }
@@ -259,6 +278,8 @@ public final class SubmapGenerator {
         );
         final JsonMapgenRunOptions runOptions = new JsonMapgenRunOptions()
             .withPreviewSeed(previewSeed)
+            .withDefaultFillTer(visitBaseFillTer)
+            .withPreviewRegionId(regionId)
             .withOmtRotation(MapGridRotator.rotationFromOmSuffix(omtId))
             .withNeighborsByDirection(joinContext.getNeighborsByDirection())
             .withActiveJoins(joinContext.getActiveJoins())
@@ -272,6 +293,17 @@ public final class SubmapGenerator {
         warnings.addAll(generated.getRunWarnings());
 
         final MapGrid grid = generated.getGrid();
+        if (grid != null) {
+            groundcover.applyPerCellBaseFill(
+                grid,
+                previewSeed,
+                visitBaseFillTer,
+                regionContext,
+                regionId,
+                warnings::add
+            );
+            finishVisitGrid(grid, mapgenPreviewService, regionId, previewSeed, warnings);
+        }
         if (cache != null && grid != null) {
             cache.put(key, grid);
         }
@@ -290,8 +322,10 @@ public final class SubmapGenerator {
         final LoadedGameData gameData,
         final String omtId,
         final MutableSpecialRegistry mutableSpecials,
-        final OvermapConnectionRegistry connectionRegistry
+        final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region
     ) {
+        final String regionId = region == null ? "default" : region.getId();
         final CityBuildingDefinition building = record.getDefinition();
         if (building == null) {
             return emptyResult(omtId, Collections.singletonList("placed building has no definition"));
@@ -318,7 +352,8 @@ public final class SubmapGenerator {
                     gameData,
                     warnings,
                     mutableSpecials,
-                    connectionRegistry
+                    connectionRegistry,
+                    region
                 ));
             } else {
                 built = generateBuildingVolume(
@@ -330,7 +365,8 @@ public final class SubmapGenerator {
                     gameData,
                     warnings,
                     mutableSpecials,
-                    connectionRegistry
+                    connectionRegistry,
+                    region
                 );
             }
         } catch (final RuntimeException e) {
@@ -361,6 +397,10 @@ public final class SubmapGenerator {
             return new VisitResult(null, warnings, false, omtId);
         }
 
+        final SubmapKey key = new SubmapKey(worldSeed, omtX, omtY, z);
+        final long previewSeed = SubmapSeed.mix(worldSeed, key);
+        finishVisitGrid(activeGrid, mapgenPreviewService, regionId, previewSeed, warnings);
+
         return VisitResult.forBuilding(
             activeGrid,
             warnings,
@@ -383,8 +423,10 @@ public final class SubmapGenerator {
         final LoadedGameData gameData,
         final List<String> warnings,
         final MutableSpecialRegistry mutableSpecials,
-        final OvermapConnectionRegistry connectionRegistry
+        final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region
     ) {
+        final String regionId = region == null ? "default" : region.getId();
         final BuildingPlacementContext placementContext = new BuildingPlacementContext(
             overmap,
             record,
@@ -393,8 +435,29 @@ public final class SubmapGenerator {
         );
         final SubmapKey anchorKey = new SubmapKey(worldSeed, record.getAnchorX(), record.getAnchorY(), 0);
         final long previewSeed = SubmapSeed.mix(worldSeed, anchorKey);
-        final JsonMapgenRunOptions runOptions = new JsonMapgenRunOptions().withPreviewSeed(previewSeed);
+        final JsonMapgenRunOptions runOptions = new JsonMapgenRunOptions()
+            .withPreviewSeed(previewSeed)
+            .withPreviewRegionId(regionId);
         return mapgenPreviewService.generateBuilding(building, gameData, runOptions, placementContext);
+    }
+
+    private static void finishVisitGrid(
+        final MapGrid grid,
+        final MapgenPreviewService mapgenPreviewService,
+        final String regionId,
+        final long previewSeed,
+        final List<String> warnings
+    ) {
+        if (grid == null || mapgenPreviewService == null) {
+            return;
+        }
+        VisitRegionalResolver.applyToGrid(
+            grid,
+            mapgenPreviewService.getRegionContext(),
+            regionId,
+            previewSeed,
+            warnings
+        );
     }
 
     private static JoinContext resolveJoinContext(

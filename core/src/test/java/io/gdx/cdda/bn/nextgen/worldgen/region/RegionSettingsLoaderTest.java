@@ -20,11 +20,23 @@ class RegionSettingsLoaderTest {
         assertTrue(result.getRegistry().find("forest_heavy").isPresent());
         assertTrue(result.getRegistry().find("forest_light").isPresent());
 
+        final RegionSettingsDefinition lakeRegion = result.getRegistry().find("lake_test").orElseThrow();
+        assertEquals(4.0, lakeRegion.getRiverScale(), 0.0001);
+        assertTrue(result.getRegistry().find("no_rivers").isPresent());
+        assertEquals(0.0, result.getRegistry().find("no_rivers").orElseThrow().getRiverScale(), 0.0001);
+
         final RegionSettingsDefinition heavy = result.getRegistry().find("forest_heavy").orElseThrow();
         assertEquals("open_air", heavy.getDefaultOter());
-        assertEquals(0.9, heavy.getForestSettings().getNoiseThresholdForest(), 0.0001);
+        assertEquals(0.05, heavy.getForestSettings().getNoiseThresholdForest(), 0.0001);
+        assertTrue(!heavy.hasDisplayOter());
         assertTrue(heavy.hasCityHouseWeights());
         assertEquals(100, heavy.getCityHouseWeights().get("test_multitile").intValue());
+
+        final RegionSettingsDefinition light = result.getRegistry().find("forest_light").orElseThrow();
+        assertTrue(light.hasDisplayOter());
+        assertEquals("test_field", light.getDisplayOter());
+        assertEquals("t_dirt", light.getDefaultGroundcoverTerrainId());
+        assertTrue(light.getDefaultGroundcover().isWeighted());
 
         final RegionSettingsDefinition specialHeavy = result.getRegistry().find("special_heavy").orElseThrow();
         assertTrue(specialHeavy.getSpecialSettings().isEnabled());

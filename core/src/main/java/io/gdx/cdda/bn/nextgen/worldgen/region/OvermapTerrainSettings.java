@@ -19,12 +19,12 @@ public final class OvermapTerrainSettings {
         this.enabled = enabled;
         this.noiseThresholdSwampAdjacentWater = noiseThresholdSwampAdjacentWater;
         this.noiseThresholdSwampIsolated = noiseThresholdSwampIsolated;
-        this.swampOter = swampOter == null || swampOter.isEmpty() ? "swamp" : swampOter;
+        this.swampOter = swampOter == null || swampOter.isEmpty() ? "forest_water" : swampOter;
         this.beachOter = beachOter == null || beachOter.isEmpty() ? "beach" : beachOter;
     }
 
     public static OvermapTerrainSettings disabled() {
-        return new OvermapTerrainSettings(false, 0.0, 0.0, "swamp", "beach");
+        return new OvermapTerrainSettings(false, 0.0, 0.0, "forest_water", "beach");
     }
 
     public boolean isEnabled() {

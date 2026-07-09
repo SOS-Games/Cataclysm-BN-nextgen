@@ -12,13 +12,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BaseTerrainFillerRegionTest {
 
     private OvermapTerrainRegistry oterRegistry;
     private io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition forestHeavy;
-    private io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition forestLight;
 
     @BeforeEach
     void loadFixtures() throws Exception {
@@ -29,7 +27,6 @@ class BaseTerrainFillerRegionTest {
             MapgenScanOptions.fromDataRoot(WorldgenTestFixtures.fixtureDataRoot())
         ).getRegistry();
         forestHeavy = regions.find("forest_heavy").orElseThrow();
-        forestLight = regions.find("forest_light").orElseThrow();
     }
 
     @Test
@@ -49,27 +46,16 @@ class BaseTerrainFillerRegionTest {
     }
 
     @Test
-    void heavyRegionHasMoreForestThanLightRegion() {
-        final OvermapGenerateOptions options = OvermapGenerateOptions.forSize(32, 32)
-            .withSeed(9001L)
+    void regionFillPaintsOnlyDefaultOter() {
+        final OvermapGenerateOptions options = OvermapGenerateOptions.forSize(16, 16)
+            .withSeed(4242L)
             .withTerrainIds("open_air", "test_field");
-        final OvermapGrid heavy = new OvermapGrid(32, 32, "open_air");
-        final OvermapGrid light = new OvermapGrid(32, 32, "open_air");
-        BaseTerrainFiller.fill(heavy, options, forestHeavy, oterRegistry, null);
-        BaseTerrainFiller.fill(light, options, forestLight, oterRegistry, null);
-
-        assertTrue(countForest(heavy, "test_field") > countForest(light, "test_field"));
-    }
-
-    private static int countForest(final OvermapGrid grid, final String forestId) {
-        int count = 0;
+        final OvermapGrid grid = new OvermapGrid(16, 16, "open_air");
+        BaseTerrainFiller.fill(grid, options, forestHeavy, oterRegistry, null);
         for (int y = 0; y < grid.height(); y++) {
             for (int x = 0; x < grid.width(); x++) {
-                if (forestId.equals(grid.getOmtId(x, y))) {
-                    count++;
-                }
+                assertEquals("open_air", grid.getOmtId(x, y));
             }
         }
-        return count;
     }
 }

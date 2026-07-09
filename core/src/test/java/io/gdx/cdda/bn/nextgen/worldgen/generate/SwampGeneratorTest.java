@@ -49,6 +49,7 @@ class SwampGeneratorTest {
         BaseTerrainFiller.fill(grid, options, region, oterRegistry, rng);
         LakeGenerator.fill(grid, options, region, oterRegistry, rng, new ArrayList<>());
         RiverGenerator.carve(grid, options, oterRegistry, rng, new ArrayList<>());
+        ForestGenerator.placeForests(grid, options, region, oterRegistry, new ArrayList<>());
         SwampGenerator.fill(grid, options, region, oterRegistry, rng, new ArrayList<>());
         BeachGenerator.paint(grid, options, region, oterRegistry, new ArrayList<>());
         return grid;

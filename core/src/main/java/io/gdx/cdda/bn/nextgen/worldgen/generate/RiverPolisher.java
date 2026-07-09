@@ -5,7 +5,7 @@ import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 
 import java.util.List;
 
-/** Removes dangling river spurs and orphan bank tiles (W17d lite). */
+/** Removes dangling river spurs and rewrites topology to directional river OMT ids (hydrology v2). */
 public final class RiverPolisher {
 
     private RiverPolisher() {}
@@ -43,6 +43,258 @@ public final class RiverPolisher {
             smoothed += removeOrphanRiverBanks(grid, centerId, bankId, lakeId, revertId);
         }
         return smoothed;
+    }
+
+    /**
+     * BN {@code polish_rivers} — rewrite river center tiles to directional {@code river_*} OMT ids.
+     * Off-map neighbors are treated as water unless {@link OvermapNeighborContext} supplies an edge grid.
+     */
+    public static int polishDirectional(
+        final OvermapGrid grid,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry,
+        final List<String> warnings
+    ) {
+        return polishDirectional(grid, options, registry, warnings, OvermapNeighborContext.empty());
+    }
+
+    public static int polishDirectional(
+        final OvermapGrid grid,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry,
+        final List<String> warnings,
+        final OvermapNeighborContext neighbors
+    ) {
+        if (grid == null || options == null) {
+            return 0;
+        }
+        final OvermapNeighborContext ctx = neighbors == null ? OvermapNeighborContext.empty() : neighbors;
+        final String[][] snapshot = snapshotOmtIds(grid);
+        int polished = 0;
+        for (int y = 0; y < grid.height(); y++) {
+            for (int x = 0; x < grid.width(); x++) {
+                final String omtId = snapshot[y][x];
+                if (!HydrologyTerrainClassifier.isRiverOmt(omtId, options, registry)) {
+                    continue;
+                }
+                final boolean waterNorth = waterAt(
+                    snapshot, grid, x, y - 1, ctx, options, registry
+                );
+                final boolean waterWest = waterAt(
+                    snapshot, grid, x - 1, y, ctx, options, registry
+                );
+                final boolean waterSouth = waterAt(
+                    snapshot, grid, x, y + 1, ctx, options, registry
+                );
+                final boolean waterEast = waterAt(
+                    snapshot, grid, x + 1, y, ctx, options, registry
+                );
+                final String polishedId = resolvePolishedRiverIdBn(
+                    snapshot,
+                    grid.width(),
+                    grid.height(),
+                    x,
+                    y,
+                    waterNorth,
+                    waterWest,
+                    waterSouth,
+                    waterEast,
+                    options,
+                    registry
+                );
+                if (polishedId != null && !polishedId.equals(omtId)) {
+                    grid.setOmtId(x, y, polishedId);
+                    polished++;
+                }
+            }
+        }
+        return polished;
+    }
+
+    private static String[][] snapshotOmtIds(final OvermapGrid grid) {
+        final String[][] snapshot = new String[grid.height()][grid.width()];
+        for (int y = 0; y < grid.height(); y++) {
+            for (int x = 0; x < grid.width(); x++) {
+                snapshot[y][x] = grid.getOmtId(x, y);
+            }
+        }
+        return snapshot;
+    }
+
+    private static String resolvePolishedRiverIdBn(
+        final String[][] snapshot,
+        final int width,
+        final int height,
+        final int x,
+        final int y,
+        final boolean waterNorth,
+        final boolean waterWest,
+        final boolean waterSouth,
+        final boolean waterEast,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry
+    ) {
+        if (waterWest) {
+            if (waterNorth) {
+                if (waterSouth) {
+                    if (waterEast) {
+                        if (dryDiagonal(snapshot, width, height, x - 1, y - 1, options, registry)) {
+                            return pickRiverId("c_not_nw", options, registry);
+                        }
+                        if (dryDiagonal(snapshot, width, height, x + 1, y - 1, options, registry)) {
+                            return pickRiverId("c_not_ne", options, registry);
+                        }
+                        if (dryDiagonal(snapshot, width, height, x - 1, y + 1, options, registry)) {
+                            return pickRiverId("c_not_sw", options, registry);
+                        }
+                        if (dryDiagonal(snapshot, width, height, x + 1, y + 1, options, registry)) {
+                            return pickRiverId("c_not_se", options, registry);
+                        }
+                        return pickRiverId("center", options, registry);
+                    }
+                    return pickRiverId("east", options, registry);
+                }
+                if (waterEast) {
+                    return pickRiverId("south", options, registry);
+                }
+                return pickRiverId("se", options, registry);
+            }
+            if (waterSouth) {
+                if (waterEast) {
+                    return pickRiverId("north", options, registry);
+                }
+                return pickRiverId("ne", options, registry);
+            }
+            if (waterEast) {
+                return pickRiverId("north", options, registry);
+            }
+            return revertNonRiver(options, registry);
+        }
+        if (waterNorth) {
+            if (waterSouth) {
+                if (waterEast) {
+                    return pickRiverId("west", options, registry);
+                }
+                if (waterWest) {
+                    return pickRiverId("east", options, registry);
+                }
+                return pickRiverId("north", options, registry);
+            }
+            if (waterEast) {
+                return pickRiverId("sw", options, registry);
+            }
+            return revertNonRiver(options, registry);
+        }
+        if (waterSouth) {
+            if (waterEast) {
+                return pickRiverId("nw", options, registry);
+            }
+            return revertNonRiver(options, registry);
+        }
+        return revertNonRiver(options, registry);
+    }
+
+    private static boolean dryDiagonal(
+        final String[][] snapshot,
+        final int width,
+        final int height,
+        final int x,
+        final int y,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry
+    ) {
+        if (x < 0 || y < 0 || x >= width || y >= height) {
+            return false;
+        }
+        return !HydrologyTerrainClassifier.isRiverOrLake(snapshot[y][x], options, registry);
+    }
+
+    private static String revertNonRiver(
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry
+    ) {
+        return OrthogonalPathCarver.resolveTerrainId(options.getFieldId(), "field", registry);
+    }
+
+    private static boolean waterAt(
+        final String[][] snapshot,
+        final OvermapGrid grid,
+        final int x,
+        final int y,
+        final OvermapNeighborContext neighbors,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry
+    ) {
+        final int width = grid.width();
+        final int height = grid.height();
+        if (x >= 0 && y >= 0 && x < width && y < height) {
+            return HydrologyTerrainClassifier.isRiverOrLake(snapshot[y][x], options, registry);
+        }
+        final String neighborId = neighborOmtIdAt(neighbors, grid, x, y);
+        if (neighborId != null) {
+            return HydrologyTerrainClassifier.isRiverOrLake(neighborId, options, registry);
+        }
+        return true;
+    }
+
+    private static String neighborOmtIdAt(
+        final OvermapNeighborContext neighbors,
+        final OvermapGrid grid,
+        final int x,
+        final int y
+    ) {
+        final int width = grid.width();
+        final int height = grid.height();
+        if (x < 0 && neighbors.getWest() != null) {
+            final OvermapGrid west = neighbors.getWest();
+            final int wx = west.width() - 1;
+            if (y >= 0 && y < west.height()) {
+                return west.getOmtId(wx, y);
+            }
+        }
+        if (x >= width && neighbors.getEast() != null) {
+            final OvermapGrid east = neighbors.getEast();
+            if (y >= 0 && y < east.height()) {
+                return east.getOmtId(0, y);
+            }
+        }
+        if (y < 0 && neighbors.getNorth() != null) {
+            final OvermapGrid north = neighbors.getNorth();
+            final int ny = north.height() - 1;
+            if (x >= 0 && x < north.width()) {
+                return north.getOmtId(x, ny);
+            }
+        }
+        if (y >= height && neighbors.getSouth() != null) {
+            final OvermapGrid south = neighbors.getSouth();
+            if (x >= 0 && x < south.width()) {
+                return south.getOmtId(x, 0);
+            }
+        }
+        return null;
+    }
+
+    private static String pickRiverId(
+        final String suffix,
+        final OvermapGenerateOptions options,
+        final OvermapTerrainRegistry registry
+    ) {
+        final String[] candidates = {
+            "river_" + suffix,
+            options.getRiverBankId() + "_" + suffix,
+            options.getRiverCenterId() + "_" + suffix,
+            options.getRiverBankId(),
+            options.getRiverCenterId()
+        };
+        for (final String candidate : candidates) {
+            if (candidate == null || candidate.isEmpty()) {
+                continue;
+            }
+            if (registry == null || registry.contains(candidate)) {
+                return candidate;
+            }
+        }
+        return options.getRiverCenterId();
     }
 
     private static int removeOrphanRiverCenters(

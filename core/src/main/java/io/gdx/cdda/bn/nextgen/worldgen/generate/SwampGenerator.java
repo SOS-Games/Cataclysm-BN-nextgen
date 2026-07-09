@@ -2,16 +2,15 @@ package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.region.OvermapForestSettings;
 import io.gdx.cdda.bn.nextgen.worldgen.region.OvermapTerrainSettings;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionTerrainNoise;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
-/** Swamp clusters from region noise thresholds (W14c). */
+/** River floodplain buffer + floodplain noise swamps (BN {@code place_swamps}, W14c / Phase C). */
 public final class SwampGenerator {
 
     private SwampGenerator() {}
@@ -33,31 +32,33 @@ public final class SwampGenerator {
         }
         final String swampId = OrthogonalPathCarver.resolveTerrainId(
             terrain.getSwampOter(),
-            "swamp",
+            "forest_water",
             registry
         );
         if (registry != null && !registry.contains(swampId)) {
             addWarning(warnings, "swamp terrain '" + swampId + "' not in registry; skipping swamp pass");
             return 0;
         }
-        final Set<String> waterIds = waterIds(options, registry, region);
-        final Set<String> clearable = swampClearableIds(options, registry, region);
-        final long noiseSeed = options.getSeed() ^ 0x57414D50L;
+
+        final OvermapForestSettings forest = region.getForestSettings();
+        final int[][] floodplain = buildFloodplain(grid, options, registry, forest, rng);
+        final long noiseSeed = options.getSeed();
+        final double adjacentThreshold = terrain.getNoiseThresholdSwampAdjacentWater();
+        final double isolatedThreshold = terrain.getNoiseThresholdSwampIsolated();
+
         int painted = 0;
         for (int y = 0; y < grid.height(); y++) {
             for (int x = 0; x < grid.width(); x++) {
-                final String current = grid.getOmtId(x, y);
-                if (!clearable.contains(current)) {
+                if (!HydrologyTerrainClassifier.isForestOmt(grid.getOmtId(x, y))) {
                     continue;
                 }
-                final double threshold = isAdjacentToWater(grid, x, y, waterIds)
-                    ? terrain.getNoiseThresholdSwampAdjacentWater()
-                    : terrain.getNoiseThresholdSwampIsolated();
-                if (threshold <= 0.0) {
-                    continue;
-                }
-                final double noise = RegionTerrainNoise.normalized(noiseSeed, x, y);
-                if (noise < threshold) {
+                final double noise = RegionTerrainNoise.floodplainNormalized(noiseSeed, x, y);
+                final int counter = floodplain[x][y];
+                final boolean shouldFlood = counter > 0
+                    && !oneIn(rng, counter)
+                    && noise > adjacentThreshold;
+                final boolean shouldIsolated = noise > isolatedThreshold;
+                if (shouldFlood || shouldIsolated) {
                     grid.setOmtId(x, y, swampId);
                     painted++;
                 }
@@ -66,65 +67,44 @@ public final class SwampGenerator {
         return painted;
     }
 
-    private static Set<String> waterIds(
+    private static int[][] buildFloodplain(
+        final OvermapGrid grid,
         final OvermapGenerateOptions options,
         final OvermapTerrainRegistry registry,
-        final RegionSettingsDefinition region
+        final OvermapForestSettings forest,
+        final Random rng
     ) {
-        final Set<String> ids = new HashSet<>();
-        ids.add(OrthogonalPathCarver.resolveTerrainId(
-            region.getLakeSettings().getLakeOterId(),
-            options.getLakeId(),
-            registry
-        ));
-        ids.add(OrthogonalPathCarver.resolveTerrainId(
-            options.getRiverCenterId(),
-            "river_center",
-            registry
-        ));
-        ids.add(OrthogonalPathCarver.resolveTerrainId(
-            options.getRiverBankId(),
-            "river",
-            registry
-        ));
-        ids.add("test_lake");
-        ids.add("test_river");
-        return ids;
-    }
+        final int width = grid.width();
+        final int height = grid.height();
+        final int[][] floodplain = new int[width][height];
+        final int minDist = forest.getRiverFloodplainBufferDistanceMin();
+        final int maxDist = forest.getRiverFloodplainBufferDistanceMax();
+        final int span = maxDist - minDist + 1;
 
-    private static Set<String> swampClearableIds(
-        final OvermapGenerateOptions options,
-        final OvermapTerrainRegistry registry,
-        final RegionSettingsDefinition region
-    ) {
-        final Set<String> ids = new HashSet<>(OmtBuildingBlitter.defaultClearableIds(options, registry));
-        ids.add(region.getForestSettings().getForestOter());
-        ids.add(region.getDefaultOter());
-        return ids;
-    }
-
-    private static boolean isAdjacentToWater(
-        final OvermapGrid grid,
-        final int x,
-        final int y,
-        final Set<String> waterIds
-    ) {
-        return isWater(grid, x - 1, y, waterIds)
-            || isWater(grid, x + 1, y, waterIds)
-            || isWater(grid, x, y - 1, waterIds)
-            || isWater(grid, x, y + 1, waterIds);
-    }
-
-    private static boolean isWater(
-        final OvermapGrid grid,
-        final int x,
-        final int y,
-        final Set<String> waterIds
-    ) {
-        if (x < 0 || y < 0 || x >= grid.width() || y >= grid.height()) {
-            return false;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (!HydrologyTerrainClassifier.isRiverOmt(grid.getOmtId(x, y), options, registry)) {
+                    continue;
+                }
+                final int radius = minDist + (span <= 1 ? 0 : rng.nextInt(span));
+                for (final int[] point : ClosestPointsFirst.spiral(x, y, radius)) {
+                    final int px = point[0];
+                    final int py = point[1];
+                    if (px < 0 || py < 0 || px >= width || py >= height) {
+                        continue;
+                    }
+                    floodplain[px][py]++;
+                }
+            }
         }
-        return waterIds.contains(grid.getOmtId(x, y));
+        return floodplain;
+    }
+
+    private static boolean oneIn(final Random rng, final int chance) {
+        if (chance <= 1) {
+            return true;
+        }
+        return rng.nextInt(chance) == 0;
     }
 
     private static void addWarning(final List<String> warnings, final String message) {

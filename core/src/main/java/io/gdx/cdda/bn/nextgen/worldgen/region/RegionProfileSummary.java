@@ -15,6 +15,9 @@ public final class RegionProfileSummary {
         }
         final List<String> parts = new ArrayList<>();
         parts.add("base=" + region.getDefaultOter());
+        if (region.hasDisplayOter()) {
+            parts.add("display=" + region.getDisplayOter());
+        }
         parts.add(forestSummary(region.getForestSettings()));
         if (region.getLakeSettings().isEnabled()) {
             parts.add("lakes");

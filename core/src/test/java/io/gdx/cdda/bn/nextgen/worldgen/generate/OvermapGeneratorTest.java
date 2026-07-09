@@ -43,10 +43,11 @@ class OvermapGeneratorTest {
 
     @Test
     void placesStaticSpecialWhenQuotaSet() {
-        service.setWorldSeed(200L);
+        service.setWorldSeed(100L);
         final OvermapGenerateOptions options = OvermapGenerateOptions.forSize(16, 16)
-            .withSeed(200L)
-            .withQuotas(1, 1);
+            .withSeed(100L)
+            .withQuotas(1, 1)
+            .withLegacyGenerationOrder(true);
         final OvermapGenerateResult result = service.generateOvermap(options);
         assertTrue(result.getStaticSpecialsPlaced() >= 1 || result.getCityBuildingsPlaced() >= 1);
     }

@@ -14,6 +14,7 @@
 | [map-editor/README.md](./map-editor/README.md) | Map editor specification index |
 | [mapgen-preview/README.md](./mapgen-preview/README.md) | Mapgen preview specification index (units 01–21, v2 plan) |
 | [worldgen/README.md](./worldgen/README.md) | World generation specification index (units 01–22, W1–W16 plans) |
+| [worldgen/reference/README.md](./worldgen/reference/README.md) | BN overmap/worldgen C++ specification (language-agnostic) |
 
 ## Specification sources
 
@@ -23,7 +24,8 @@
 | `docs/game-data-loader/` | `src/init.cpp`, `src/mapdata.cpp`, `data/json/` |
 | `docs/map-editor/` | Nextgen-local; consumes loaders above |
 | `docs/mapgen-preview/` | `src/mapgen.cpp`, `src/mapgenformat.cpp`, `data/json/mapgen/` |
-| `docs/worldgen/` | `src/overmap.cpp`, `src/overmapbuffer.cpp`, `data/json/overmap_terrain/` |
+| `docs/worldgen/` | Nextgen contracts; BN layout in `worldgen/reference/` |
+| `docs/worldgen/reference/` | `src/overmap.cpp`, `src/overmapbuffer.cpp`, `src/regional_settings.cpp`, `data/json/overmap_terrain/` |
 
 ## Quick start
 
