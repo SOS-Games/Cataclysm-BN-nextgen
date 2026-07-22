@@ -1,5 +1,6 @@
 package io.gdx.cdda.bn.nextgen.mapgen;
 
+import io.gdx.cdda.bn.nextgen.gamedata.cache.JsonContentDiskCache;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
@@ -93,6 +94,15 @@ public final class MapgenPreviewService {
             return;
         }
         final MapgenScanOptions scanOptions = options == null ? MapgenScanOptions.defaults() : options;
+        JsonContentDiskCache.withSession(
+            "mapgen",
+            scanOptions.getDataRoots(),
+            scanOptions.getModIds(),
+            () -> loadCatalogs(scanOptions)
+        );
+    }
+
+    private void loadCatalogs(final MapgenScanOptions scanOptions) throws IOException {
         final List<String> warnings = new ArrayList<>();
 
         final MapgenLoadResult paletteResult = PaletteLoader.load(scanOptions);

@@ -2,6 +2,9 @@ package io.gdx.cdda.bn.nextgen.gamedata.parse;
 
 import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.JsonValue;
+import io.gdx.cdda.bn.nextgen.gamedata.cache.JsonContentDiskCache;
+import io.gdx.cdda.bn.nextgen.gamedata.cache.JsonFilePack;
+import io.gdx.cdda.bn.nextgen.gamedata.cache.JsonFilePackBuilder;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -10,6 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,6 +23,11 @@ public final class JsonDataScanner {
     private JsonDataScanner() {}
 
     public static List<Path> listJsonFiles(final Path jsonRoot, final List<String> subdirs) throws IOException {
+        final Optional<JsonFilePack> active = JsonContentDiskCache.activePack();
+        if (active.isPresent()) {
+            return listFromPack(active.get(), jsonRoot, subdirs);
+        }
+
         if (!Files.isDirectory(jsonRoot)) {
             return Collections.emptyList();
         }
@@ -37,7 +46,7 @@ public final class JsonDataScanner {
     }
 
     public static List<JsonDataObject> parseFile(final Path file) throws IOException {
-        final String text = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+        final String text = readText(file);
         final JsonValue root = new JsonReader().parse(text);
         return extractObjects(root, file);
     }
@@ -48,6 +57,42 @@ public final class JsonDataScanner {
             all.addAll(parseFile(file));
         }
         return all;
+    }
+
+    private static String readText(final Path file) throws IOException {
+        final Optional<JsonFilePack> active = JsonContentDiskCache.activePack();
+        if (active.isPresent()) {
+            final Optional<String> cached = active.get().getText(file);
+            if (cached.isPresent()) {
+                return cached.get();
+            }
+        }
+
+        final String text = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+        final Optional<JsonFilePackBuilder> recording = JsonContentDiskCache.recordingBuilder();
+        if (recording.isPresent()) {
+            recording.get().put(file, text);
+        }
+        return text;
+    }
+
+    private static List<Path> listFromPack(
+        final JsonFilePack pack,
+        final Path jsonRoot,
+        final List<String> subdirs
+    ) {
+        if (jsonRoot == null) {
+            return Collections.emptyList();
+        }
+        if (subdirs == null || subdirs.isEmpty()) {
+            return pack.listJsonFilesUnder(jsonRoot);
+        }
+        final List<Path> files = new ArrayList<>();
+        for (final String subdir : subdirs) {
+            files.addAll(pack.listJsonFilesUnder(jsonRoot.resolve(subdir)));
+        }
+        Collections.sort(files);
+        return files;
     }
 
     private static List<Path> resolveScanRoots(final Path jsonRoot, final List<String> subdirs) {

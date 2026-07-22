@@ -110,6 +110,30 @@ W17 sub-PRs: **W17a** urban OMT ✓ · **W17b** local roads ✓ · **W17c** high
 
 ---
 
+## Road rendering fidelity (post–W17)
+
+BN roads are LINEAR OMTs + builtin `mapgen_road` + region `map_extras.road`. Nextgen still
+carves connectivity but paints a thin pavement stub at visit.
+
+| Unit | Topic | Status |
+| --- | --- | --- |
+| [28](./28-road-rendering-fidelity.md) | Nextgen PR slices R1–R5 (LINEAR polish, builtin visit, extras) | R1–R5 done (v1) |
+| [reference/06a](./reference/06a-linear-oter-paint.md) | BN `om_lines` / `build_connection` | draft |
+| [reference/08a](./reference/08a-road-builtin-mapgen.md) | BN `mapgen_road` + sidewalks/vehicles/extras | draft |
+
+---
+
+## City street parity (post–W17)
+
+W17 blob fill + lattice roads ≠ BN street-first `build_city_street`.
+
+| Unit | Topic | Status |
+| --- | --- | --- |
+| [29](./29-city-street-parity.md) | Comparison + PR slices C1–C5 | **done** |
+| [reference/05a](./reference/05a-city-street-growth.md) | BN `place_cities` / `build_city_street` / `place_building` | draft |
+
+---
+
 ## Post–mapgen-v2 follow-ups (parallel)
 
 These improve preview/worldgen quality but are **not** overmap layout:

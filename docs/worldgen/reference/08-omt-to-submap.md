@@ -97,7 +97,9 @@ Building bundles / multitile city JSON may use separate compose paths before loa
 Runs after primary mapgen. Uses overmap neighbor `oter_id`s and `overmap_connection` metadata
 to paint road/river/subway transitions on **submap edges** (`EAST_EDGE`, `SOUTH_EDGE`).
 
-Critical for continuous highways and rivers across OMT boundaries.
+Critical for continuous highways and rivers across OMT boundaries. Road **interior** topology
+comes from builtin `mapgen_road`, not from this pass — see
+[08a-road-builtin-mapgen.md](./08a-road-builtin-mapgen.md).
 
 Nextgen: partial via `JoinContext` / neighbor options (W13).
 

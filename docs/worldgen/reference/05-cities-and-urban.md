@@ -125,12 +125,18 @@ Connection id: `"sewer_tunnel"` → paints `sewer` on z < 0.
 
 | BN | Nextgen |
 | --- | --- |
-| `place_cities` + `build_city_street` | `CityGenerator`, `LocalRoadGenerator` (W4, W17a) |
-| Normal-distributed shop/park/house | Simplified picks |
-| Sewer carve | `UndergroundNetworkGenerator` (W17f partial) |
+| `place_cities` + `build_city_street` | Default: `CityStreetGenerator` + `CityLotPlacer` (unit 29). Legacy blob+lattice via `legacyUrbanFill` |
+| Normal-distributed shop/park/house | `CityLotPlacer` distance zoning (shop/park normals) |
+| Buildings via `place_special` beside streets | 1×1 OMT flank paint (specials still via `CityPlacer` quota) |
+| Sewer carve during streets | Manholes + surface sewer approx; `UndergroundNetworkGenerator` also |
+
+**Deep BN street algorithm:** [05a-city-street-growth.md](./05a-city-street-growth.md).
+
+**Parity plan (street-first port):** [../29-city-street-parity.md](../29-city-street-parity.md).
 
 Houses surrounded by `field` on overmap usually mean local roads did not reach — visit still
-uses OMT id for mapgen.
+uses OMT id for mapgen. The opposite W17 failure mode is a **house carpet** with a stamped
+road grid.
 
 ---
 

@@ -2,19 +2,17 @@ package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
 import java.util.Random;
 
-/** Simplified BN city size tier for urban blob radius (W17a). */
+/** BN city size tier → street length / town radius (W17a / C1). */
 public enum CityTier {
-    TINY(1, false),
-    SMALL(2, false),
-    NORMAL(3, false),
-    LARGE(4, true),
-    HUGE(5, true);
+    TINY(false),
+    SMALL(false),
+    NORMAL(false),
+    LARGE(true),
+    HUGE(true);
 
-    private final int radiusScale;
     private final boolean attemptFinale;
 
-    CityTier(final int radiusScale, final boolean attemptFinale) {
-        this.radiusScale = Math.max(1, radiusScale);
+    CityTier(final boolean attemptFinale) {
         this.attemptFinale = attemptFinale;
     }
 
@@ -22,13 +20,26 @@ public enum CityTier {
         return attemptFinale;
     }
 
+    /** BN size transforms after rolling tiny/small/large/huge. */
     public int effectiveRadius(final int baseCitySize) {
         final int base = baseCitySize > 0 ? baseCitySize : 3;
-        return Math.max(1, (base * radiusScale + 1) / 2);
+        switch (this) {
+            case TINY:
+                return 1;
+            case SMALL:
+                return Math.max(1, (base * 2) / 3);
+            case LARGE:
+                return Math.max(1, (base * 3) / 2);
+            case HUGE:
+                return Math.max(1, base * 2);
+            case NORMAL:
+            default:
+                return base;
+        }
     }
 
     public static CityTier roll(final Random rng, final int baseCitySize) {
-        if (rng == null) {
+        if (rng == null || baseCitySize < 0) {
             return NORMAL;
         }
         final int roll = rng.nextInt(6);

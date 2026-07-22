@@ -60,9 +60,12 @@ PRs. Behavioral specs are language-agnostic; this file is the **porting index**.
 
 | 04d Roads/trails | `place_roads`, `place_forest_trails` | `LocalRoadGenerator`, trails | W5, W17b |
 
-| 05 Cities | `place_cities`, `build_city_street` | `CityGenerator` | W4, W17a |
+| 05 Cities | `place_cities`, `build_city_street` | `CityStreetGenerator` + `CityLotPlacer` (default); blob via `legacyUrbanFill` | [29](../29-city-street-parity.md) done |
+| 05a Street growth | `lay_out_street`, `place_building` | `CityStreetGenerator`, `CityLotPlacer` | [29](../29-city-street-parity.md) C1–C5 |
 
 | 06 Connections | `overmap_connection`, `build_connection` | `connection.*`, pathfind carve | W5 |
+
+| 06a LINEAR paint | `om_lines`, linear `build_connection` | (planned) `OmLines`, road polish | [28](../28-road-rendering-fidelity.md) R1 |
 
 | 07 Specials | index | `placement.*` | W6 |
 
@@ -71,6 +74,8 @@ PRs. Behavioral specs are language-agnostic; this file is the **porting index**.
 | 07b Mutable | `overmap_mutable`, joins | `mutable.*`, `JoinContext` | W6, W11, W13 |
 
 | 08 Submap | `map::draw_map` | `submap.SubmapGenerator`, `mapgen.*` | W3, W13 |
+
+| 08a Road builtin | `mapgen_road`, `map_extras.road` | `BackgroundOmtSubmapBuilder.buildRoad` (stub) | [28](../28-road-rendering-fidelity.md) R2–R4 |
 
 | 09 Memory model | `overmap`, `map_layer` | `OvermapGrid`, `MapGrid` | W2 |
 

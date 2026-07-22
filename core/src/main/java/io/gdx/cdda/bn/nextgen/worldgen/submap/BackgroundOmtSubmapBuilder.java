@@ -17,7 +17,6 @@ public final class BackgroundOmtSubmapBuilder {
 
     private static final int SIZE = OmtStitchComposer.DEFAULT_OMT_SIZE;
     private static final String GRASS = "t_grass";
-    private static final String PAVEMENT = "t_pavement";
     private static final String SHALLOW_WATER = "t_water_sh";
     private static final String DEEP_WATER = "t_water_dp";
     private static final String REGION_SHRUB = "t_region_shrub";
@@ -71,8 +70,19 @@ public final class BackgroundOmtSubmapBuilder {
             ));
         }
         if (isRoadOmt(normalized, connectionRegistry)) {
-            return Optional.of(buildRoad(overmap, omtX, omtY, connectionRegistry, oterRegistry, rng, previewSeed,
-                groundcover));
+            final String mapExtra = RoadMapExtras.roll(previewSeed ^ ((long) omtX << 16) ^ omtY, null);
+            return Optional.of(BuiltinRoadMapgen.generate(
+                overmap,
+                omtX,
+                omtY,
+                omtId,
+                connectionRegistry,
+                oterRegistry,
+                groundcover,
+                previewSeed,
+                true,
+                mapExtra
+            ));
         }
         if (isWaterOmt(normalized)) {
             return Optional.of(buildWater(normalized, rng));
@@ -290,88 +300,6 @@ public final class BackgroundOmtSubmapBuilder {
         return isForestTrailOmt(normalize(neighbor), connectionRegistry);
     }
 
-    private static MapGrid buildRoad(
-        final OvermapGrid overmap,
-        final int omtX,
-        final int omtY,
-        final OvermapConnectionRegistry connectionRegistry,
-        final OvermapTerrainRegistry oterRegistry,
-        final Random rng,
-        final long previewSeed,
-        final RegionGroundcoverSettings groundcover
-    ) {
-        final MapGrid grid = newMapWithGroundcover(previewSeed, groundcover);
-        final boolean north = connectsRoad(overmap, omtX, omtY - 1, connectionRegistry, oterRegistry);
-        final boolean east = connectsRoad(overmap, omtX + 1, omtY, connectionRegistry, oterRegistry);
-        final boolean south = connectsRoad(overmap, omtX, omtY + 1, connectionRegistry, oterRegistry);
-        final boolean west = connectsRoad(overmap, omtX - 1, omtY, connectionRegistry, oterRegistry);
-        final boolean ns = north || south || isHiwayNs(overmap, omtX, omtY);
-        final boolean ew = east || west || isHiwayEw(overmap, omtX, omtY);
-
-        paintPavementBand(grid, ns, ew, north, east, south, west);
-        if (!ns && !ew) {
-            paintPavementBand(grid, true, true, true, true, true, true);
-        }
-        return grid;
-    }
-
-    private static void paintPavementBand(
-        final MapGrid grid,
-        final boolean ns,
-        final boolean ew,
-        final boolean north,
-        final boolean east,
-        final boolean south,
-        final boolean west
-    ) {
-        final int mid = SIZE / 2;
-        final int half = 2;
-        if (ns) {
-            final int x0 = mid - half;
-            final int x1 = mid + half - 1;
-            for (int y = 0; y < SIZE; y++) {
-                if (!north && y < mid) {
-                    continue;
-                }
-                if (!south && y >= mid) {
-                    continue;
-                }
-                for (int x = x0; x <= x1; x++) {
-                    grid.setTerrain(x, y, PAVEMENT);
-                }
-            }
-        }
-        if (ew) {
-            final int y0 = mid - half;
-            final int y1 = mid + half - 1;
-            for (int x = 0; x < SIZE; x++) {
-                if (!west && x < mid) {
-                    continue;
-                }
-                if (!east && x >= mid) {
-                    continue;
-                }
-                for (int y = y0; y <= y1; y++) {
-                    grid.setTerrain(x, y, PAVEMENT);
-                }
-            }
-        }
-    }
-
-    private static boolean connectsRoad(
-        final OvermapGrid overmap,
-        final int x,
-        final int y,
-        final OvermapConnectionRegistry connectionRegistry,
-        final OvermapTerrainRegistry oterRegistry
-    ) {
-        if (overmap == null || x < 0 || y < 0 || x >= overmap.width() || y >= overmap.height()) {
-            return false;
-        }
-        final String neighbor = overmap.getOmtId(x, y);
-        return isRoadOmt(normalize(neighbor), connectionRegistry);
-    }
-
     private static boolean isRoadOmt(final String normalized, final OvermapConnectionRegistry connectionRegistry) {
         if (connectionRegistry != null) {
             final java.util.Optional<String> connectionId = OvermapConnectionResolver.connectionIdForOmt(
@@ -440,14 +368,6 @@ public final class BackgroundOmtSubmapBuilder {
             && !connectionId.contains("sewer")
             && !connectionId.contains("railroad")
             && !connectionId.contains("rail");
-    }
-
-    private static boolean isHiwayNs(final OvermapGrid overmap, final int omtX, final int omtY) {
-        return overmap != null && normalize(overmap.getOmtId(omtX, omtY)).equals("hiway_ns");
-    }
-
-    private static boolean isHiwayEw(final OvermapGrid overmap, final int omtX, final int omtY) {
-        return overmap != null && normalize(overmap.getOmtId(omtX, omtY)).equals("hiway_ew");
     }
 
     private static boolean isWaterOmt(final String normalized) {

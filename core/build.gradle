@@ -19,6 +19,8 @@ dependencies {
 
 test {
   useJUnitPlatform()
+  // Avoid writing ~/.cache packs during normal unit tests; cache tests opt in.
+  systemProperty "cdda.content.cache", "false"
   final File bnGfx = new File(rootProject.projectDir, "../Cataclysm-BN/gfx")
   if (bnGfx.isDirectory()) {
     systemProperty "cdda.gfx.roots", bnGfx.absolutePath

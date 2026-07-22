@@ -167,6 +167,9 @@ public final class OvermapNeighborGrid {
             null,
             neighborsFor(omX, omY)
         );
+        RoadEdgeStitcher.stitch(result.getGrid(), neighborsFor(omX, omY), connectionRegistry);
+        BridgeElevator.elevateCrossings(result.getGrid(), options, connectionRegistry, oterRegistry);
+        RoadConnectionPolisher.polish(result.getGrid(), options, connectionRegistry, oterRegistry, null);
     }
 
     private OvermapNeighborContext neighborsFor(final int omX, final int omY) {

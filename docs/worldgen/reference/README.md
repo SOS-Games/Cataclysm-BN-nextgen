@@ -87,11 +87,14 @@ flowchart TD
     U04c[04c terrain fill]
     U04d[04d roads trails]
     U05[05 cities urban]
+    U05a[05a street growth]
     U06[06 connections]
+    U06a[06a LINEAR paint]
     U07[07 specials index]
     U07a[07a static specials]
     U07b[07b mutable]
     U08[08 omt to submap]
+    U08a[08a road builtin]
     U09[09 in-memory model]
     U10[10 post-load validation]
     A1[A1 algorithms RNG]
@@ -104,13 +107,20 @@ flowchart TD
     U04 --> U04c
     U04 --> U04d
     U04 --> U05
+    U05 --> U05a
+    U05a --> U06
+    U05a --> U04d
     U04 --> U06
     U04 --> U07
     U05 --> U06
+    U06 --> U06a
+    U04d --> U06a
     U07 --> U07a
     U07 --> U07b
     U03 --> U08
     U04 --> U08
+    U06a --> U08a
+    U08 --> U08a
     U08 --> U09
     U03 --> U10
     U09 --> U10
@@ -132,11 +142,14 @@ flowchart TD
 | 04c | [04c-terrain-fill.md](./04c-terrain-fill.md) | draft | 04 |
 | 04d | [04d-roads-trails-post.md](./04d-roads-trails-post.md) | draft | 04, 06 |
 | 05 | [05-cities-and-urban.md](./05-cities-and-urban.md) | draft | 04 |
+| 05a | [05a-city-street-growth.md](./05a-city-street-growth.md) | draft | 05, 06 |
 | 06 | [06-connections.md](./06-connections.md) | draft | 03, 04 |
+| 06a | [06a-linear-oter-paint.md](./06a-linear-oter-paint.md) | draft | 06, 04d |
 | 07 | [07-specials-and-mutable.md](./07-specials-and-mutable.md) | draft | 04 |
 | 07a | [07a-static-specials.md](./07a-static-specials.md) | draft | 07 |
 | 07b | [07b-mutable-specials.md](./07b-mutable-specials.md) | draft | 07 |
 | 08 | [08-omt-to-submap.md](./08-omt-to-submap.md) | draft | 03, 04 |
+| 08a | [08a-road-builtin-mapgen.md](./08a-road-builtin-mapgen.md) | draft | 08, 06a |
 | 09 | [09-in-memory-model.md](./09-in-memory-model.md) | draft | 08 |
 | 10 | [10-post-load-validation.md](./10-post-load-validation.md) | draft | 03 |
 | A1 | [appendix-algorithms-rng.md](./appendix-algorithms-rng.md) | draft | 04 |
@@ -161,3 +174,5 @@ Each unit doc ends with:
 | --- | --- |
 | 2026-07-08 | Initial reference index |
 | 2026-07-08 | Expanded all units from BN C++ sources; split 04 → 04a–d, 07 → 07a–b |
+| 2026-07-22 | Added 06a LINEAR paint + 08a road builtin / extras (road rendering fidelity) |
+| 2026-07-22 | Added 05a city street growth (`build_city_street` / `place_building`) |

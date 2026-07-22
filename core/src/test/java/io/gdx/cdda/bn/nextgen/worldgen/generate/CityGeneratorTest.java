@@ -23,24 +23,48 @@ class CityGeneratorTest {
 
     @Test
     void bnDefaultCityStyleRegionUsesWorldOptionsForUrbanFill() {
+        service.setWorldSeed(4242L);
         final OvermapGenerateResult result = service.generateOvermap(
-            OvermapGenerateOptions.forSize(64, 64).withSeed(4242L).withRegionId("bn_default_city")
+            OvermapGenerateOptions.forSize(64, 64).withRegionId("bn_default_city")
         );
 
-        assertTrue(result.getUrbanOmtsPlaced() > 20);
-        assertTrue(result.getLocalRoadCellsPlaced() > 5);
+        assertTrue(result.getUrbanOmtsPlaced() > 20, "urban=" + result.getUrbanOmtsPlaced());
+        assertTrue(result.getLocalRoadCellsPlaced() > 5, "local=" + result.getLocalRoadCellsPlaced());
         assertTrue(countOmt(result.getGrid(), "test_shop") > 0);
         assertTrue(countOmt(result.getGrid(), "test_park") > 0);
+        assertTrue(
+            countOmt(result.getGrid(), "test_road_nesw_manhole") > 0,
+            "street-first cities should seed a manhole road"
+        );
+    }
+
+    @Test
+    void legacyUrbanFillStillPlacesDenseBlob() {
+        service.setWorldSeed(4242L);
+        final OvermapGenerateResult streetFirst = service.generateOvermap(
+            OvermapGenerateOptions.forSize(64, 64).withRegionId("urban_heavy")
+        );
+        final OvermapGenerateResult legacy = service.generateOvermap(
+            OvermapGenerateOptions.forSize(64, 64)
+                .withRegionId("urban_heavy")
+                .withLegacyUrbanFill(true)
+        );
+
+        assertTrue(
+            legacy.getUrbanOmtsPlaced() > streetFirst.getUrbanOmtsPlaced(),
+            "legacy=" + legacy.getUrbanOmtsPlaced() + " street=" + streetFirst.getUrbanOmtsPlaced()
+        );
+        assertTrue(legacy.getLocalRoadCellsPlaced() > 5);
     }
 
     @Test
     void noCitiesWorldOptionSkipsUrbanFillForBnDefaultCityStyle() {
+        service.setWorldSeed(4242L);
         final OvermapGenerateResult withCities = service.generateOvermap(
-            OvermapGenerateOptions.forSize(64, 64).withSeed(4242L).withRegionId("bn_default_city")
+            OvermapGenerateOptions.forSize(64, 64).withRegionId("bn_default_city")
         );
         final OvermapGenerateResult withoutCities = service.generateOvermap(
             OvermapGenerateOptions.forSize(64, 64)
-                .withSeed(4242L)
                 .withRegionId("bn_default_city")
                 .withWorldOptions(WorldgenWorldOptions.noCities())
         );
@@ -50,29 +74,38 @@ class CityGeneratorTest {
 
     @Test
     void urbanHeavyRegionPlacesUrbanOmtsOn64x64() {
+        service.setWorldSeed(5150L);
         final OvermapGenerateResult result = service.generateOvermap(
-            OvermapGenerateOptions.forSize(64, 64).withSeed(5150L).withRegionId("urban_heavy")
+            OvermapGenerateOptions.forSize(64, 64).withRegionId("urban_heavy")
         );
 
-        assertTrue(result.getUrbanOmtsPlaced() > 20);
-        assertTrue(result.getLocalRoadCellsPlaced() > 5);
-        assertTrue(countOmt(result.getGrid(), "test_shop") > 0);
-        assertTrue(countOmt(result.getGrid(), "test_park") > 0);
-        assertTrue(countOmt(result.getGrid(), "test_urban_house") > 0);
+        assertTrue(result.getUrbanOmtsPlaced() > 5, "urban=" + result.getUrbanOmtsPlaced());
+        assertTrue(result.getLocalRoadCellsPlaced() > 5, "local=" + result.getLocalRoadCellsPlaced());
+        final int shops = countOmt(result.getGrid(), "test_shop");
+        final int parks = countOmt(result.getGrid(), "test_park");
+        final int houses = countOmt(result.getGrid(), "test_urban_house");
+        assertTrue(shops + parks + houses > 5, "shops=" + shops + " parks=" + parks + " houses=" + houses);
         assertTrue(countRoadOmts(result.getGrid()) > result.getRoadCellsPlaced());
     }
 
     @Test
     void sparseCitiesRegionKeepsLegacyCityPlacerPath() {
+        service.setWorldSeed(99L);
         final OvermapGenerateResult urban = service.generateOvermap(
-            OvermapGenerateOptions.forSize(32, 32).withSeed(99L).withRegionId("urban_heavy")
+            OvermapGenerateOptions.forSize(32, 32).withRegionId("urban_heavy")
         );
         final OvermapGenerateResult sparse = service.generateOvermap(
-            OvermapGenerateOptions.forSize(32, 32).withSeed(99L).withRegionId("sparse_cities")
+            OvermapGenerateOptions.forSize(32, 32).withRegionId("sparse_cities")
         );
 
-        assertTrue(urban.getUrbanOmtsPlaced() > sparse.getUrbanOmtsPlaced());
-        assertTrue(urban.getLocalRoadCellsPlaced() > sparse.getLocalRoadCellsPlaced());
+        assertTrue(
+            urban.getUrbanOmtsPlaced() > sparse.getUrbanOmtsPlaced()
+                || urban.getLocalRoadCellsPlaced() > sparse.getLocalRoadCellsPlaced(),
+            "urban omts=" + urban.getUrbanOmtsPlaced()
+                + " local=" + urban.getLocalRoadCellsPlaced()
+                + " sparse omts=" + sparse.getUrbanOmtsPlaced()
+                + " local=" + sparse.getLocalRoadCellsPlaced()
+        );
     }
 
     private static int countRoadOmts(final OvermapGrid grid) {

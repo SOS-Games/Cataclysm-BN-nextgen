@@ -91,6 +91,10 @@ Legacy order (`options.isLegacyGenerationOrder()`): river before lakes; no W14 t
 **User-visible symptom:** Overmap shows **isolated** `2storyModern01`-scale footprints, not a
 BN-style town with gas stations, sidewalks, and house rows.
 
+**Update (post-W17):** Urban OMT fill + lattice roads exist, but growth is still **fill-first**
+rather than BN **street-first**. See [29-city-street-parity.md](./29-city-street-parity.md) and
+[reference/05a-city-street-growth.md](./reference/05a-city-street-growth.md).
+
 ---
 
 ## Roads (`place_roads`)
@@ -125,6 +129,10 @@ BN-style town with gas stations, sidewalks, and house rows.
 
 **User-visible symptom:** Short road chains between two building centers in empty forest — no
 grid, no approach to a “city core”.
+
+**Visit / LINEAR look:** even when roads connect cities, nextgen still lacks BN directional
+`road_*` ids and `mapgen_road` / extras — see [28-road-rendering-fidelity.md](./28-road-rendering-fidelity.md)
+and reference [06a](./reference/06a-linear-oter-paint.md) / [08a](./reference/08a-road-builtin-mapgen.md).
 
 ---
 

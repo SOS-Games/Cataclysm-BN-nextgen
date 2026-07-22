@@ -109,6 +109,10 @@ For each node in path:
 
 `connection.clear_subtype_cache()` at path start — random bridge/dam variant per road.
 
+**Detail:** bitmask table, suffixes, and `get_mapgen_id` buckets —
+[06a-linear-oter-paint.md](./06a-linear-oter-paint.md). Visit paint —
+[08a-road-builtin-mapgen.md](./08a-road-builtin-mapgen.md).
+
 ---
 
 ## `connect_closest_points`

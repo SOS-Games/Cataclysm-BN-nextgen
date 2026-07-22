@@ -176,11 +176,139 @@
   },
   {
     "type": "overmap_terrain",
+    "id": "test_road_ne",
+    "name": "road ne",
+    "sym": "/",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_es",
+    "name": "road es",
+    "sym": "\\",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_sw",
+    "name": "road sw",
+    "sym": "/",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_wn",
+    "name": "road wn",
+    "sym": "\\",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_nes",
+    "name": "road nes",
+    "sym": "T",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_new",
+    "name": "road new",
+    "sym": "T",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_nsw",
+    "name": "road nsw",
+    "sym": "T",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_esw",
+    "name": "road esw",
+    "sym": "T",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_nesw",
+    "name": "road nesw",
+    "sym": "+",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_nesw_manhole",
+    "name": "road nesw manhole",
+    "sym": "+",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_end_north",
+    "name": "road end north",
+    "sym": "|",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_end_east",
+    "name": "road end east",
+    "sym": "-",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_end_south",
+    "name": "road end south",
+    "sym": "|",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_end_west",
+    "name": "road end west",
+    "sym": "-",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_road_isolated",
+    "name": "road isolated",
+    "sym": ".",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_building_sidewalk",
+    "name": "building with sidewalk",
+    "sym": "h",
+    "color": "light_gray",
+    "flags": [ "NO_ROTATE", "SIDEWALK" ]
+  },
+  {
+    "type": "overmap_terrain",
     "id": "test_bridge",
     "name": "bridge",
     "sym": "#",
     "color": "brown",
-    "flags": [ "NO_ROTATE" ]
+    "flags": [ "NO_ROTATE", "IS_BRIDGE" ]
   },
   {
     "type": "overmap_terrain",

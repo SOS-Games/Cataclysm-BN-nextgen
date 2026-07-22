@@ -28,7 +28,7 @@ public final class CitySitePicker {
         }
         final int maxSites = citySize.isCityIsolated()
             ? 1
-            : estimateSiteCount(grid, options, citySize);
+            : estimateSiteCount(grid, options, citySize, rng);
         final int spacing = citySize.getCitySpacing();
         final List<int[]> sites = new ArrayList<>();
         int attempts = 0;
@@ -40,9 +40,21 @@ public final class CitySitePicker {
             if (spacing > 0 && !isSpacedFrom(sites, x, y, spacing)) {
                 continue;
             }
+            if (!isClearableCitySeed(grid, x, y, options)) {
+                continue;
+            }
             sites.add(new int[] { x, y });
         }
         return sites;
+    }
+
+    private static boolean isClearableCitySeed(
+        final OvermapGrid grid,
+        final int x,
+        final int y,
+        final OvermapGenerateOptions options
+    ) {
+        return UrbanTerrainClearables.isPaveable(grid.getOmtId(x, y), null, options);
     }
 
     public static boolean isWithinCityBlob(
@@ -69,12 +81,33 @@ public final class CitySitePicker {
     private static int estimateSiteCount(
         final OvermapGrid grid,
         final OvermapGenerateOptions options,
-        final CitySizeSettings citySize
+        final CitySizeSettings citySize,
+        final Random rng
     ) {
+        // BN place_cities coverage: area * (1/2^spacing) / omts_per_city
         final int area = grid.width() * grid.height();
-        final int spacing = Math.max(1, citySize.getCitySpacing());
-        final int bySpacing = Math.max(1, area / (spacing * spacing));
-        return Math.min(bySpacing, Math.max(1, options.getCityBuildingQuota() / 2));
+        final int spacing = Math.max(0, citySize.getCitySpacing());
+        final int size = Math.max(1, citySize.getCitySize());
+        final double coverage = 1.0 / Math.pow(2.0, spacing);
+        final double omtsPerCity = (2.0 * size + 1.0) * (2.0 * size + 1.0) * 0.75;
+        final double expected = area * coverage / Math.max(1.0, omtsPerCity);
+        final int fromCoverage = Math.max(1, rollRemainder(expected, rng));
+        // Soft upper bound from packing; do not use building quota (that caps buildings, not towns).
+        final int bySpacing = Math.max(1, area / Math.max(1, spacing <= 0 ? 1 : spacing * spacing));
+        return Math.min(fromCoverage, bySpacing);
+    }
+
+    /** BN {@code roll_remainder}: floor(x) plus one with probability of the fractional part. */
+    static int rollRemainder(final double value, final Random rng) {
+        if (value <= 0) {
+            return 0;
+        }
+        final int whole = (int) Math.floor(value);
+        final double frac = value - whole;
+        if (frac > 0 && rng != null && rng.nextDouble() < frac) {
+            return whole + 1;
+        }
+        return Math.max(1, whole);
     }
 
     private static boolean isSpacedFrom(

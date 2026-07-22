@@ -1,5 +1,6 @@
 package io.gdx.cdda.bn.nextgen.worldgen;
 
+import io.gdx.cdda.bn.nextgen.gamedata.cache.JsonContentDiskCache;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
 import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionLoadResult;
@@ -157,7 +158,15 @@ public final class WorldgenPreviewService {
             return;
         }
         final WorldgenScanOptions scanOptions = options == null ? WorldgenScanOptions.defaults() : options;
+        JsonContentDiskCache.withSession(
+            "worldgen",
+            scanOptions.getDataRoots(),
+            scanOptions.getModIds(),
+            () -> loadWorldgenCatalogs(scanOptions)
+        );
+    }
 
+    private void loadWorldgenCatalogs(final WorldgenScanOptions scanOptions) throws IOException {
         final OvermapTerrainLoadResult oterResult = OvermapTerrainLoader.load(
             scanOptions.getOvermapTerrainScanOptions()
         );

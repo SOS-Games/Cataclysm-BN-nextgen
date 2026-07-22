@@ -13,7 +13,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-/** Urban blob fill + limited multitile placement (W17a). */
+/**
+ * City generation: street-first (C1–C4) by default; W17 blob+lattice via
+ * {@link OvermapGenerateOptions#isLegacyUrbanFill()}.
+ */
 public final class CityGenerator {
 
     private CityGenerator() {}
@@ -34,7 +37,7 @@ public final class CityGenerator {
             return CityGenerateResult.empty();
         }
         if (shouldUseUrbanFill(options, region, oterRegistry)) {
-            return placeUrbanBlobs(
+            return placeCities(
                 grid,
                 buildings,
                 oterRegistry,
@@ -97,7 +100,128 @@ public final class CityGenerator {
         return false;
     }
 
-    private static CityGenerateResult placeUrbanBlobs(
+    private static CityGenerateResult placeCities(
+        final OvermapGrid grid,
+        final CityBuildingRegistry buildings,
+        final OvermapTerrainRegistry oterRegistry,
+        final OvermapConnectionRegistry connectionRegistry,
+        final OvermapGenerateOptions options,
+        final RegionSettingsDefinition region,
+        final Random rng,
+        final List<String> warnings,
+        final List<int[]> placedCenters,
+        final List<io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord> placedBuildings
+    ) {
+        if (options.isLegacyUrbanFill()) {
+            return placeLegacyUrbanBlobs(
+                grid,
+                buildings,
+                oterRegistry,
+                connectionRegistry,
+                options,
+                region,
+                rng,
+                warnings,
+                placedCenters,
+                placedBuildings
+            );
+        }
+        return placeStreetFirstCities(
+            grid,
+            buildings,
+            oterRegistry,
+            connectionRegistry,
+            options,
+            region,
+            rng,
+            warnings,
+            placedCenters,
+            placedBuildings
+        );
+    }
+
+    private static CityGenerateResult placeStreetFirstCities(
+        final OvermapGrid grid,
+        final CityBuildingRegistry buildings,
+        final OvermapTerrainRegistry oterRegistry,
+        final OvermapConnectionRegistry connectionRegistry,
+        final OvermapGenerateOptions options,
+        final RegionSettingsDefinition region,
+        final Random rng,
+        final List<String> warnings,
+        final List<int[]> placedCenters,
+        final List<io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord> placedBuildings
+    ) {
+        final CitySizeSettings citySize = region == null
+            ? CitySizeSettings.disabled()
+            : region.getCitySizeSettings().resolve(options.getWorldOptions());
+        final CityContentWeights content = region.getCityContentWeights();
+        List<int[]> siteCoords = CitySitePicker.pickSites(grid, citySize, options, rng);
+        if (siteCoords.isEmpty()) {
+            siteCoords = List.of(new int[] { grid.width() / 2, grid.height() / 2 });
+        }
+
+        final int baseCitySize = citySize.getCitySize() > 0 ? citySize.getCitySize() : 4;
+        final List<UrbanSite> urbanSites = new ArrayList<>();
+        int urbanOmts = 0;
+        int localRoadCells = 0;
+        for (final int[] coord : siteCoords) {
+            final CityTier tier = CityTier.roll(rng, baseCitySize);
+            final UrbanSite site = new UrbanSite(coord[0], coord[1], tier.effectiveRadius(baseCitySize), tier);
+            urbanSites.add(site);
+            final CityStreetGenerator.GrowResult streets = CityStreetGenerator.growCity(
+                grid,
+                site,
+                connectionRegistry,
+                options,
+                oterRegistry,
+                region,
+                rng,
+                warnings
+            );
+            localRoadCells += streets.getRoadCells();
+            urbanOmts += CityLotPlacer.placeLots(
+                grid,
+                site,
+                streets.getStreetNodes(),
+                content,
+                options,
+                oterRegistry,
+                region,
+                rng,
+                warnings
+            );
+            if (placedCenters != null) {
+                placedCenters.add(site.center());
+            }
+        }
+
+        final int multitileQuota = Math.min(
+            options.getCityBuildingQuota(),
+            Math.max(1, urbanSites.size())
+        );
+        final int multitilePlaced = buildings == null || multitileQuota <= 0
+            ? 0
+            : CityPlacer.placeMultitileAtCitySites(
+                grid,
+                buildings,
+                oterRegistry,
+                options,
+                region,
+                rng,
+                warnings,
+                placedCenters,
+                placedBuildings,
+                siteCoords,
+                citySize,
+                multitileQuota,
+                1
+            );
+
+        return new CityGenerateResult(urbanOmts, multitilePlaced, localRoadCells, urbanSites);
+    }
+
+    private static CityGenerateResult placeLegacyUrbanBlobs(
         final OvermapGrid grid,
         final CityBuildingRegistry buildings,
         final OvermapTerrainRegistry oterRegistry,

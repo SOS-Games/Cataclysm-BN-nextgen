@@ -26,6 +26,10 @@ connection pass in C++ `overmap.cpp`. (Nextgen adds `HighwayGenerator` separatel
 
 `build_connection` during carve may call `elevate_bridges` for water crossings (~5359+).
 
+LINEAR bitmask merge and directional `road_*` ids: [06a-linear-oter-paint.md](./06a-linear-oter-paint.md).
+Visit-time pavement / extras: [08a-road-builtin-mapgen.md](./08a-road-builtin-mapgen.md).
+Nextgen work: [../28-road-rendering-fidelity.md](../28-road-rendering-fidelity.md).
+
 ---
 
 ## `place_forest_trails`

@@ -204,6 +204,13 @@ public final class OvermapGenerator {
 
 
 
+        final OvermapNeighborContext neighbors = neighborsForPolish(hydrologyNeighbors);
+        if (!options.isLegacyGenerationOrder()) {
+            RoadEdgeStitcher.stitch(grid, neighbors, connectionRegistry);
+        }
+
+
+
         final CityBuildingRegistry registry = buildings == null ? CityBuildingRegistry.empty() : buildings;
 
         final List<int[]> placedSites = new ArrayList<>();
@@ -418,6 +425,8 @@ public final class OvermapGenerator {
 
         if (!options.isLegacyGenerationOrder() && !deferDirectionalPolish) {
             RiverPolisher.polishDirectional(grid, options, oterRegistry, warnings, neighborsForPolish(hydrologyNeighbors));
+            BridgeElevator.elevateCrossings(grid, options, connectionRegistry, oterRegistry);
+            RoadConnectionPolisher.polish(grid, options, connectionRegistry, oterRegistry, warnings);
         }
 
 

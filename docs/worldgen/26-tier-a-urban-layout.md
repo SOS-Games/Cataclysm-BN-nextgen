@@ -25,6 +25,10 @@ Today `CityPlacer` drops a **small quota** of multitile `city_building` bundles 
 W17 implements a **subset** of that pipeline in three P0 slices (W17a–c), plus optional P1/P2
 follow-ups (W17d–f).
 
+W17 intentionally approximated BN with **blob fill + lattice roads**. Full street-first port:
+[29-city-street-parity.md](./29-city-street-parity.md) · BN detail:
+[reference/05a-city-street-growth.md](./reference/05a-city-street-growth.md).
+
 ---
 
 ## Sub-PRs

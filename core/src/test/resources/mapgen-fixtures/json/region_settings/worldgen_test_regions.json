@@ -124,7 +124,7 @@
     },
     "city": {
       "city_size": 4,
-      "city_spacing": 16,
+      "city_spacing": 6,
       "houses": { "test_urban_house": 100 },
       "shops": { "test_shop": 80 },
       "parks": { "test_park": 60 },
@@ -166,7 +166,7 @@
     },
     "city": {
       "city_size": 4,
-      "city_spacing": 14,
+      "city_spacing": 6,
       "houses": { "test_urban_house": 100 },
       "shops": { "test_shop": 40 }
     }
@@ -181,7 +181,7 @@
     },
     "city": {
       "city_size": 4,
-      "city_spacing": 16,
+      "city_spacing": 6,
       "houses": { "test_urban_house": 100 },
       "shops": { "test_shop": 40 }
     },

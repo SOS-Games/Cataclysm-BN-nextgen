@@ -1,9 +1,7 @@
 package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
-import io.gdx.cdda.bn.nextgen.worldgen.WorldgenWorldOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.region.CitySizeSettings;
-import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoader;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,12 +14,8 @@ class CityPlacerUrbanSpacingTest {
 
     @Test
     void citySitesRespectMinimumSpacingOn64x64() throws Exception {
-        final CitySizeSettings settings = RegionSettingsLoader.load(
-            io.gdx.cdda.bn.nextgen.mapgen.MapgenScanOptions.fromDataRoot(
-                io.gdx.cdda.bn.nextgen.worldgen.WorldgenTestFixtures.fixtureDataRoot()
-            )
-        ).getRegistry().find("sparse_cities").orElseThrow().getCitySizeSettings()
-            .resolve(WorldgenWorldOptions.bnDefaults());
+        // Spacing low enough that BN coverage expects multiple sites on 64×64.
+        final CitySizeSettings settings = new CitySizeSettings(3, 4, false);
 
         final OvermapGrid grid = new OvermapGrid(64, 64, "open_air");
         final List<int[]> sites = CitySitePicker.pickSites(
@@ -31,7 +25,7 @@ class CityPlacerUrbanSpacingTest {
             new Random(42L)
         );
 
-        assertTrue(sites.size() >= 2, "expected multiple city sites");
+        assertTrue(sites.size() >= 2, "expected multiple city sites, got " + sites.size());
         for (int i = 0; i < sites.size(); i++) {
             for (int j = i + 1; j < sites.size(); j++) {
                 final int dx = sites.get(i)[0] - sites.get(j)[0];
