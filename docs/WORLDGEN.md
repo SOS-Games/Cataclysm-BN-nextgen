@@ -101,6 +101,28 @@ Detail: [01-overview-and-scope](./worldgen/01-overview-and-scope.md).
 
 **Start v4 with W17a** — parse `city.shops`/`parks`/`finales` and fill urban blobs. W15/W16 can run in parallel.
 
+**Post–W17 / C5 (landed):** road connectivity cleanup — `ParallelRoadLaneDissolver`,
+`RoadGapFiller`, `RoadTipBridger` (cardinal + diagonal near-miss joins; tip bridge after specials).
+Visit sidewalks / LINEAR polish: [28](./worldgen/28-road-rendering-fidelity.md). City streets:
+[29](./worldgen/29-city-street-parity.md).
+
+---
+
+## How to run (UI)
+
+```bash
+gradlew.bat lwjgl3:run
+```
+
+Main menu → **Worldgen** (shortcut `3`) opens the map editor already in **OVERMAP** mode and
+loads/generates the overmap. From Map Editor, **`M`** toggles overmap; **Enter** on a selected
+OMT walks a **20×12** neighborhood stitch.
+
+Cold start: tileset and worldgen catalogs may load together — UI shows only the **tileset**
+loader until gfx finishes, then the mapgen/overmap busy overlay if still needed.
+
+Default preview seed is stable for spot-checks (`12345L` in tests / regenerate in UI).
+
 ---
 
 ## Parallel tracks (not worldgen)

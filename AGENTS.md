@@ -10,8 +10,9 @@ Instructions for AI coding agents working in **Cataclysm-BN-nextgen** (LibGDX Ja
 ## Project role
 
 This repo implements the **Cataclysm-BN tileset loader**, an **in-game sprite viewer**, a
-**map editor** (v1), and (eventually) the full game client on LibGDX. It loads
-**existing BN packs** from disk (`gfx/<pack>/`, `data/json/`); it does not ship those assets.
+**map editor**, **worldgen overmap preview**, and (eventually) the full game client on LibGDX.
+It loads **existing BN packs** from disk (`gfx/<pack>/`, `data/json/`); it does not ship those
+assets.
 
 ## Related repositories
 
@@ -87,9 +88,14 @@ Specs: **`docs/worldgen/`**. Overmap grid + visit-tile submaps; reuses `JsonMapg
 
 **Done:** W1–W14 (through layout parity phase 2 + visit fidelity). **W17a–f** Tier A layout
 done. **City street parity C1–C5** done (`CityStreetGenerator` / `CityLotPlacer`).
+**Road connectivity polish** (gap fill, tip bridge, parallel-lane dissolve) landed after C5.
 **Next:** W15 exploration or Tier B polish.
 CDDA gaps: [23–25](docs/worldgen/23-cdda-parity-overview.md). v4 plan:
 [docs/worldgen/v4-implementation-plan.md](docs/worldgen/v4-implementation-plan.md).
+
+**UI:** main menu **Worldgen** → `MapEditorScreen.openWorldgenMode()` (overmap). Walkaround
+neighborhood is **20×12** OMTs (`OmtNeighborhoodStitcher`). While tileset + catalogs load
+together, show only the tileset overlay.
 
 | Docs index | `docs/README.md` |
 
@@ -127,11 +133,12 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
   tileset/                    # gfx loader — done
   gamedata/                   # game JSON — docs/game-data-loader/
   map/                        # MapGrid, MapFileIO — docs/map-editor/
-  mapgen/                     # P1–P4 done — docs/mapgen-preview/
+  mapgen/                     # P1–P15 done — docs/mapgen-preview/
+  worldgen/                   # W1–W17 / C1–C5 — docs/worldgen/
   view/
-    MainMenuScreen.java
+    MainMenuScreen.java       # Sprite Viewer / Map Editor / Worldgen / Mods
     TileDisplayScreen.java    # sprite viewer
-    MapEditorScreen.java
+    MapEditorScreen.java      # submap editor + overmap worldgen
     MapPalettePanel.java
     MapEditorToolbar.java
     TileSpriteResolver.java
@@ -173,9 +180,10 @@ gradlew.bat test
 
 **World generation:** W1–W14 done. **W15** exploration — `docs/worldgen/v3-implementation-plan.md`.
 **W17** Tier A layout — `docs/worldgen/v4-implementation-plan.md` (**W17a–f** done).
+**C1–C5** city streets + post–C5 road tip/gap polish — `docs/worldgen/README.md`.
 
 **Loading:** use `TilesetLoadSession` for UI; never `TilesetLoader.load` on a worker thread
-(see `docs/INCREMENTAL_LOADING.md`).
+(see `docs/INCREMENTAL_LOADING.md`). Prefer tileset overlay when tileset + worldgen both busy.
 
 Each unit doc ends with **Verification** — turn those into JUnit tests where practical.
 

@@ -108,18 +108,34 @@ What nextgen still lacks vs BN `overmap::generate` after W13–W14 milestones.
 
 W17 sub-PRs: **W17a** urban OMT ✓ · **W17b** local roads ✓ · **W17c** highways ✓ · **W17d** hydrology ✓ · **W17e** trails ✓ · **W17f** underground ✓.
 
+**UI:** main menu **Worldgen** → overmap mode. Walkaround neighborhood: **20×12** OMTs.
+
 ---
 
 ## Road rendering fidelity (post–W17)
 
-BN roads are LINEAR OMTs + builtin `mapgen_road` + region `map_extras.road`. Nextgen still
-carves connectivity but paints a thin pavement stub at visit.
+BN roads are LINEAR OMTs + builtin `mapgen_road` + region `map_extras.road`. Nextgen now
+polishes LINEAR ids and paints a topology-aware pavement stub at visit (R1–R5 v1).
 
 | Unit | Topic | Status |
 | --- | --- | --- |
 | [28](./28-road-rendering-fidelity.md) | Nextgen PR slices R1–R5 (LINEAR polish, builtin visit, extras) | R1–R5 done (v1) |
 | [reference/06a](./reference/06a-linear-oter-paint.md) | BN `om_lines` / `build_connection` | draft |
 | [reference/08a](./reference/08a-road-builtin-mapgen.md) | BN `mapgen_road` + sidewalks/vehicles/extras | draft |
+
+### Road connectivity polish (post–C5)
+
+Layout joins after street growth / highways / specials (not visit paint):
+
+| Class | Role |
+| --- | --- |
+| `ParallelRoadLaneDissolver` | Clears solid 2×2 double-lane blocks only |
+| `RoadGapFiller` | Paves natural holes with ≥3 road neighbors (no new 2×2) |
+| `RoadTipBridger` | Bridges tip↔road across 1–2 natural cells; diagonal L-joins |
+| `HighwayGenerator` | Skips paint only when paving would create a solid 2×2 |
+
+`RoadTipBridger` runs after dissolve/gap-fill **and** again after specials (before LINEAR polish),
+because many stubs appear only after special placement.
 
 ---
 

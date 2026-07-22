@@ -168,6 +168,10 @@ Legacy (`legacyUrbanFill`): square blob fill, then `GRID_SPACING=3` lattice.
 - Changing inter-city `HighwayGenerator` topology (already city-center based)
 - Visit-time building mapgen (already W7)
 
+**Later (landed outside C1–C5):** highway/city tip joins via `RoadTipBridger` /
+`RoadGapFiller` / dissolver — see [28](./28-road-rendering-fidelity.md) follow-up and
+[README](./README.md#road-connectivity-polish-postc5).
+
 ---
 
 ## Verification

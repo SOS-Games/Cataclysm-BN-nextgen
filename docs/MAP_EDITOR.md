@@ -16,15 +16,17 @@ core/src/main/java/io/gdx/cdda/bn/nextgen/
     MapCell.java
     MapFileIO.java
   view/
-    MainMenuScreen.java       # boot: sprite viewer or map editor
+    MainMenuScreen.java       # Sprite Viewer / Map Editor / Worldgen / Mods
     MapEditorScreen.java
     MapEditorToolbar.java     # bottom toolbar (paint / pan / pick, tileset, save)
     MapPalettePanel.java
     TileSpriteResolver.java   # shared with TileDisplayScreen
     ScreenInput.java            # pointer y-up conversion (GLFW y-down on some desktops)
     LoadingSpinner.java
+    LoadingOverlay.java         # tileset / mapgen / overmap busy overlays
   gamedata/                     # prerequisite — see GAME_DATA_LOADER.md
   tileset/                      # LoadedTileset, TilesetLoadSession
+  worldgen/                     # overmap — see WORLDGEN.md
 ```
 
 Package roots: `io.gdx.cdda.bn.nextgen.map`, `io.gdx.cdda.bn.nextgen.view`
@@ -41,6 +43,7 @@ Package roots: `io.gdx.cdda.bn.nextgen.map`, `io.gdx.cdda.bn.nextgen.view`
 | Palette + paint gestures (M3) | done |
 | Polish: filter, resize, HUD, toolbar, mouse (M4) | done |
 | `MainMenuScreen` + sprite viewer `[E]` shortcut | done |
+| Main menu **Worldgen** → overmap mode | done |
 | Walkable player | out of scope |
 | Multitile autoconnect | **R1** — [05-multitile-autoconnect.md](./map-editor/05-multitile-autoconnect.md) |
 | `looks_like` at draw | **R2** — [06-looks-like-draw-fallback.md](./map-editor/06-looks-like-draw-fallback.md) |
@@ -55,7 +58,8 @@ Package roots: `io.gdx.cdda.bn.nextgen.map`, `io.gdx.cdda.bn.nextgen.view`
 gradlew.bat lwjgl3:run
 ```
 
-Opens **Main menu** → choose **Map Editor** (or **Sprite Viewer**, then press **`E`**).
+Opens **Main menu** → choose **Map Editor**, **Worldgen** (overmap preview), or **Sprite Viewer**
+(then press **`E`** for the editor).
 
 When `../Cataclysm-BN/gfx` and `../Cataclysm-BN/data` exist, Gradle sets `-Dcdda.gfx.roots` /
 `-Dcdda.data.roots` automatically.
@@ -78,9 +82,14 @@ When `../Cataclysm-BN/gfx` and `../Cataclysm-BN/data` exist, Gradle sets `-Dcdda
 | `F3` | Toggle pointer debug logging (console) |
 | `F1` / `H` | Keyboard shortcuts help (scrollable) |
 | `F5` | Reload active tileset |
+| `M` | Toggle overmap / submap mode (when overmap terrain loaded) |
+| `Enter` | In overmap: visit selected OMT (20×12 walkaround neighborhood) |
 | `Esc` | Clear filter / back to main menu |
 | **Palette** (right) | Click terrain row to select brush; wheel to scroll; click **Filter:** to type |
 | Mouse wheel on canvas | Zoom (wheel over palette scrolls list) |
+
+**Worldgen cold start:** if tileset and mapgen/overmap loads overlap, only the **tileset** overlay
+is shown until gfx finishes.
 
 Pointer coordinates use [ScreenInput](./map-editor/03-render-bridge.md#pointer-coordinates) so the
 OS cursor aligns with the grid on Windows (GLFW y-down vs LibGDX y-up).
@@ -163,6 +172,7 @@ Minimum paintable editor today: **G2 + M1–M4** (furniture G3 optional for terr
 
 ## Related
 
+- [WORLDGEN.md](./WORLDGEN.md) — overmap mode / visit-tile
 - [SPRITE_VIEWER.md](./SPRITE_VIEWER.md) — shared draw/animation patterns
 - [GAME_DATA_LOADER.md](./GAME_DATA_LOADER.md) — game data PR slices (G1–G5)
 - [INCREMENTAL_LOADING.md](./INCREMENTAL_LOADING.md) — `TilesetLoadSession`

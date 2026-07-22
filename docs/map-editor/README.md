@@ -7,8 +7,9 @@ Specs for the **paintable terrain grid** — UI and local map files. Consumes:
 - [Sprite viewer](../SPRITE_VIEWER.md) — reusable palette / draw patterns
 - [Mapgen preview](../mapgen-preview/README.md) — import JSON mapgen → `MapGrid` / `MapVolume`
 
-**Not in scope:** walkable player simulation, BN save format, full world/overmap generation
-(worldgen W1–W6). For overmap debug UI see [10](./10-overmap-debug-view.md) + [worldgen](../worldgen/README.md).
+**Not in scope:** walkable player simulation, BN save format. Overmap generation lives in
+[worldgen](../worldgen/README.md); the editor hosts overmap debug UI ([10](./10-overmap-debug-view.md))
+and the main-menu **Worldgen** shortcut.
 
 **Status key:** `todo` · `draft` · `review` · `done`
 
@@ -26,8 +27,8 @@ Specs for the **paintable terrain grid** — UI and local map files. Consumes:
 - Save / load nextgen map JSON ([04](./04-map-file-format.md))
 - Render cells via `LoadedTileset` (fg/bg, animation)
 - Mapgen import picker, `MapVolume` multi-floor, furniture **display** toggle (`F`)
-- `TilesetLoadSession` + spinner on tileset swap
-- Boot from `MainMenuScreen` or sprite viewer `E`
+- Boot from `MainMenuScreen` (**Map Editor** or **Worldgen**) or sprite viewer `E`
+- `TilesetLoadSession` + spinner on tileset swap; busy overlay deferred while tileset loads
 
 ### In scope (v2 — post–mapgen-v2)
 

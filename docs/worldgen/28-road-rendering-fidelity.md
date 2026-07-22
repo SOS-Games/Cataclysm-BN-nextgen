@@ -129,6 +129,20 @@ Hydrology already did neighbor-aware polish (`RiverPolisher` + W16 buffer). Road
 
 ---
 
+## Follow-up (layout connectivity, post–R5)
+
+Not visit paint — overmap graph cleanup after streets/highways/specials:
+
+| Class | Notes |
+| --- | --- |
+| `ParallelRoadLaneDissolver` | Solid 2×2 only |
+| `RoadGapFiller` | ≥3-neighbor natural holes |
+| `RoadTipBridger` | Tip gaps + diagonal L-joins; after specials |
+
+See [worldgen/README.md](./README.md#road-connectivity-polish-postc5).
+
+---
+
 ## Verification
 
 1. Fixed seed overmap: majority of road cells are directional `road_*`, not bare `road`.

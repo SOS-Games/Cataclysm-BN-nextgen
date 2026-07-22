@@ -1,7 +1,8 @@
 # Cataclysm-BN-nextgen
 
-LibGDX reimplementation of **Cataclysm: Bright Nights** — tileset loader, sprite viewer, and
-(eventually) full game client. Reads existing BN `gfx/` packs from disk.
+LibGDX reimplementation of **Cataclysm: Bright Nights** — focused today on **worldgen preview**
+(overmap layout + visit-tile walkaround), plus tileset loader, sprite viewer, and map editor.
+Eventually a full game client. Reads existing BN `gfx/` / `data/` packs from disk.
 
 Generated from [gdx-liftoff](https://github.com/libgdx/gdx-liftoff); desktop target is LWJGL3.
 
@@ -33,6 +34,7 @@ games/
 | [docs/TILESET_LOADER.md](docs/TILESET_LOADER.md) | Loader implementation guide and milestone |
 | [docs/GAME_DATA_LOADER.md](docs/GAME_DATA_LOADER.md) | Game JSON loader (terrain, furniture) |
 | [docs/MAPGEN_PREVIEW.md](docs/MAPGEN_PREVIEW.md) | JSON mapgen preview (buildings → grid) |
+| [docs/WORLDGEN.md](docs/WORLDGEN.md) | Overmap generation + visit-tile submaps |
 | [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Map editor |
 | [docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md) | In-game sprite browser |
 | [docs/INCREMENTAL_LOADING.md](docs/INCREMENTAL_LOADING.md) | Frame-sliced tileset load (`TilesetLoadSession`) |
@@ -56,14 +58,16 @@ See [docs/TILESET_LOADER.md](docs/TILESET_LOADER.md) for `GfxPaths` and system p
 ## Run
 
 ```bash
-# Windows — sprite viewer; auto-sets gfx path when ../Cataclysm-BN/gfx exists
+# Windows — main menu; auto-sets gfx/data paths when ../Cataclysm-BN exists
 gradlew.bat lwjgl3:run
 
 # macOS / Linux
 ./gradlew lwjgl3:run
 ```
 
-Controls: [docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md).
+Main menu: **Sprite Viewer**, **Map Editor**, **Worldgen** (overmap preview), **Configure Mods**.
+Controls: [docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md), [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md),
+[docs/WORLDGEN.md](docs/WORLDGEN.md).
 
 ## Gradle
 
@@ -81,7 +85,8 @@ Use `./gradlew` or `gradlew.bat` from the project root.
 
 - **Tileset loader** — v1 complete ([docs/TILESET_LOADER.md](docs/TILESET_LOADER.md))
 - **Sprite viewer** — `TileDisplayScreen` ([docs/SPRITE_VIEWER.md](docs/SPRITE_VIEWER.md))
-- **Map editor** — v1 complete ([docs/MAP_EDITOR.md](docs/MAP_EDITOR.md))
+- **Map editor** — v1 + v2 R1–R3 / M5–M7 ([docs/MAP_EDITOR.md](docs/MAP_EDITOR.md))
 - **Game data loader** — G1–G5 done ([docs/GAME_DATA_LOADER.md](docs/GAME_DATA_LOADER.md))
-- **Mapgen preview** — spec done, P1–P4 todo ([docs/MAPGEN_PREVIEW.md](docs/MAPGEN_PREVIEW.md))
+- **Mapgen preview** — P1–P7c + v2 P8–P15 done ([docs/MAPGEN_PREVIEW.md](docs/MAPGEN_PREVIEW.md))
+- **Worldgen** — W1–W14 + W17 Tier A + city streets C1–C5 ([docs/WORLDGEN.md](docs/WORLDGEN.md)); W15 next
 - **Full game client** — not started
