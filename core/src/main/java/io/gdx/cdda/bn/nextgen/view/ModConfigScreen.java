@@ -39,6 +39,7 @@ public final class ModConfigScreen {
     private final GlyphLayout glyphLayout = new GlyphLayout();
     private final TextureRegion whitePixel;
     private final Runnable onClose;
+    private final Runnable onModsSaved;
 
     private final List<ModRow> allRows = new ArrayList<>();
     private List<ModRow> visibleRows = Collections.emptyList();
@@ -52,10 +53,15 @@ public final class ModConfigScreen {
     private boolean dirty;
 
     public ModConfigScreen(final SpriteBatch batch, final Runnable onClose) {
+        this(batch, onClose, null);
+    }
+
+    public ModConfigScreen(final SpriteBatch batch, final Runnable onClose, final Runnable onModsSaved) {
         this.batch = batch;
         this.font = new BitmapFont();
         this.whitePixel = createWhitePixel();
         this.onClose = onClose;
+        this.onModsSaved = onModsSaved;
         reload();
     }
 
@@ -361,6 +367,9 @@ public final class ModConfigScreen {
         ensureCoreEnabled();
         ModConfiguration.saveEnabledModIds(new ArrayList<>(enabledIds));
         dirty = false;
+        if (onModsSaved != null) {
+            onModsSaved.run();
+        }
         onClose.run();
     }
 

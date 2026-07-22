@@ -15,6 +15,10 @@ final class OrthogonalPathCarver {
 
     private OrthogonalPathCarver() {}
 
+    /**
+     * Orthogonal path from start to end. With an RNG, walks in short axis runs so intercity
+     * roads gain several bends instead of a single L-corner.
+     */
     static List<int[]> buildPath(
         final int startX,
         final int startY,
@@ -26,16 +30,35 @@ final class OrthogonalPathCarver {
         int x = startX;
         int y = startY;
         path.add(new int[] { x, y });
+        boolean runOnX = rng == null || rng.nextBoolean();
+        int runRemaining = 0;
         int guard = 4096;
         while ((x != endX || y != endY) && guard-- > 0) {
-            final boolean moveX = x != endX && (y == endY || rng == null || rng.nextBoolean());
-            if (moveX) {
-                x += Integer.compare(endX, x);
-            } else if (y != endY) {
-                y += Integer.compare(endY, y);
-            } else {
-                x += Integer.compare(endX, x);
+            final int remainX = Math.abs(endX - x);
+            final int remainY = Math.abs(endY - y);
+            if (remainX == 0) {
+                runOnX = false;
+                runRemaining = remainY;
+            } else if (remainY == 0) {
+                runOnX = true;
+                runRemaining = remainX;
+            } else if (runRemaining <= 0) {
+                if (rng == null) {
+                    runOnX = remainX >= remainY;
+                    runRemaining = runOnX ? remainX : remainY;
+                } else {
+                    runOnX = rng.nextBoolean();
+                    final int along = runOnX ? remainX : remainY;
+                    // Short runs (1..4) create visible bends; never longer than remaining on axis.
+                    runRemaining = 1 + rng.nextInt(Math.max(1, Math.min(4, along)));
+                }
             }
+            if (runOnX) {
+                x += Integer.compare(endX, x);
+            } else {
+                y += Integer.compare(endY, y);
+            }
+            runRemaining--;
             path.add(new int[] { x, y });
         }
         return path;

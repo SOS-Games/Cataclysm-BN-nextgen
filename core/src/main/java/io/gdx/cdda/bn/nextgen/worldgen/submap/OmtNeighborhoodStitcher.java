@@ -29,6 +29,16 @@ import java.util.Set;
 public final class OmtNeighborhoodStitcher {
 
     public static final int DEFAULT_RADIUS = 1;
+    /** Default walkaround height in OMT cells (even sizes bias one extra cell south). */
+    public static final int DEFAULT_WALKAROUND_HEIGHT = 12;
+    /** Default walkaround width in OMT cells (even sizes bias one extra cell east). */
+    public static final int DEFAULT_WALKAROUND_WIDTH = 20;
+    /**
+     * @deprecated Prefer {@link #DEFAULT_WALKAROUND_WIDTH} / {@link #DEFAULT_WALKAROUND_HEIGHT}.
+     * Kept as the square side length for older call sites (equals height).
+     */
+    @Deprecated
+    public static final int DEFAULT_WALKAROUND_SIZE = DEFAULT_WALKAROUND_HEIGHT;
 
     private OmtNeighborhoodStitcher() {}
 
@@ -49,14 +59,143 @@ public final class OmtNeighborhoodStitcher {
         final RegionSettingsDefinition region,
         final int radius
     ) {
+        final int resolvedRadius = Math.max(0, radius);
+        return stitchWindow(
+            overmap,
+            centerOmtX,
+            centerOmtY,
+            z,
+            worldSeed,
+            cache,
+            volumeCache,
+            placementIndex,
+            mapgenPreviewService,
+            oterRegistry,
+            gameData,
+            mutableSpecials,
+            connectionRegistry,
+            region,
+            resolvedRadius,
+            resolvedRadius,
+            resolvedRadius,
+            resolvedRadius
+        );
+    }
+
+    /**
+     * Stitch a square OMT window of {@code size}×{@code size} (clamped at overmap edges).
+     * For even sizes the focus sits slightly toward the NW of the window.
+     */
+    public static VisitResult stitchBySize(
+        final OvermapGrid overmap,
+        final int centerOmtX,
+        final int centerOmtY,
+        final int z,
+        final long worldSeed,
+        final SubmapCache cache,
+        final VolumeCache volumeCache,
+        final PlacedBuildingIndex placementIndex,
+        final MapgenPreviewService mapgenPreviewService,
+        final OvermapTerrainRegistry oterRegistry,
+        final LoadedGameData gameData,
+        final MutableSpecialRegistry mutableSpecials,
+        final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region,
+        final int size
+    ) {
+        return stitchBySize(
+            overmap,
+            centerOmtX,
+            centerOmtY,
+            z,
+            worldSeed,
+            cache,
+            volumeCache,
+            placementIndex,
+            mapgenPreviewService,
+            oterRegistry,
+            gameData,
+            mutableSpecials,
+            connectionRegistry,
+            region,
+            size,
+            size
+        );
+    }
+
+    /**
+     * Stitch a rectangular OMT window of {@code width}×{@code height} (clamped at overmap edges).
+     * For even sizes the focus sits slightly toward the NW of the window.
+     */
+    public static VisitResult stitchBySize(
+        final OvermapGrid overmap,
+        final int centerOmtX,
+        final int centerOmtY,
+        final int z,
+        final long worldSeed,
+        final SubmapCache cache,
+        final VolumeCache volumeCache,
+        final PlacedBuildingIndex placementIndex,
+        final MapgenPreviewService mapgenPreviewService,
+        final OvermapTerrainRegistry oterRegistry,
+        final LoadedGameData gameData,
+        final MutableSpecialRegistry mutableSpecials,
+        final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region,
+        final int width,
+        final int height
+    ) {
+        final int resolvedW = Math.max(1, width);
+        final int resolvedH = Math.max(1, height);
+        return stitchWindow(
+            overmap,
+            centerOmtX,
+            centerOmtY,
+            z,
+            worldSeed,
+            cache,
+            volumeCache,
+            placementIndex,
+            mapgenPreviewService,
+            oterRegistry,
+            gameData,
+            mutableSpecials,
+            connectionRegistry,
+            region,
+            (resolvedW - 1) / 2,
+            resolvedW / 2,
+            (resolvedH - 1) / 2,
+            resolvedH / 2
+        );
+    }
+
+    private static VisitResult stitchWindow(
+        final OvermapGrid overmap,
+        final int centerOmtX,
+        final int centerOmtY,
+        final int z,
+        final long worldSeed,
+        final SubmapCache cache,
+        final VolumeCache volumeCache,
+        final PlacedBuildingIndex placementIndex,
+        final MapgenPreviewService mapgenPreviewService,
+        final OvermapTerrainRegistry oterRegistry,
+        final LoadedGameData gameData,
+        final MutableSpecialRegistry mutableSpecials,
+        final OvermapConnectionRegistry connectionRegistry,
+        final RegionSettingsDefinition region,
+        final int halfLoX,
+        final int halfHiX,
+        final int halfLoY,
+        final int halfHiY
+    ) {
         if (overmap == null) {
             return emptyResult("", Collections.singletonList("overmap is required"));
         }
-        final int resolvedRadius = Math.max(0, radius);
-        final int minOmtX = Math.max(0, centerOmtX - resolvedRadius);
-        final int maxOmtX = Math.min(overmap.width() - 1, centerOmtX + resolvedRadius);
-        final int minOmtY = Math.max(0, centerOmtY - resolvedRadius);
-        final int maxOmtY = Math.min(overmap.height() - 1, centerOmtY + resolvedRadius);
+        final int minOmtX = Math.max(0, centerOmtX - halfLoX);
+        final int maxOmtX = Math.min(overmap.width() - 1, centerOmtX + halfHiX);
+        final int minOmtY = Math.max(0, centerOmtY - halfLoY);
+        final int maxOmtY = Math.min(overmap.height() - 1, centerOmtY + halfHiY);
         final int stride = OmtStitchComposer.DEFAULT_OMT_SIZE;
         final int canvasWidth = (maxOmtX - minOmtX + 1) * stride;
         final int canvasHeight = (maxOmtY - minOmtY + 1) * stride;

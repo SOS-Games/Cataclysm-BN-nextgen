@@ -18,6 +18,16 @@ public final class SpecialLayoutImporter {
         final Path sourceFile,
         final Map<String, CityBuildingDefinition> byId
     ) {
+        registerIfMultiColumn(specialId, pieces, sourceFile, byId, List.of());
+    }
+
+    public static void registerIfMultiColumn(
+        final String specialId,
+        final List<CityBuildingPiece> pieces,
+        final Path sourceFile,
+        final Map<String, CityBuildingDefinition> byId,
+        final List<OvermapSpecialConnection> connections
+    ) {
         if (specialId.isEmpty() || countDistinctOmtColumns(pieces) < 2) {
             return;
         }
@@ -36,7 +46,8 @@ public final class SpecialLayoutImporter {
                 specialId,
                 sourceFile,
                 sorted,
-                CityBuildingDefinition.LayoutKind.OVERMAP_SPECIAL_WHOLE
+                CityBuildingDefinition.LayoutKind.OVERMAP_SPECIAL_WHOLE,
+                connections
             )
         );
     }

@@ -15,6 +15,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 
 import io.gdx.cdda.bn.nextgen.DefaultContent;
 import io.gdx.cdda.bn.nextgen.gamedata.GameDataLoader;
+import io.gdx.cdda.bn.nextgen.gamedata.cache.LoadTiming;
 import io.gdx.cdda.bn.nextgen.gamedata.load.GameDataLoadOptions;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.gamedata.model.TerrainRegistry;
@@ -58,8 +59,11 @@ import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainScanOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.WorldgenPreviewService;
 import io.gdx.cdda.bn.nextgen.worldgen.WorldgenScanOptions;
+import io.gdx.cdda.bn.nextgen.worldgen.explore.LocalExploreMath;
+import io.gdx.cdda.bn.nextgen.worldgen.explore.LocalExploreState;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionProfileSummary;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
+import io.gdx.cdda.bn.nextgen.worldgen.submap.OmtNeighborhoodStitcher;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.VisitResult;
 import io.gdx.cdda.bn.nextgen.worldgen.placement.PlacedBuildingRecord;
 import io.gdx.cdda.bn.nextgen.worldgen.visit.ZLevelResolver;
@@ -128,6 +132,7 @@ public final class MapEditorScreen {
     private int tilesetIndex;
     private boolean loadingTileset;
     private String loadingTilesetId = "";
+    private long tilesetLoadStartNs;
     private int gridPresetIndex = 1;
     private Path currentMapPath = DEFAULT_MAP_PATH;
     private String statusMessage;
@@ -163,7 +168,7 @@ public final class MapEditorScreen {
     private int lastPointerDebugCellX = -1;
     private int lastPointerDebugCellY = -1;
 
-    private final WorldgenPreviewService worldgenPreviewService = new WorldgenPreviewService();
+    private final WorldgenPreviewService worldgenPreviewService;
     private final MapgenPickerDialog mapgenPicker = new MapgenPickerDialog();
     private final RegionPickerDialog regionPicker = new RegionPickerDialog();
     private final ImportFailedDialog importFailedDialog = new ImportFailedDialog();
@@ -185,9 +190,18 @@ public final class MapEditorScreen {
     private int overmapSize = DEFAULT_OVERMAP_SIZE;
     private boolean overmapSmokeLayoutPending = true;
     private OvermapGenerateResult lastOvermapGeneration;
+    private final LocalExploreState localExplore = new LocalExploreState();
+    private boolean exploreRestitchPending;
 
     public MapEditorScreen(final SpriteBatch batch) {
+        this(batch, new WorldgenPreviewService());
+    }
+
+    public MapEditorScreen(final SpriteBatch batch, final WorldgenPreviewService worldgenPreviewService) {
         this.batch = batch;
+        this.worldgenPreviewService = worldgenPreviewService == null
+            ? new WorldgenPreviewService()
+            : worldgenPreviewService;
         this.font = new BitmapFont();
         this.font.setUseIntegerPositions(true);
         this.whitePixel = createWhitePixel();
@@ -199,6 +213,12 @@ public final class MapEditorScreen {
         loadDefaultTileset();
         palette.setSelectedTerrainId("t_grass");
         centerCamera();
+        if (this.worldgenPreviewService.isLoaded()) {
+            overmapTerrainRegistry = this.worldgenPreviewService.getOvermapTerrainRegistry();
+            overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
+            syncOvermapRegionFromRegistry();
+            LoadTiming.log("session", "MapEditorScreen attached to already-loaded worldgen");
+        }
     }
 
     public void render() {
@@ -226,8 +246,8 @@ public final class MapEditorScreen {
         drawHud();
         if (loadingTileset) {
             drawTilesetLoadingOverlay();
-        }
-        if (loadingMapgenCatalog || generatingOvermap) {
+        } else if (loadingMapgenCatalog || generatingOvermap) {
+            // Prefer tileset overlay when both are busy — gfx load dominates cold start.
             drawBusyLoadingOverlay();
         }
         mapgenPicker.render(batch, font, whitePixel, viewportPixelWidth(), viewportPixelHeight());
@@ -380,18 +400,22 @@ public final class MapEditorScreen {
         final float panStep = tilePixelSize() * 2f;
         if (keycode == Keys.LEFT) {
             cameraX -= panStep;
+            maybeRestitchExploreFromCamera();
             return true;
         }
         if (keycode == Keys.RIGHT) {
             cameraX += panStep;
+            maybeRestitchExploreFromCamera();
             return true;
         }
         if (keycode == Keys.UP) {
             cameraY += panStep;
+            maybeRestitchExploreFromCamera();
             return true;
         }
         if (keycode == Keys.DOWN) {
             cameraY -= panStep;
+            maybeRestitchExploreFromCamera();
             return true;
         }
         if (keycode == Keys.EQUALS || keycode == Keys.PLUS) {
@@ -434,14 +458,6 @@ public final class MapEditorScreen {
         }
         if (keycode == Keys.G) {
             cycleGridPreset();
-            return true;
-        }
-        if (keycode == Keys.LEFT_BRACKET) {
-            previousTileset();
-            return true;
-        }
-        if (keycode == Keys.RIGHT_BRACKET) {
-            nextTileset();
             return true;
         }
         if (keycode == Keys.F3) {
@@ -616,6 +632,7 @@ public final class MapEditorScreen {
         if (panning) {
             cameraX = panAnchorCameraX + (screenX - panAnchorScreenX);
             cameraY = panAnchorCameraY + (y - panAnchorScreenY);
+            maybeRestitchExploreFromCamera();
             return true;
         }
         if (painting) {
@@ -750,6 +767,9 @@ public final class MapEditorScreen {
     }
 
     private boolean shouldPanWithPrimaryButton() {
+        if (localExplore.isActive() && editorMode == EditorMode.SUBMAP) {
+            return true;
+        }
         return toolbar.getActiveTool() == MapEditorToolbar.Tool.PAN || Gdx.input.isKeyPressed(Keys.SPACE);
     }
 
@@ -873,32 +893,44 @@ public final class MapEditorScreen {
     }
 
     private void loadGameData() {
+        final LoadTiming.Session session = new LoadTiming.Session("startup/game-data");
         try {
             gameData = GameDataLoader.loadCore(GameDataLoadOptions.defaults());
+            session.phase("loadCore terrain=" + gameData.getTerrain().size()
+                + " furniture=" + gameData.getFurniture().size());
             palette.setTerrainRegistry(gameData.getTerrain());
             palette.setFurnitureRegistry(gameData.getFurniture());
             statusMessage = "Loaded " + gameData.getTerrain().size() + " terrain ids";
             appendValidationSummary(runGameDataValidation(null));
+            session.phase("validation");
         } catch (final IOException e) {
             statusMessage = "Game data load failed: " + e.getMessage();
             Gdx.app.error("map-editor", statusMessage, e);
+        } finally {
+            session.done();
         }
     }
 
     private void loadOvermapTerrain() {
+        if (worldgenPreviewService.isLoaded()) {
+            return;
+        }
+        final LoadTiming.Session session = new LoadTiming.Session("startup/overmap-terrain");
         try {
             final OvermapTerrainLoadResult result = OvermapTerrainLoader.load(OvermapTerrainScanOptions.defaults());
             overmapTerrainRegistry = result.getRegistry();
             overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
-            for (final String warning : result.getWarnings()) {
-                Gdx.app.log("overmap", warning);
-            }
+            logWarningSummary("overmap", result.getWarnings());
             if (overmapTerrainLoaded) {
                 Gdx.app.log("overmap", "Loaded " + overmapTerrainRegistry.size() + " overmap terrain ids");
+                worldgenPreviewService.seedOvermapTerrainRegistry(overmapTerrainRegistry, result.getWarnings());
             }
+            session.phase("ids=" + overmapTerrainRegistry.size());
         } catch (final IOException e) {
             overmapTerrainLoaded = false;
             Gdx.app.error("map-editor", "Overmap terrain load failed: " + e.getMessage(), e);
+        } finally {
+            session.done();
         }
     }
 
@@ -998,6 +1030,7 @@ public final class MapEditorScreen {
         overmapSmokeLayoutPending = false;
         selectedOmtX = -1;
         selectedOmtY = -1;
+        localExplore.clear();
         centerCamera();
         statusMessage = "Generated overmap " + overmapSize + "×" + overmapSize + " — "
             + generated.getCityBuildingsPlaced() + " buildings, "
@@ -1012,14 +1045,18 @@ public final class MapEditorScreen {
     }
 
     private void applyOvermapCacheSizing() {
+        // Walkaround uses a 12×12 OMT window (144 cells); keep headroom for sliding.
+        final int walkaroundMin = OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_WIDTH
+            * OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_HEIGHT
+            * 2;
         if (overmapSize >= 256) {
-            worldgenPreviewService.setSubmapCacheCapacity(512);
+            worldgenPreviewService.setSubmapCacheCapacity(Math.max(512, walkaroundMin));
         } else if (overmapSize >= 180) {
-            worldgenPreviewService.setSubmapCacheCapacity(256);
+            worldgenPreviewService.setSubmapCacheCapacity(Math.max(256, walkaroundMin));
         } else if (overmapSize >= 64) {
-            worldgenPreviewService.setSubmapCacheCapacity(128);
+            worldgenPreviewService.setSubmapCacheCapacity(Math.max(256, walkaroundMin));
         } else {
-            worldgenPreviewService.setSubmapCacheCapacity(64);
+            worldgenPreviewService.setSubmapCacheCapacity(Math.max(128, walkaroundMin));
         }
         worldgenPreviewService.setVolumeCacheCapacity(overmapSize >= 128 ? 24 : 16);
     }
@@ -1065,12 +1102,30 @@ public final class MapEditorScreen {
         return 1;
     }
 
+    /** Main-menu shortcut: jump straight into overmap worldgen preview. */
+    public void openWorldgenMode() {
+        localExplore.clear();
+        editorMode = EditorMode.OVERMAP;
+        statusMessage = "Loading worldgen…";
+        ensureWorldgenLoaded(() -> {
+            if (!overmapTerrainLoaded || overmapGrid == null) {
+                editorMode = EditorMode.SUBMAP;
+                statusMessage = "Overmap mode unavailable — no overmap terrain loaded";
+                return;
+            }
+            enterOvermapMode();
+        });
+    }
+
     private void toggleEditorMode() {
         if (!overmapTerrainLoaded || overmapGrid == null) {
             statusMessage = "Overmap mode unavailable — no overmap terrain loaded";
             return;
         }
         editorMode = editorMode == EditorMode.SUBMAP ? EditorMode.OVERMAP : EditorMode.SUBMAP;
+        if (editorMode == EditorMode.OVERMAP) {
+            localExplore.clear();
+        }
         if (editorMode == EditorMode.OVERMAP && overmapSmokeLayoutPending) {
             ensureWorldgenLoaded(this::enterOvermapMode);
             return;
@@ -1102,7 +1157,7 @@ public final class MapEditorScreen {
         final boolean visitable = mapgenService().isLoaded()
             && OvermapGridFactory.isVisitableOmt(omtId, mapgenService().getCatalog());
         statusMessage = "Selected OMT (" + selectedOmtX + "," + selectedOmtY + ") " + omtId
-            + (visitable ? " — Enter to generate submap" : " — no json submap (background tile)");
+            + (visitable ? " — Enter to walkaround (neighborhood)" : " — no json submap (background tile)");
     }
 
     private void visitSelectedOmt() {
@@ -1118,11 +1173,13 @@ public final class MapEditorScreen {
         worldgenPreviewService.setWorldSeed(overmapSeed);
         final String selectedOmtId = overmapGrid.getOmtId(selectedOmtX, selectedOmtY);
         final int visitZ = ZLevelResolver.visitZForOmt(selectedOmtId);
-        final VisitResult result = worldgenPreviewService.visit(
+        final VisitResult result = worldgenPreviewService.visitNeighborhoodSize(
             overmapGrid,
             selectedOmtX,
             selectedOmtY,
-            visitZ
+            visitZ,
+            OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_WIDTH,
+            OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_HEIGHT
         );
         final String omtId = result.getOmtId();
         if (!result.hasGrid()) {
@@ -1131,35 +1188,132 @@ public final class MapEditorScreen {
             } else {
                 statusMessage = "No json mapgen for " + omtId + " — try Ctrl+G mapgen picker for direct import";
             }
-            for (final String warning : result.getWarnings()) {
-                Gdx.app.log("worldgen", warning);
-            }
+            logWarningSummary("worldgen", result.getWarnings());
+            localExplore.clear();
             return;
         }
-        if (result.isBuildingVisit()) {
-            setMapVolume(result.getVolume().orElse(null), result.getBuilding().orElse(null));
-            setSpawnMarkersByZ(result.getSpawnMarkersByZ());
-        } else {
-            replaceGrid(result.getGrid());
+        replaceGrid(result.getGrid());
+        setSpawnMarkers(result.getSpawnMarkers());
+        mapVolume = null;
+        activeBuilding = null;
+        editorMode = EditorMode.SUBMAP;
+        localExplore.activateFromPatch(
+            result,
+            OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_WIDTH,
+            OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_HEIGHT,
+            visitZ
+        );
+        centerCameraOnVisit(result);
+        final String cacheNote = result.isFromCache() ? " (cached)" : "";
+        statusMessage = "Explore " + omtId + " @ (" + selectedOmtX + "," + selectedOmtY + ",z=" + visitZ + ")"
+            + " → " + grid.width() + "x" + grid.height() + " neighborhood"
+            + cacheNote + " — left-drag to walk";
+        logWarningSummary("worldgen", result.getWarnings());
+        appendValidationSummary(runGameDataValidation(tileset));
+    }
+
+    private void maybeRestitchExploreFromCamera() {
+        if (!localExplore.isActive()
+            || editorMode != EditorMode.SUBMAP
+            || overmapGrid == null
+            || exploreRestitchPending) {
+            return;
+        }
+        final float tilePx = tilePixelSize();
+        final int stride = localExplore.omtStride();
+        final int cellX = LocalExploreMath.focusCellX(cameraX, canvasWidth() / 2f, tilePx);
+        final float areaBottom = MapEditorToolbar.HEIGHT + 16;
+        final float areaTop = viewportPixelHeight() - hudHeight() - 8;
+        final float viewMidY = (areaBottom + areaTop) / 2f;
+        final int cellY = LocalExploreMath.focusCellY(
+            cameraY,
+            hudHeight(),
+            grid.height(),
+            viewMidY,
+            tilePx
+        );
+        int focusX = LocalExploreMath.cellToOmt(cellX, localExplore.getPatchMinOmtX(), stride);
+        int focusY = LocalExploreMath.cellToOmt(cellY, localExplore.getPatchMinOmtY(), stride);
+        focusX = LocalExploreMath.clamp(focusX, 0, overmapGrid.width() - 1);
+        focusY = LocalExploreMath.clamp(focusY, 0, overmapGrid.height() - 1);
+        if (focusX == localExplore.getFocusOmtX() && focusY == localExplore.getFocusOmtY()) {
+            return;
+        }
+        restitchExploreNeighborhood(focusX, focusY);
+    }
+
+    private void restitchExploreNeighborhood(final int focusOmtX, final int focusOmtY) {
+        if (overmapGrid == null || !worldgenPreviewService.isLoaded()) {
+            return;
+        }
+        exploreRestitchPending = true;
+        try {
+            final int oldMinX = localExplore.getPatchMinOmtX();
+            final int oldMinY = localExplore.getPatchMinOmtY();
+            final int oldHeight = grid.height();
+            final float tilePx = tilePixelSize();
+            final int stride = localExplore.omtStride();
+
+            worldgenPreviewService.setGameData(gameData);
+            worldgenPreviewService.setWorldSeed(overmapSeed);
+            final VisitResult result = worldgenPreviewService.visitNeighborhoodSize(
+                overmapGrid,
+                focusOmtX,
+                focusOmtY,
+                localExplore.getVisitZ(),
+                localExplore.getWindowWidth(),
+                localExplore.getWindowHeight()
+            );
+            if (!result.hasGrid() || !result.isPatchVisit()) {
+                return;
+            }
+
+            replaceGridKeepingExplore(result.getGrid());
             setSpawnMarkers(result.getSpawnMarkers());
             mapVolume = null;
             activeBuilding = null;
+
+            cameraX += LocalExploreMath.cameraDeltaX(
+                oldMinX,
+                result.getPatchMinOmtX(),
+                stride,
+                tilePx
+            );
+            cameraY += LocalExploreMath.cameraDeltaY(
+                oldMinY,
+                result.getPatchMinOmtY(),
+                oldHeight,
+                grid.height(),
+                stride,
+                tilePx
+            );
+            // Re-anchor pan mid-drag so further drag deltas don't jump.
+            if (panning) {
+                panAnchorCameraX = cameraX;
+                panAnchorCameraY = cameraY;
+                panAnchorScreenX = lastPointerX;
+                panAnchorScreenY = lastPointerY;
+            }
+
+            localExplore.updateAfterRestitch(result, focusOmtX, focusOmtY);
+            selectedOmtX = focusOmtX;
+            selectedOmtY = focusOmtY;
+            final String cacheNote = result.isFromCache() ? " (cached)" : "";
+            statusMessage = "Explore (" + focusOmtX + "," + focusOmtY + ",z=" + localExplore.getVisitZ() + ") "
+                + result.getOmtId() + " → " + grid.width() + "x" + grid.height() + cacheNote;
+        } finally {
+            exploreRestitchPending = false;
         }
-        editorMode = EditorMode.SUBMAP;
-        centerCameraOnVisit(result);
-        final String cacheNote = result.isFromCache() ? " (cached)" : "";
-        final String visitKind = result.isBuildingVisit()
-            ? "building"
-            : (result.isPatchVisit() ? "connected patch" : "submap");
-        final String floorNote = result.isBuildingVisit() && mapVolume != null
-            ? " floor z=" + mapVolume.getActiveZ()
-            : (visitZ != 0 ? " visit z=" + visitZ : "");
-        statusMessage = "Visited " + omtId + " → " + grid.width() + "x" + grid.height()
-            + " " + visitKind + floorNote + cacheNote;
-        for (final String warning : result.getWarnings()) {
-            Gdx.app.log("worldgen", warning);
+    }
+
+    private void replaceGridKeepingExplore(final MapGrid source) {
+        if (source == null) {
+            return;
         }
-        appendValidationSummary(runGameDataValidation(tileset));
+        mapVolume = null;
+        activeBuilding = null;
+        grid = new MapGrid(source.width(), source.height(), source.getDefaultTerrainId());
+        copyGrid(source);
     }
 
     private void ensureWorldgenLoaded(final Runnable onReady) {
@@ -1180,17 +1334,19 @@ public final class MapEditorScreen {
         loadingMapgenCatalog = true;
         statusMessage = "Loading worldgen data…";
         new Thread(() -> {
+            final long wallNs = LoadTiming.start();
             try {
                 worldgenPreviewService.ensureLoaded(WorldgenScanOptions.defaults());
+                final long ms = LoadTiming.msSince(wallNs);
+                LoadTiming.log("ui", "worldgen ensureLoaded wall " + ms + " ms");
                 Gdx.app.postRunnable(() -> {
                     loadingMapgenCatalog = false;
                     overmapTerrainRegistry = worldgenPreviewService.getOvermapTerrainRegistry();
                     overmapTerrainLoaded = overmapTerrainRegistry.size() > 0;
                     syncOvermapRegionFromRegistry();
                     logMapgenLoadWarnings();
-                    for (final String warning : worldgenPreviewService.getOvermapLoadWarnings()) {
-                        Gdx.app.log("overmap", warning);
-                    }
+                    logWarningSummary("overmap", worldgenPreviewService.getOvermapLoadWarnings());
+                    statusMessage = "Worldgen loaded in " + ms + " ms — see [load-timing] in console";
                     onReady.run();
                 });
             } catch (final IOException e) {
@@ -1228,12 +1384,8 @@ public final class MapEditorScreen {
         for (final String error : report.getErrors()) {
             Gdx.app.error("game-data", error);
         }
-        for (final String warning : report.getWarnings()) {
-            Gdx.app.log("game-data", warning);
-        }
-        for (final String info : report.getInfos()) {
-            Gdx.app.log("game-data", info);
-        }
+        logWarningSummary("game-data", report.getWarnings());
+        logWarningSummary("game-data", report.getInfos());
     }
 
     private void appendValidationSummary(final ValidationReport report) {
@@ -1241,6 +1393,17 @@ public final class MapEditorScreen {
         if (issues > 0) {
             statusMessage += " | " + issues + " validation issue(s)";
         }
+    }
+
+    private static void logWarningSummary(final String tag, final List<String> warnings) {
+        if (warnings == null || warnings.isEmpty()) {
+            return;
+        }
+        if (warnings.size() == 1) {
+            Gdx.app.log(tag, warnings.get(0));
+            return;
+        }
+        Gdx.app.log(tag, warnings.size() + " messages (suppressed detail); e.g. " + warnings.get(0));
     }
 
     private void drawGrid() {
@@ -1532,6 +1695,7 @@ public final class MapEditorScreen {
         }
         loadSession.step();
         if (loadSession.isComplete()) {
+            LoadTiming.logMs("startup/tileset", loadingTilesetId + " complete", tilesetLoadStartNs);
             applyLoadedTileset(loadSession.getResult());
             loadSession = null;
         } else if (loadSession.isFailed()) {
@@ -1772,17 +1936,25 @@ public final class MapEditorScreen {
         final String mapPath = currentMapPath.toAbsolutePath().normalize().toString();
         final String line1 = statusMessage;
         final String line2 = tilesetLine + "  |  map: " + mapPath;
-        final String line4 = "Grid " + grid.width() + "x" + grid.height()
-            + buildingFloorHudSuffix()
-            + "  |  layer " + palette.getBrushLayer().hudLabel()
-            + "  |  brush " + brush
-            + "  |  furniture " + (showFurnitureLayer ? "on" : "off")
-            + "  |  spawns " + (showSpawnOverlay ? "on" : "off")
-            + "  |  chunks " + (showOmtPieceBorders ? "on" : "off")
-            + cutawayHudSuffix()
-            + "  |  tool " + toolbar.getActiveTool().name().toLowerCase()
-            + "  |  zoom " + formatViewZoom();
-        final String line5 = "Toolbar: Paint / Pan / Pick / Mapgen — Ctrl+G import json mapgen";
+        final String line4 = localExplore.isActive()
+            ? ("Explore (" + localExplore.getFocusOmtX() + "," + localExplore.getFocusOmtY()
+                + ",z=" + localExplore.getVisitZ() + ")"
+                + "  |  patch min (" + localExplore.getPatchMinOmtX() + "," + localExplore.getPatchMinOmtY() + ")"
+                + "  |  Grid " + grid.width() + "x" + grid.height()
+                + "  |  left-drag walk  |  zoom " + formatViewZoom())
+            : ("Grid " + grid.width() + "x" + grid.height()
+                + buildingFloorHudSuffix()
+                + "  |  layer " + palette.getBrushLayer().hudLabel()
+                + "  |  brush " + brush
+                + "  |  furniture " + (showFurnitureLayer ? "on" : "off")
+                + "  |  spawns " + (showSpawnOverlay ? "on" : "off")
+                + "  |  chunks " + (showOmtPieceBorders ? "on" : "off")
+                + cutawayHudSuffix()
+                + "  |  tool " + toolbar.getActiveTool().name().toLowerCase()
+                + "  |  zoom " + formatViewZoom());
+        final String line5 = localExplore.isActive()
+            ? "Walkaround: left-drag or arrows load nearby OMTs  |  M returns to overmap"
+            : "Toolbar: Paint / Pan / Pick / Mapgen — Ctrl+G import json mapgen";
         final String line6 = pointerDebugLogging
             ? "F3 pointer debug ON — delta = mouse minus highlight center  |  Esc menu"
             : formatShortcutLine();
@@ -1815,7 +1987,7 @@ public final class MapEditorScreen {
             + "  seed=" + overmapSeed;
         final String line3 = "Profile: " + describeActiveRegionProfile();
         final String line4 = "Hover: " + hover + "  |  Selected: " + selection + "  |  zoom " + formatViewZoom();
-        final String line5 = "Click building cell — Enter visit — [ ] size — R new seed — G region — [M] submap";
+        final String line5 = "Click building cell — Enter walkaround — [ ] size — R new seed — G region — [M] submap";
         final String line6 = overmapTerrainLoaded
             ? "[M] submap mode  |  F1 help  |  Esc clear selection  |  F3 debug"
             : "Overmap terrain not loaded";
@@ -1933,7 +2105,8 @@ public final class MapEditorScreen {
         keybindHelp.toggle(MapEditorKeybindHelp.build(
             overmapTerrainLoaded && overmapGrid != null,
             editorMode == EditorMode.OVERMAP,
-            multiFloor
+            multiFloor,
+            localExplore.isActive()
         ));
     }
 
@@ -2280,6 +2453,7 @@ public final class MapEditorScreen {
     }
 
     private void replaceGrid(final MapGrid source) {
+        localExplore.clear();
         mapVolume = null;
         activeBuilding = null;
         clearSpawnMarkers();
@@ -2454,9 +2628,7 @@ public final class MapEditorScreen {
             if (!result.getRunWarnings().isEmpty()) {
                 statusMessage += " | " + result.getRunWarnings().size() + " warning(s)";
             }
-            for (final String warning : result.getRunWarnings()) {
-                Gdx.app.log("mapgen", warning);
-            }
+            logWarningSummary("mapgen", result.getRunWarnings());
             logMapgenLoadWarnings();
         } catch (final RuntimeException e) {
             showImportFailed("Building import failed", "Building: " + building.getId(), e);
@@ -2486,9 +2658,7 @@ public final class MapEditorScreen {
             centerCamera();
             statusMessage = "Mapgen: " + definition.displayName()
                 + " (" + grid.width() + "x" + grid.height() + ")";
-            for (final String warning : result.getRunWarnings()) {
-                Gdx.app.log("mapgen", warning);
-            }
+            logWarningSummary("mapgen", result.getRunWarnings());
             appendValidationSummary(runGameDataValidation(tileset));
         } catch (final RuntimeException e) {
             showImportFailed("Mapgen import failed", "Mapgen: " + definition.displayName(), e);
@@ -2496,9 +2666,7 @@ public final class MapEditorScreen {
     }
 
     private void logMapgenLoadWarnings() {
-        for (final String warning : mapgenService().getLoadWarnings()) {
-            Gdx.app.log("mapgen", warning);
-        }
+        logWarningSummary("mapgen", mapgenService().getLoadWarnings());
     }
 
     private void drawBusyLoadingOverlay() {
@@ -2555,6 +2723,8 @@ public final class MapEditorScreen {
         tilesetIndex = index;
         loadingTilesetId = tilesetIds.get(tilesetIndex);
         loadingTileset = true;
+        tilesetLoadStartNs = LoadTiming.start();
+        LoadTiming.log("startup/tileset", "begin " + loadingTilesetId);
         statusMessage = "Loading " + loadingTilesetId + "…";
         if (tileset != null) {
             tileset.dispose();

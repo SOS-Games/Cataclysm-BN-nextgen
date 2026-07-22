@@ -30,8 +30,8 @@ class CityGeneratorTest {
 
         assertTrue(result.getUrbanOmtsPlaced() > 20, "urban=" + result.getUrbanOmtsPlaced());
         assertTrue(result.getLocalRoadCellsPlaced() > 5, "local=" + result.getLocalRoadCellsPlaced());
-        assertTrue(countOmt(result.getGrid(), "test_shop") > 0);
-        assertTrue(countOmt(result.getGrid(), "test_park") > 0);
+        assertTrue(countOmtPrefix(result.getGrid(), "test_shop") > 0);
+        assertTrue(countOmtPrefix(result.getGrid(), "test_park") > 0);
         assertTrue(
             countOmt(result.getGrid(), "test_road_nesw_manhole") > 0,
             "street-first cities should seed a manhole road"
@@ -81,9 +81,9 @@ class CityGeneratorTest {
 
         assertTrue(result.getUrbanOmtsPlaced() > 5, "urban=" + result.getUrbanOmtsPlaced());
         assertTrue(result.getLocalRoadCellsPlaced() > 5, "local=" + result.getLocalRoadCellsPlaced());
-        final int shops = countOmt(result.getGrid(), "test_shop");
-        final int parks = countOmt(result.getGrid(), "test_park");
-        final int houses = countOmt(result.getGrid(), "test_urban_house");
+        final int shops = countOmtPrefix(result.getGrid(), "test_shop");
+        final int parks = countOmtPrefix(result.getGrid(), "test_park");
+        final int houses = countOmtPrefix(result.getGrid(), "test_urban_house");
         assertTrue(shops + parks + houses > 5, "shops=" + shops + " parks=" + parks + " houses=" + houses);
         assertTrue(countRoadOmts(result.getGrid()) > result.getRoadCellsPlaced());
     }
@@ -126,6 +126,19 @@ class CityGeneratorTest {
         for (int y = 0; y < grid.height(); y++) {
             for (int x = 0; x < grid.width(); x++) {
                 if (omtId.equals(grid.getOmtId(x, y))) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countOmtPrefix(final OvermapGrid grid, final String prefix) {
+        int count = 0;
+        for (int y = 0; y < grid.height(); y++) {
+            for (int x = 0; x < grid.width(); x++) {
+                final String id = grid.getOmtId(x, y);
+                if (id != null && (id.equals(prefix) || id.startsWith(prefix + "_"))) {
                     count++;
                 }
             }

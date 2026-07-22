@@ -6,18 +6,20 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 
-/** Startup menu: choose sprite viewer or map editor. */
+/** Startup menu: sprite viewer, map editor, worldgen, or mod config. */
 public final class MainMenuScreen {
 
     private static final String TITLE = "Cataclysm BN Nextgen";
     private static final String[] ITEM_LABELS = {
         "Sprite Viewer",
         "Map Editor",
+        "Worldgen",
         "Configure Mods"
     };
     private static final String[] ITEM_HINTS = {
         "Browse loaded tileset sprites",
         "Paint terrain and import mapgen",
+        "Generate overmap and visit OMTs",
         "Enable BN mods for game data and mapgen"
     };
 
@@ -26,6 +28,7 @@ public final class MainMenuScreen {
     private final GlyphLayout glyphLayout = new GlyphLayout();
     private final Runnable onSpriteViewer;
     private final Runnable onMapEditor;
+    private final Runnable onWorldgen;
     private final Runnable onModConfig;
 
     private int selectedIndex;
@@ -34,12 +37,14 @@ public final class MainMenuScreen {
         final SpriteBatch batch,
         final Runnable onSpriteViewer,
         final Runnable onMapEditor,
+        final Runnable onWorldgen,
         final Runnable onModConfig
     ) {
         this.batch = batch;
         this.font = new BitmapFont();
         this.onSpriteViewer = onSpriteViewer;
         this.onMapEditor = onMapEditor;
+        this.onWorldgen = onWorldgen;
         this.onModConfig = onModConfig;
     }
 
@@ -85,6 +90,11 @@ public final class MainMenuScreen {
             activateSelection();
             return true;
         }
+        if (keycode == Keys.NUM_4) {
+            selectedIndex = 3;
+            activateSelection();
+            return true;
+        }
         return false;
     }
 
@@ -117,10 +127,10 @@ public final class MainMenuScreen {
         final int centerY = viewportHeight() / 2;
 
         glyphLayout.setText(font, TITLE);
-        font.draw(batch, TITLE, centerX - glyphLayout.width / 2f, centerY + 110);
+        font.draw(batch, TITLE, centerX - glyphLayout.width / 2f, centerY + 130);
 
-        final int itemStartY = centerY + 36;
-        final int itemStep = 52;
+        final int itemStartY = centerY + 56;
+        final int itemStep = 48;
         for (int i = 0; i < ITEM_LABELS.length; i++) {
             final int itemY = itemStartY - i * itemStep;
             final boolean selected = i == selectedIndex;
@@ -137,7 +147,7 @@ public final class MainMenuScreen {
             );
         }
 
-        final String controls = "[Up/Down] select  [Enter] open  [1/2/3] shortcut  [Click] item";
+        final String controls = "[Up/Down] select  [Enter] open  [1-4] shortcut  [Click] item";
         glyphLayout.setText(font, controls);
         font.draw(batch, controls, centerX - glyphLayout.width / 2f, 48);
     }
@@ -147,6 +157,8 @@ public final class MainMenuScreen {
             onSpriteViewer.run();
         } else if (selectedIndex == 1) {
             onMapEditor.run();
+        } else if (selectedIndex == 2) {
+            onWorldgen.run();
         } else {
             onModConfig.run();
         }
@@ -155,10 +167,10 @@ public final class MainMenuScreen {
     private int hitTest(final int screenX, final int screenY) {
         final int centerX = viewportWidth() / 2;
         final int centerY = viewportHeight() / 2;
-        final int itemStartY = centerY + 36;
-        final int itemStep = 52;
+        final int itemStartY = centerY + 56;
+        final int itemStep = 48;
         final int halfWidth = 240;
-        final int halfHeight = 28;
+        final int halfHeight = 26;
 
         for (int i = 0; i < ITEM_LABELS.length; i++) {
             final int itemY = itemStartY - i * itemStep;

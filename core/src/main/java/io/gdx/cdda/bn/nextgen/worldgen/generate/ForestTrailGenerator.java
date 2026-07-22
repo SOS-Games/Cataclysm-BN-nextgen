@@ -60,6 +60,12 @@ public final class ForestTrailGenerator {
 
         final Set<String> forestIds = forestTerrainIds(region, options);
         final Set<String> overwritable = new HashSet<>(forestIds);
+        overwritable.add("field");
+        overwritable.add("test_field");
+        overwritable.add("open_air");
+        overwritable.add("swamp");
+        overwritable.add("test_swamp");
+        overwritable.add(resolvedTrailId);
         final boolean[] visited = new boolean[grid.width() * grid.height()];
         int painted = 0;
 
@@ -187,7 +193,8 @@ public final class ForestTrailGenerator {
                 grid,
                 path,
                 (fromX, fromY, x, y, existing) -> {
-                    if (!isForestTerrain(existing, forestIds) && !isTrailTerrain(existing, trailId)) {
+                    // BN forest_trail also crosses forest_edge (field) and swamp between blobs.
+                    if (!isTrailableTerrain(existing, forestIds, trailId)) {
                         return null;
                     }
                     final String picked = connection.pickTerrainForStep(fromX, fromY, x, y, existing, options);
@@ -379,6 +386,25 @@ public final class ForestTrailGenerator {
             return true;
         }
         return omtId.startsWith("forest_trail") || omtId.startsWith("test_forest_trail");
+    }
+
+    /** Forest, existing trail, field/edge, or swamp — BN forest_trail connection locations. */
+    private static boolean isTrailableTerrain(
+        final String omtId,
+        final Set<String> forestIds,
+        final String trailId
+    ) {
+        if (omtId == null || omtId.isEmpty()) {
+            return false;
+        }
+        if (isTrailTerrain(omtId, trailId) || isForestTerrain(omtId, forestIds)) {
+            return true;
+        }
+        if (isFieldLike(omtId)) {
+            return true;
+        }
+        final String n = omtId.toLowerCase(java.util.Locale.ROOT);
+        return n.contains("swamp") || n.equals("forest_edge");
     }
 
     private static boolean isRoadTerrain(final String omtId) {

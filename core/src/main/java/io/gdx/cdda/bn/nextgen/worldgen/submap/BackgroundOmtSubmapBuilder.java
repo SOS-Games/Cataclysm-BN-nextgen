@@ -69,7 +69,10 @@ public final class BackgroundOmtSubmapBuilder {
                 groundcover
             ));
         }
-        if (isRoadOmt(normalized, connectionRegistry)) {
+        if (BuiltinHighwayMapgen.isHighwayOmt(normalized)) {
+            return Optional.of(BuiltinHighwayMapgen.generate(omtId, groundcover, previewSeed));
+        }
+        if (isBridgeOmt(normalized) || isRoadOmt(normalized, connectionRegistry)) {
             final String mapExtra = RoadMapExtras.roll(previewSeed ^ ((long) omtX << 16) ^ omtY, null);
             return Optional.of(BuiltinRoadMapgen.generate(
                 overmap,
@@ -253,7 +256,7 @@ public final class BackgroundOmtSubmapBuilder {
         final boolean west
     ) {
         final int mid = SIZE / 2;
-        final int half = 2;
+        final int half = 3;
         if (ns) {
             final int x0 = mid - half;
             final int x1 = mid + half - 1;
@@ -300,6 +303,25 @@ public final class BackgroundOmtSubmapBuilder {
         return isForestTrailOmt(normalize(neighbor), connectionRegistry);
     }
 
+    public static boolean isTransportationOmt(
+        final String omtId,
+        final OvermapConnectionRegistry connectionRegistry
+    ) {
+        if (omtId == null || omtId.isEmpty()) {
+            return false;
+        }
+        final String normalized = normalize(omtId);
+        return isForestTrailOmt(normalized, connectionRegistry)
+            || BuiltinHighwayMapgen.isHighwayOmt(normalized)
+            || isBridgeOmt(normalized)
+            || isRoadOmt(normalized, connectionRegistry)
+            || isUndergroundTunnelOmt(normalized, connectionRegistry);
+    }
+
+    private static boolean isBridgeOmt(final String normalized) {
+        return BuiltinRoadMapgen.isBridgeOmtId(normalized);
+    }
+
     private static boolean isRoadOmt(final String normalized, final OvermapConnectionRegistry connectionRegistry) {
         if (connectionRegistry != null) {
             final java.util.Optional<String> connectionId = OvermapConnectionResolver.connectionIdForOmt(
@@ -314,9 +336,7 @@ public final class BackgroundOmtSubmapBuilder {
             || normalized.startsWith("road_")
             || normalized.startsWith("hiway_")
             || normalized.startsWith("test_road")
-            || normalized.contains("railroad")
-            || normalized.equals("bridge")
-            || normalized.startsWith("bridge_");
+            || normalized.contains("railroad");
     }
 
     private static boolean isForestTrailOmt(
@@ -334,7 +354,8 @@ public final class BackgroundOmtSubmapBuilder {
         }
         return normalized.equals("forest_trail")
             || normalized.startsWith("forest_trail_")
-            || normalized.equals("test_forest_trail");
+            || normalized.equals("test_forest_trail")
+            || normalized.startsWith("test_forest_trail_");
     }
 
     private static boolean isUndergroundTunnelOmt(
@@ -381,6 +402,11 @@ public final class BackgroundOmtSubmapBuilder {
     }
 
     private static boolean isForestOmt(final String normalized) {
+        if (normalized.startsWith("forest_trail")
+            || normalized.startsWith("test_forest_trail")
+            || normalized.startsWith("trailhead")) {
+            return false;
+        }
         return normalized.equals("forest")
             || normalized.startsWith("forest_")
             || normalized.equals("special_forest")

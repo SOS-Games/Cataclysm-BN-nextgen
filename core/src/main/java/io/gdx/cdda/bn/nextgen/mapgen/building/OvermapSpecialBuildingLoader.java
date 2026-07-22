@@ -108,7 +108,74 @@ public final class OvermapSpecialBuildingLoader {
         for (final List<CityBuildingPiece> stack : stacksByOmt.values()) {
             registerVerticalStack(stack, specialId, sourceFile, byId, warnings);
         }
-        SpecialLayoutImporter.registerIfMultiColumn(specialId, pieces, sourceFile, byId);
+        SpecialLayoutImporter.registerIfMultiColumn(
+            specialId,
+            pieces,
+            sourceFile,
+            byId,
+            parseConnections(root)
+        );
+    }
+
+    static List<OvermapSpecialConnection> parseConnections(final JsonValue root) {
+        final JsonValue connections = root.get("connections");
+        if (connections == null || !connections.isArray()) {
+            return List.of();
+        }
+        final List<OvermapSpecialConnection> parsed = new ArrayList<>();
+        for (JsonValue entry = connections.child; entry != null; entry = entry.next) {
+            final OvermapSpecialConnection connection = parseConnection(entry);
+            if (connection != null) {
+                parsed.add(connection);
+            }
+        }
+        return parsed;
+    }
+
+    private static OvermapSpecialConnection parseConnection(final JsonValue entry) {
+        if (entry == null || !entry.isObject()) {
+            return null;
+        }
+        final JsonValue point = entry.get("point");
+        if (point == null || !point.isArray() || point.size < 3) {
+            return null;
+        }
+        String connectionId = entry.getString("connection", "");
+        if (connectionId.isEmpty()) {
+            // Legacy BN "terrain" → connection id mapping.
+            final String terrain = entry.getString("terrain", "");
+            if ("sewer".equals(terrain)) {
+                connectionId = "sewer_tunnel";
+            } else if ("subway".equals(terrain)) {
+                connectionId = "subway_tunnel";
+            } else if ("forest_trail".equals(terrain)) {
+                connectionId = "forest_trail";
+            } else if (!terrain.isEmpty()) {
+                connectionId = "local_road";
+            }
+        }
+        if (connectionId.isEmpty()) {
+            return null;
+        }
+        Integer fromX = null;
+        Integer fromY = null;
+        Integer fromZ = null;
+        final JsonValue from = entry.get("from");
+        if (from != null && from.isArray() && from.size >= 3) {
+            fromX = from.getInt(0);
+            fromY = from.getInt(1);
+            fromZ = from.getInt(2);
+        }
+        return new OvermapSpecialConnection(
+            point.getInt(0),
+            point.getInt(1),
+            point.getInt(2),
+            fromX,
+            fromY,
+            fromZ,
+            connectionId,
+            entry.getBoolean("existing", false)
+        );
     }
 
     private static void registerVerticalStack(

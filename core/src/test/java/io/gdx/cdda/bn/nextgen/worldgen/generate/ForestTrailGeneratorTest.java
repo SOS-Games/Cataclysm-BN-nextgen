@@ -117,6 +117,36 @@ class ForestTrailGeneratorTest {
         assertTrue(countTerrain(grid, "test_trailhead") >= 1);
     }
 
+    @Test
+    void carvesTrailsAcrossFieldGapsBetweenForest() {
+        // One contiguous forest with a field bite: orthogonal paths between border
+        // points cross the bite; trails must pave those field cells (BN forest_edge).
+        final OvermapGrid grid = new OvermapGrid(20, 20, "open_air");
+        fillRect(grid, 2, 2, 17, 17, "test_field");
+        fillRect(grid, 7, 8, 12, 11, "open_air");
+
+        final int painted = ForestTrailGenerator.placeAll(
+            grid,
+            trailRegion,
+            connections,
+            OvermapGenerateOptions.forSize(20, 20).withTerrainIds("open_air", "test_field"),
+            oterRegistry,
+            new java.util.Random(99L),
+            new ArrayList<>()
+        );
+
+        assertTrue(painted >= 5, "expected trail cells, got " + painted);
+        int gapTrails = 0;
+        for (int x = 7; x <= 12; x++) {
+            for (int y = 8; y <= 11; y++) {
+                if ("test_forest_trail".equals(grid.getOmtId(x, y))) {
+                    gapTrails++;
+                }
+            }
+        }
+        assertTrue(gapTrails >= 1, "expected trail across field bite, got " + gapTrails);
+    }
+
     private static void fillRect(
         final OvermapGrid grid,
         final int x0,

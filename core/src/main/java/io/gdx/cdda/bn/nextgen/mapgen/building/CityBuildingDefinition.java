@@ -18,13 +18,14 @@ public final class CityBuildingDefinition {
     private final Path sourceFile;
     private final List<CityBuildingPiece> pieces;
     private final LayoutKind layoutKind;
+    private final List<OvermapSpecialConnection> connections;
 
     public CityBuildingDefinition(
         final String id,
         final Path sourceFile,
         final List<CityBuildingPiece> pieces
     ) {
-        this(id, sourceFile, pieces, LayoutKind.STANDARD);
+        this(id, sourceFile, pieces, LayoutKind.STANDARD, List.of());
     }
 
     public CityBuildingDefinition(
@@ -33,10 +34,23 @@ public final class CityBuildingDefinition {
         final List<CityBuildingPiece> pieces,
         final LayoutKind layoutKind
     ) {
+        this(id, sourceFile, pieces, layoutKind, List.of());
+    }
+
+    public CityBuildingDefinition(
+        final String id,
+        final Path sourceFile,
+        final List<CityBuildingPiece> pieces,
+        final LayoutKind layoutKind,
+        final List<OvermapSpecialConnection> connections
+    ) {
         this.id = id;
         this.sourceFile = sourceFile;
         this.pieces = Collections.unmodifiableList(new ArrayList<>(pieces));
         this.layoutKind = layoutKind == null ? LayoutKind.STANDARD : layoutKind;
+        this.connections = connections == null || connections.isEmpty()
+            ? List.of()
+            : Collections.unmodifiableList(new ArrayList<>(connections));
     }
 
     public String getId() {
@@ -57,6 +71,10 @@ public final class CityBuildingDefinition {
 
     public boolean isWholeOvermapSpecial() {
         return layoutKind == LayoutKind.OVERMAP_SPECIAL_WHOLE;
+    }
+
+    public List<OvermapSpecialConnection> getConnections() {
+        return connections;
     }
 
     public List<Integer> distinctZLevels() {

@@ -48,6 +48,7 @@ public final class StaticSpecialPlacer {
                 special,
                 grid,
                 oterRegistry,
+                options,
                 clearable,
                 rng,
                 warnings,

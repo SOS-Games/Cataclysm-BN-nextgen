@@ -235,6 +235,29 @@ public final class SubmapGenerator {
             ? RegionGroundcoverSettings.defaults()
             : region.getDefaultGroundcover();
         final String visitBaseFillTer = groundcover.pick(new Random(previewSeed ^ 0x47504C41L));
+
+        // Prefer builtin transportation painters before JSON — BN uses builtins for road/trail.
+        if (BackgroundOmtSubmapBuilder.isTransportationOmt(omtId, connectionRegistry)) {
+            final Optional<MapGrid> transportation = BackgroundOmtSubmapBuilder.buildIfSupported(
+                overmap,
+                omtX,
+                omtY,
+                omtId,
+                previewSeed,
+                connectionRegistry,
+                oterRegistry,
+                groundcover
+            );
+            if (transportation.isPresent()) {
+                final MapGrid grid = transportation.get();
+                finishVisitGrid(grid, mapgenPreviewService, regionId, previewSeed, warnings);
+                if (cache != null) {
+                    cache.put(key, grid);
+                }
+                return new VisitResult(grid, warnings, false, omtId);
+            }
+        }
+
         final Optional<JsonMapgenDefinition> definition = MapgenPicker.pick(
             omtId,
             z,
@@ -252,7 +275,7 @@ public final class SubmapGenerator {
                 previewSeed,
                 connectionRegistry,
                 oterRegistry,
-                region == null ? RegionGroundcoverSettings.defaults() : region.getDefaultGroundcover()
+                groundcover
             );
             if (background.isPresent()) {
                 final MapGrid grid = background.get();

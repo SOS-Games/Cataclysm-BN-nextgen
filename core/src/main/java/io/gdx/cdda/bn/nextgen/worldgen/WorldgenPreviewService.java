@@ -1,6 +1,7 @@
 package io.gdx.cdda.bn.nextgen.worldgen;
 
 import io.gdx.cdda.bn.nextgen.gamedata.cache.JsonContentDiskCache;
+import io.gdx.cdda.bn.nextgen.gamedata.cache.LoadTiming;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.mapgen.MapgenPreviewService;
 import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionLoadResult;
@@ -10,8 +11,6 @@ import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateOptions;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerateResult;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapGenerator;
 import io.gdx.cdda.bn.nextgen.worldgen.generate.OvermapNeighborGrid;
-import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoadResult;
-import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialLoader;
 import io.gdx.cdda.bn.nextgen.worldgen.mutable.MutableSpecialRegistry;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGridFactory;
@@ -23,6 +22,7 @@ import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoadResult;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsLoader;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.region.RegionSettingsRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.submap.OmtNeighborhoodStitcher;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapCache;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.SubmapGenerator;
 import io.gdx.cdda.bn.nextgen.worldgen.submap.VisitResult;
@@ -36,7 +36,7 @@ import java.util.List;
 /** Facade for overmap terrain + visit-tile submap generation (W3). */
 public final class WorldgenPreviewService {
 
-    private static final int DEFAULT_CACHE_SIZE = 128;
+    private static final int DEFAULT_CACHE_SIZE = 288;
     private static final int DEFAULT_VOLUME_CACHE_SIZE = 16;
 
     private final MapgenPreviewService mapgenPreviewService = new MapgenPreviewService();
@@ -155,42 +155,70 @@ public final class WorldgenPreviewService {
 
     public synchronized void ensureLoaded(final WorldgenScanOptions options) throws IOException {
         if (loaded && mapgenPreviewService.isLoaded()) {
+            LoadTiming.log("worldgen", "already loaded — skip");
             return;
         }
         final WorldgenScanOptions scanOptions = options == null ? WorldgenScanOptions.defaults() : options;
-        JsonContentDiskCache.withSession(
-            "worldgen",
-            scanOptions.getDataRoots(),
-            scanOptions.getModIds(),
-            () -> loadWorldgenCatalogs(scanOptions)
-        );
+        final LoadTiming.Session session = new LoadTiming.Session("worldgen/ensureLoaded");
+        try {
+            JsonContentDiskCache.withSession(
+                "worldgen",
+                scanOptions.getDataRoots(),
+                scanOptions.getModIds(),
+                () -> loadWorldgenCatalogs(scanOptions)
+            );
+        } finally {
+            session.done();
+        }
     }
 
     private void loadWorldgenCatalogs(final WorldgenScanOptions scanOptions) throws IOException {
-        final OvermapTerrainLoadResult oterResult = OvermapTerrainLoader.load(
-            scanOptions.getOvermapTerrainScanOptions()
-        );
-        overmapTerrainRegistry = oterResult.getRegistry();
-        overmapLoadWarnings = new ArrayList<>(oterResult.getWarnings());
+        final LoadTiming.Session session = new LoadTiming.Session("worldgen/catalogs");
+
+        if (overmapTerrainRegistry.size() == 0) {
+            final OvermapTerrainLoadResult oterResult = OvermapTerrainLoader.load(
+                scanOptions.getOvermapTerrainScanOptions()
+            );
+            overmapTerrainRegistry = oterResult.getRegistry();
+            overmapLoadWarnings = new ArrayList<>(oterResult.getWarnings());
+            session.phase("overmap_terrain ids=" + overmapTerrainRegistry.size());
+        } else {
+            overmapLoadWarnings = new ArrayList<>(
+                overmapLoadWarnings == null ? Collections.emptyList() : overmapLoadWarnings
+            );
+            session.phase("overmap_terrain ids=" + overmapTerrainRegistry.size() + " (reused)");
+        }
 
         final OvermapConnectionLoadResult connectionResult = OvermapConnectionLoader.load(
             scanOptions.getOvermapConnectionScanOptions()
         );
         overmapConnectionRegistry = connectionResult.getRegistry();
         overmapLoadWarnings.addAll(connectionResult.getWarnings());
-
-        final MutableSpecialLoadResult mutableResult = MutableSpecialLoader.load(
-            scanOptions.getMutableSpecialScanOptions()
-        );
-        mutableSpecialRegistry = mutableResult.getRegistry();
-        overmapLoadWarnings.addAll(mutableResult.getWarnings());
+        session.phase("overmap_connection");
 
         final RegionSettingsLoadResult regionResult = RegionSettingsLoader.load(scanOptions.getMapgenScanOptions());
         regionSettingsRegistry = regionResult.getRegistry();
         overmapLoadWarnings.addAll(regionResult.getWarnings());
+        session.phase("region_settings");
 
         mapgenPreviewService.ensureLoaded(scanOptions.getMapgenScanOptions());
+        session.phase("mapgen catalogs");
+
+        // Reuse mapgen's mutable registry instead of scanning specials twice.
+        mutableSpecialRegistry = mapgenPreviewService.getMutableSpecials();
+        session.phase("mutable_special (from mapgen)");
+
         loaded = true;
+        session.done();
+    }
+
+    /** Prefer an already-loaded OMT registry (e.g. map editor early load) to skip a duplicate scan. */
+    public void seedOvermapTerrainRegistry(final OvermapTerrainRegistry registry, final List<String> warnings) {
+        if (loaded || registry == null || registry.size() == 0) {
+            return;
+        }
+        overmapTerrainRegistry = registry;
+        overmapLoadWarnings = warnings == null ? new ArrayList<>() : new ArrayList<>(warnings);
     }
 
     public OvermapGrid createTestOvermap(final int width, final int height, final long seed) {
@@ -400,6 +428,107 @@ public final class WorldgenPreviewService {
             mutableSpecialRegistry,
             overmapConnectionRegistry,
             resolvedRegion()
+        );
+    }
+
+    /**
+     * Stitch a neighborhood of OMT submaps into one {@link io.gdx.cdda.bn.nextgen.map.MapGrid}
+     * for seamless walkaround (always patch path; does not return a lone building volume).
+     * Uses {@link OmtNeighborhoodStitcher#DEFAULT_WALKAROUND_WIDTH}×{@link OmtNeighborhoodStitcher#DEFAULT_WALKAROUND_HEIGHT}.
+     */
+    public VisitResult visitNeighborhood(
+        final OvermapGrid overmap,
+        final int omtX,
+        final int omtY,
+        final int z
+    ) {
+        return visitNeighborhoodSize(
+            overmap,
+            omtX,
+            omtY,
+            z,
+            OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_WIDTH,
+            OmtNeighborhoodStitcher.DEFAULT_WALKAROUND_HEIGHT
+        );
+    }
+
+    public VisitResult visitNeighborhood(
+        final OvermapGrid overmap,
+        final int omtX,
+        final int omtY,
+        final int z,
+        final int radius
+    ) {
+        if (!isLoaded()) {
+            return new VisitResult(
+                null,
+                Collections.singletonList("worldgen not loaded"),
+                false,
+                ""
+            );
+        }
+        return OmtNeighborhoodStitcher.stitch(
+            overmap,
+            omtX,
+            omtY,
+            z,
+            worldSeed,
+            submapCache,
+            volumeCache,
+            placementIndex,
+            mapgenPreviewService,
+            overmapTerrainRegistry,
+            gameData,
+            mutableSpecialRegistry,
+            overmapConnectionRegistry,
+            resolvedRegion(),
+            radius
+        );
+    }
+
+    public VisitResult visitNeighborhoodSize(
+        final OvermapGrid overmap,
+        final int omtX,
+        final int omtY,
+        final int z,
+        final int size
+    ) {
+        return visitNeighborhoodSize(overmap, omtX, omtY, z, size, size);
+    }
+
+    public VisitResult visitNeighborhoodSize(
+        final OvermapGrid overmap,
+        final int omtX,
+        final int omtY,
+        final int z,
+        final int width,
+        final int height
+    ) {
+        if (!isLoaded()) {
+            return new VisitResult(
+                null,
+                Collections.singletonList("worldgen not loaded"),
+                false,
+                ""
+            );
+        }
+        return OmtNeighborhoodStitcher.stitchBySize(
+            overmap,
+            omtX,
+            omtY,
+            z,
+            worldSeed,
+            submapCache,
+            volumeCache,
+            placementIndex,
+            mapgenPreviewService,
+            overmapTerrainRegistry,
+            gameData,
+            mutableSpecialRegistry,
+            overmapConnectionRegistry,
+            resolvedRegion(),
+            width,
+            height
         );
     }
 

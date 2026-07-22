@@ -150,6 +150,15 @@ public final class CityStreetGenerator {
             grid.setOmtId(cx, cy, manholeId);
         }
 
+        final String fillId = OrthogonalPathCarver.resolveTerrainId(
+            options.getFieldId(),
+            "field",
+            registry
+        );
+        ParallelRoadLaneDissolver.dissolve(grid, fillId);
+        RoadGapFiller.fill(grid, roadId, options);
+        ParallelRoadLaneDissolver.dissolve(grid, fillId);
+
         return new GrowResult(painted, nodes, sewers);
     }
 
@@ -187,6 +196,7 @@ public final class CityStreetGenerator {
 
         int c = cs;
         int croad = cs;
+        // Alternate thick/thin blocks like BN (2 ↔ 3–5).
         final int newWidth = blockWidth == 2 ? 3 + rng.nextInt(3) : 2;
         for (int i = 0; i < path.size(); i++) {
             c--;
@@ -194,8 +204,15 @@ public final class CityStreetGenerator {
             final int y = path.get(i)[1];
             if (c >= 2 && c < croad - blockWidth) {
                 croad = c;
-                int left = Math.max(2, cs - (1 + rng.nextInt(3)));
-                int right = Math.max(2, cs - (1 + rng.nextInt(3)));
+                // BN: left/right = cs - rng(1,3); only bump exact nubs of length 1.
+                int left = cs - (1 + rng.nextInt(3));
+                int right = cs - (1 + rng.nextInt(3));
+                if (left == 1) {
+                    left++;
+                }
+                if (right == 1) {
+                    right++;
+                }
                 painted += buildCityStreet(
                     grid, connection, roadId, manholeId, overwritable, options, registry, rng,
                     x, y, left, turnLeft(dir), newWidth, depth + 1, nodes, sewers
@@ -211,13 +228,16 @@ public final class CityStreetGenerator {
             }
         }
 
+        // BN: end turn when the arm walked its full budget (c reaches 0). Our path excludes the
+        // source cell and can be cs+1 long, so c may land at -1 — treat c <= 0 as "full arm".
         int nextCs = cs - (1 + rng.nextInt(3));
-        if (nextCs >= 2 && c == 0) {
+        if (nextCs >= 2 && c <= 0) {
             final int[] last = path.get(path.size() - 1);
             final int rnd = rng.nextBoolean() ? turnLeft(dir) : turnRight(dir);
+            // BN uses default block_width=2 for the first edge spur (little neighborhoods).
             painted += buildCityStreet(
                 grid, connection, roadId, manholeId, overwritable, options, registry, rng,
-                last[0], last[1], nextCs, rnd, blockWidth, depth + 1, nodes, sewers
+                last[0], last[1], nextCs, rnd, 2, depth + 1, nodes, sewers
             );
             if (rng.nextInt(5) == 0) {
                 painted += buildCityStreet(
@@ -259,7 +279,11 @@ public final class CityStreetGenerator {
                 || !canPlaceRoadOn(ter, connection, options, overwritable)) {
                 break;
             }
-            if (countNearbyRoads(grid, x, y, dir) >= 3) {
+            // BN stops at >=3 nearby road cells (excl. forward/back). That still allows a
+            // parallel street to start beside a partial corridor (only 1–2 hits), then fill in
+            // a second adjacent EW/NS lane — double-wide roads with a grass median. Also refuse
+            // when either immediate perpendicular neighbor is already a road.
+            if (countNearbyRoads(grid, x, y, dir) >= 3 || hasPerpendicularRoad(grid, x, y, dir)) {
                 break;
             }
             path.add(new int[] { x, y });
@@ -269,6 +293,26 @@ public final class CityStreetGenerator {
             actual++;
         }
         return path;
+    }
+
+    /** True when a road lies on the immediate left or right of travel (parallel adjacency). */
+    private static boolean hasPerpendicularRoad(
+        final OvermapGrid grid,
+        final int x,
+        final int y,
+        final int dir
+    ) {
+        final int left = turnLeft(dir);
+        final int right = turnRight(dir);
+        return isRoadAt(grid, x + DELTA[left][0], y + DELTA[left][1])
+            || isRoadAt(grid, x + DELTA[right][0], y + DELTA[right][1]);
+    }
+
+    private static boolean isRoadAt(final OvermapGrid grid, final int x, final int y) {
+        if (x < 0 || y < 0 || x >= grid.width() || y >= grid.height()) {
+            return false;
+        }
+        return UrbanTerrainClearables.isRoadFamily(grid.getOmtId(x, y));
     }
 
     private static int paintPath(
@@ -306,17 +350,11 @@ public final class CityStreetGenerator {
         final OvermapTerrainRegistry registry,
         final Random rng
     ) {
-        final String sewerId = registry != null && registry.contains("test_sewer")
-            ? "test_sewer"
-            : (registry != null && registry.contains("sewer") ? "sewer" : null);
-        if (sewerId == null) {
+        // BN places these at z-1. Do not paint surface sewer OMTs (breaks sidewalks),
+        // but still consume path RNG so city lot rolls stay seed-stable.
+        if (sewers == null || rng == null) {
             return 0;
         }
-        final Set<String> overwritable = new HashSet<>(
-            OrthogonalPathCarver.terrainOverwritableIds(options, registry, sewerId)
-        );
-        // Approximate z=-1 sewers on surface without destroying roads/manholes.
-        int painted = 0;
         final Set<String> seen = new HashSet<>();
         for (final int[] point : sewers) {
             if (point[0] == centerX && point[1] == centerY) {
@@ -326,27 +364,9 @@ public final class CityStreetGenerator {
             if (!seen.add(key)) {
                 continue;
             }
-            final List<int[]> path = OrthogonalPathCarver.buildPath(centerX, centerY, point[0], point[1], rng);
-            for (final int[] cell : path) {
-                final int x = cell[0];
-                final int y = cell[1];
-                if (x < 0 || y < 0 || x >= grid.width() || y >= grid.height()) {
-                    continue;
-                }
-                final String existing = grid.getOmtId(x, y);
-                if (UrbanTerrainClearables.isRoadFamily(existing)
-                    || existing != null && existing.contains("manhole")) {
-                    continue;
-                }
-                if (!UrbanTerrainClearables.isPaveable(existing, overwritable, options)
-                    && !sewerId.equals(existing)) {
-                    continue;
-                }
-                grid.setOmtId(x, y, sewerId);
-                painted++;
-            }
+            OrthogonalPathCarver.buildPath(centerX, centerY, point[0], point[1], rng);
         }
-        return painted;
+        return 0;
     }
 
     private static boolean canPlaceRoadOn(
@@ -468,6 +488,11 @@ public final class CityStreetGenerator {
 
     static int flankRight(final int travelDir) {
         return turnRight(travelDir);
+    }
+
+    /** Direction a lot building should face (toward the street). */
+    static int faceStreet(final int flankDir) {
+        return opposite(flankDir);
     }
 
     static int[] displace(final int x, final int y, final int dir) {

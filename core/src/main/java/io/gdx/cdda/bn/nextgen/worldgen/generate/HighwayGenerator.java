@@ -115,6 +115,12 @@ public final class HighwayGenerator {
                 grid,
                 path,
                 (fromX, fromY, x, y, existing) -> {
+                    // Skip only when paving would create a solid 2×2 double-lane block.
+                    // A broader "any perpendicular road" check left gaps where highways
+                    // approached city streets and never joined.
+                    if (wouldCreateSolidTwoByTwo(grid, x, y)) {
+                        return null;
+                    }
                     final String picked = connection.pickTerrainForStep(fromX, fromY, x, y, existing, options);
                     return OrthogonalPathCarver.resolveTerrainId(picked, roadId, registry);
                 },
@@ -122,6 +128,41 @@ public final class HighwayGenerator {
             );
         }
         return painted;
+    }
+
+    /** True if paving (x,y) would complete a solid 2×2 of road OMTs. */
+    private static boolean wouldCreateSolidTwoByTwo(final OvermapGrid grid, final int x, final int y) {
+        for (int ox = x - 1; ox <= x; ox++) {
+            for (int oy = y - 1; oy <= y; oy++) {
+                if (ox < 0 || oy < 0 || ox + 1 >= grid.width() || oy + 1 >= grid.height()) {
+                    continue;
+                }
+                if (isRoadOrPave(grid, ox, oy, x, y)
+                    && isRoadOrPave(grid, ox + 1, oy, x, y)
+                    && isRoadOrPave(grid, ox, oy + 1, x, y)
+                    && isRoadOrPave(grid, ox + 1, oy + 1, x, y)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isRoadOrPave(
+        final OvermapGrid grid,
+        final int x,
+        final int y,
+        final int paveX,
+        final int paveY
+    ) {
+        return (x == paveX && y == paveY) || isRoad(grid, x, y);
+    }
+
+    private static boolean isRoad(final OvermapGrid grid, final int x, final int y) {
+        if (grid == null || x < 0 || y < 0 || x >= grid.width() || y >= grid.height()) {
+            return false;
+        }
+        return UrbanTerrainClearables.isRoadFamily(grid.getOmtId(x, y));
     }
 
     private static List<int[]> minimumSpanningTreePairs(final List<int[]> centers) {

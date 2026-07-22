@@ -304,11 +304,67 @@
   },
   {
     "type": "overmap_terrain",
+    "id": "test_hiway_ns",
+    "name": "test highway NS",
+    "sym": "H",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_hiway_ew",
+    "name": "test highway EW",
+    "sym": "H",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
     "id": "test_bridge",
     "name": "bridge",
     "sym": "#",
     "color": "brown",
     "flags": [ "NO_ROTATE", "IS_BRIDGE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_bridge_under",
+    "name": "bridge under",
+    "sym": "=",
+    "color": "dark_gray",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_bridgehead_ground_north",
+    "name": "bridgehead north",
+    "sym": "^",
+    "color": "brown",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_bridgehead_ground_east",
+    "name": "bridgehead east",
+    "sym": ">",
+    "color": "brown",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_bridgehead_ground_south",
+    "name": "bridgehead south",
+    "sym": "v",
+    "color": "brown",
+    "flags": [ "NO_ROTATE" ]
+  },
+  {
+    "type": "overmap_terrain",
+    "id": "test_bridgehead_ground_west",
+    "name": "bridgehead west",
+    "sym": "<",
+    "color": "brown",
+    "flags": [ "NO_ROTATE" ]
   },
   {
     "type": "overmap_terrain",
@@ -340,7 +396,7 @@
     "name": "urban house",
     "sym": "h",
     "color": "white",
-    "flags": [ "NO_ROTATE" ],
+    "flags": [ "SIDEWALK" ],
     "mapgen": [ { "method": "json", "om_terrain": "test_room" } ]
   },
   {
@@ -349,7 +405,7 @@
     "name": "test shop",
     "sym": "S",
     "color": "light_blue",
-    "flags": [ "NO_ROTATE" ],
+    "flags": [ "SIDEWALK" ],
     "mapgen": [ { "method": "json", "om_terrain": "test_room" } ]
   },
   {

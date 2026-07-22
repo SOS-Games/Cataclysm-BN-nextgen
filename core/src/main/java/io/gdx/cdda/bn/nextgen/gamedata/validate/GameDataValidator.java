@@ -9,8 +9,6 @@ import io.gdx.cdda.bn.nextgen.tileset.model.LoadedTileset;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /** Post-load game data checks (G4 / unit 10). */
 public final class GameDataValidator {
@@ -22,8 +20,6 @@ public final class GameDataValidator {
 
     private static final String UNKNOWN_TILE_ID = "unknown";
     private static final int V6_MANY_MISSING_MIN = 5;
-
-    private static final Logger LOG = Logger.getLogger(GameDataValidator.class.getName());
 
     private GameDataValidator() {}
 
@@ -49,9 +45,7 @@ public final class GameDataValidator {
 
     private static void validateNonEmptyTerrain(final TerrainRegistry terrain, final List<String> errors) {
         if (terrain.size() == 0) {
-            final String message = "[" + CHECK_V1 + "] terrain registry is empty after load";
-            errors.add(message);
-            LOG.log(Level.SEVERE, message);
+            errors.add("[" + CHECK_V1 + "] terrain registry is empty after load");
         }
     }
 
@@ -85,10 +79,8 @@ public final class GameDataValidator {
         if (terrain.contains(looksLike) || furniture.contains(looksLike)) {
             return;
         }
-        final String message = "[" + checkId + "] " + kind + " " + id
-            + ": looks_like target '" + looksLike + "' not found";
-        warnings.add(message);
-        LOG.log(Level.WARNING, message);
+        warnings.add("[" + checkId + "] " + kind + " " + id
+            + ": looks_like target '" + looksLike + "' not found");
     }
 
     private static void validateGfx(
@@ -98,19 +90,24 @@ public final class GameDataValidator {
         final List<String> infos
     ) {
         int missingGfx = 0;
+        String firstMissing = null;
         for (final String id : terrain.allIds()) {
             if (tileset.findTile(id).isEmpty()) {
                 missingGfx++;
-                final String message = "[" + CHECK_V5 + "] terrain " + id + ": no gfx tile";
-                warnings.add(message);
+                if (firstMissing == null) {
+                    firstMissing = id;
+                }
             }
         }
 
+        if (missingGfx > 0) {
+            warnings.add("[" + CHECK_V5 + "] " + missingGfx + " terrain ids lack gfx tiles"
+                + (firstMissing == null ? "" : "; e.g. " + firstMissing));
+        }
+
         if (missingGfx >= V6_MANY_MISSING_MIN && tileset.findTile(UNKNOWN_TILE_ID).isPresent()) {
-            final String message = "[" + CHECK_V6 + "] " + missingGfx + " terrain ids lack gfx tiles;"
-                + " tileset provides '" + UNKNOWN_TILE_ID + "' fallback";
-            infos.add(message);
-            LOG.log(Level.INFO, message);
+            infos.add("[" + CHECK_V6 + "] " + missingGfx + " terrain ids lack gfx tiles;"
+                + " tileset provides '" + UNKNOWN_TILE_ID + "' fallback");
         }
     }
 }

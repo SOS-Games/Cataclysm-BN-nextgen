@@ -277,6 +277,18 @@ public final class OvermapGenerator {
 
             );
 
+            ParallelRoadLaneDissolver.dissolve(
+                grid,
+                OrthogonalPathCarver.resolveTerrainId(options.getFieldId(), "field", oterRegistry)
+            );
+            final String roadFillId = OrthogonalPathCarver.resolveTerrainId("road", "test_road", oterRegistry);
+            RoadGapFiller.fill(grid, roadFillId, options);
+            ParallelRoadLaneDissolver.dissolve(
+                grid,
+                OrthogonalPathCarver.resolveTerrainId(options.getFieldId(), "field", oterRegistry)
+            );
+            RoadTipBridger.bridge(grid, roadFillId, options);
+
         }
 
 
@@ -424,9 +436,12 @@ public final class OvermapGenerator {
 
 
         if (!options.isLegacyGenerationOrder() && !deferDirectionalPolish) {
+            final String roadFillId = OrthogonalPathCarver.resolveTerrainId("road", "test_road", oterRegistry);
+            RoadTipBridger.bridge(grid, roadFillId, options);
             RiverPolisher.polishDirectional(grid, options, oterRegistry, warnings, neighborsForPolish(hydrologyNeighbors));
             BridgeElevator.elevateCrossings(grid, options, connectionRegistry, oterRegistry);
             RoadConnectionPolisher.polish(grid, options, connectionRegistry, oterRegistry, warnings);
+            ForestTrailPolisher.polish(grid, connectionRegistry, oterRegistry);
         }
 
 

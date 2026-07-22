@@ -55,6 +55,31 @@ class RoadEdgeAndBridgeTest {
         final int elevated = BridgeElevator.elevateCrossings(grid, options, connections, registry);
 
         assertTrue(elevated >= 1);
-        assertEquals("test_bridge", grid.getOmtId(2, 2));
+        // BN flattens one-tile bridges to directional road.
+        assertEquals("test_road_ns", grid.getOmtId(2, 2));
+    }
+
+    @Test
+    void elevatesMultiTileSpanToHeadsAndUnder() throws Exception {
+        final OvermapTerrainRegistry registry = OvermapTerrainLoader.load(
+            OvermapTerrainScanOptions.fromDataRoot(WorldgenTestFixtures.fixtureDataRoot())
+        ).getRegistry();
+        final OvermapConnectionRegistry connections = OvermapConnectionLoader.load(
+            OvermapConnectionScanOptions.fromDataRoot(WorldgenTestFixtures.fixtureDataRoot())
+        ).getRegistry();
+        final OvermapGrid grid = new OvermapGrid(7, 5, "test_field");
+        for (int x = 2; x <= 4; x++) {
+            grid.setOmtId(x, 1, "test_river");
+            grid.setOmtId(x, 2, "test_bridge");
+            grid.setOmtId(x, 3, "test_river");
+        }
+        final OvermapGenerateOptions options = OvermapGenerateOptions.forSize(7, 5)
+            .withConnectivity(true, true, "test_local_road", "test_river", "test_river");
+
+        BridgeElevator.elevateCrossings(grid, options, connections, registry);
+
+        assertEquals("test_bridgehead_ground_west", grid.getOmtId(2, 2));
+        assertEquals("test_bridge_under", grid.getOmtId(3, 2));
+        assertEquals("test_bridgehead_ground_east", grid.getOmtId(4, 2));
     }
 }

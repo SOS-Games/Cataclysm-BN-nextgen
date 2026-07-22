@@ -1,7 +1,9 @@
 package io.gdx.cdda.bn.nextgen.worldgen.generate;
 
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapGrid;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainDefinition;
 import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRegistry;
+import io.gdx.cdda.bn.nextgen.worldgen.overmap.OvermapTerrainRotator;
 import io.gdx.cdda.bn.nextgen.worldgen.region.CityContentWeights;
 
 import java.util.HashSet;
@@ -167,10 +169,32 @@ public final class CityLotPlacer {
             if (pick.isEmpty()) {
                 continue;
             }
-            grid.setOmtId(x, y, pick.get());
+            final String oriented = faceTowardStreet(pick.get(), flankDir, registry);
+            grid.setOmtId(x, y, oriented);
             return true;
         }
         return false;
+    }
+
+    /**
+     * BN {@code building_dir = opposite(flank)}: rotatable OMTs face the adjacent street.
+     */
+    static String faceTowardStreet(
+        final String omtId,
+        final int flankDir,
+        final OvermapTerrainRegistry registry
+    ) {
+        if (omtId == null || omtId.isEmpty() || flankDir < 0 || flankDir > 3) {
+            return omtId;
+        }
+        if (registry != null) {
+            final OvermapTerrainDefinition def = registry.find(omtId).orElse(null);
+            if (def != null && !def.isRotatable()) {
+                return omtId;
+            }
+        }
+        final int faceDir = CityStreetGenerator.faceStreet(flankDir);
+        return OvermapTerrainRotator.rotateId(omtId, faceDir);
     }
 
     static Optional<String> pickBuilding(

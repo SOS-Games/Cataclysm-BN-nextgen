@@ -1,6 +1,7 @@
 package io.gdx.cdda.bn.nextgen.mapgen;
 
 import io.gdx.cdda.bn.nextgen.gamedata.cache.JsonContentDiskCache;
+import io.gdx.cdda.bn.nextgen.gamedata.cache.LoadTiming;
 import io.gdx.cdda.bn.nextgen.gamedata.model.LoadedGameData;
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
 import io.gdx.cdda.bn.nextgen.mapgen.building.CityBuildingDefinition;
@@ -91,46 +92,60 @@ public final class MapgenPreviewService {
 
     public synchronized void ensureLoaded(final MapgenScanOptions options) throws IOException {
         if (loaded) {
+            LoadTiming.log("mapgen", "already loaded — skip");
             return;
         }
         final MapgenScanOptions scanOptions = options == null ? MapgenScanOptions.defaults() : options;
-        JsonContentDiskCache.withSession(
-            "mapgen",
-            scanOptions.getDataRoots(),
-            scanOptions.getModIds(),
-            () -> loadCatalogs(scanOptions)
-        );
+        final LoadTiming.Session session = new LoadTiming.Session("mapgen/ensureLoaded");
+        try {
+            JsonContentDiskCache.withSession(
+                "mapgen",
+                scanOptions.getDataRoots(),
+                scanOptions.getModIds(),
+                () -> loadCatalogs(scanOptions)
+            );
+        } finally {
+            session.done();
+        }
     }
 
     private void loadCatalogs(final MapgenScanOptions scanOptions) throws IOException {
+        final LoadTiming.Session session = new LoadTiming.Session("mapgen/catalogs");
         final List<String> warnings = new ArrayList<>();
 
         final MapgenLoadResult paletteResult = PaletteLoader.load(scanOptions);
         palettes = paletteResult.getPalettes();
         warnings.addAll(paletteResult.getWarnings());
+        session.phase("palettes");
 
         final MapgenCatalogResult catalogResult = JsonMapgenLoader.load(scanOptions);
         catalog = catalogResult.getCatalog();
         warnings.addAll(catalogResult.getWarnings());
+        session.phase("json mapgen catalog");
 
         cityBuildings = MapgenFileBundleInferrer.augment(
             CityBuildingLoader.load(scanOptions),
             catalog
         );
         warnings.addAll(cityBuildings.getWarnings());
+        session.phase("city buildings / specials");
 
         final MutableSpecialLoadResult mutableResult = MutableSpecialLoader.load(
             new MutableSpecialScanOptions(scanOptions.getDataRoots(), scanOptions.getModIds())
         );
         mutableSpecials = mutableResult.getRegistry();
         warnings.addAll(mutableResult.getWarnings());
+        session.phase("mutable specials");
 
         pickerIndex = MapgenPickerIndex.build(catalog, cityBuildings, mutableSpecials);
+        session.phase("picker index");
 
         regionContext = RegionContext.load(scanOptions, warnings);
+        session.phase("region context");
 
         loadWarnings = Collections.unmodifiableList(warnings);
         loaded = true;
+        session.done();
     }
 
     public MapgenPreviewResult generate(

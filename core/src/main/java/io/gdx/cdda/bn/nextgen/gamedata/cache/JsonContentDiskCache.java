@@ -52,34 +52,56 @@ public final class JsonContentDiskCache {
         final LoadAction load
     ) throws IOException {
         if (ACTIVE.get() != null || RECORDING.get() != null) {
+            LoadTiming.log("cache/" + scope, "nested session - reuse outer pack/recording");
             load.run();
             return;
         }
         if (!ContentCachePaths.isEnabled()) {
-            load.run();
+            LoadTiming.log("cache/" + scope, "disabled (-Dcdda.content.cache=false)");
+            final LoadTiming.Session session = new LoadTiming.Session("cache/" + scope + "/uncached");
+            try {
+                load.run();
+            } finally {
+                session.done();
+            }
             return;
         }
 
+        final long tryNs = LoadTiming.start();
         final Optional<JsonFilePack> hit = tryLoad(scope, dataRoots, modIds);
+        LoadTiming.logMs("cache/" + scope, "tryLoad", tryNs);
+
         if (hit.isPresent()) {
+            LoadTiming.log("cache/" + scope, "HIT files=" + hit.get().size() + " - parse still runs from memory pack");
             ACTIVE.set(hit.get());
+            final LoadTiming.Session session = new LoadTiming.Session("cache/" + scope + "/hit-parse");
             try {
                 load.run();
             } finally {
                 ACTIVE.remove();
+                session.done();
             }
             return;
         }
 
+        LoadTiming.log("cache/" + scope, "MISS — reading JSON from disk and recording pack");
         RECORDING.set(new JsonFilePackBuilder());
+        final LoadTiming.Session session = new LoadTiming.Session("cache/" + scope + "/miss-load");
         try {
             load.run();
+            session.phase("catalogs loaded");
             final JsonFilePack pack = RECORDING.get().build();
             if (pack.size() > 0) {
+                final long saveNs = LoadTiming.start();
                 save(scope, dataRoots, modIds, pack);
+                LoadTiming.log(
+                    "cache/" + scope,
+                    "saved pack files=" + pack.size() + " in " + LoadTiming.msSince(saveNs) + " ms"
+                );
             }
         } finally {
             RECORDING.remove();
+            session.done();
         }
     }
 
@@ -94,18 +116,37 @@ public final class JsonContentDiskCache {
         final Path stampPath = ContentCachePaths.stampFile(scope);
         final Path packPath = ContentCachePaths.packFile(scope);
         if (!Files.isRegularFile(stampPath) || !Files.isRegularFile(packPath)) {
+            LoadTiming.log("cache/" + scope, "no stamp/pack on disk");
             return Optional.empty();
         }
         try {
+            long t = LoadTiming.start();
             final ContentCacheStamp stamp = ContentCacheStamp.read(stampPath);
+            LoadTiming.logMs("cache/" + scope, "read stamp (" + stamp.getFiles().size() + " files)", t);
+
+            t = LoadTiming.start();
             if (!stamp.matchesContext(scope, dataRoots, modIds)) {
+                LoadTiming.logMs("cache/" + scope, "stamp context mismatch", t);
                 return Optional.empty();
             }
+            LoadTiming.logMs("cache/" + scope, "stamp context ok", t);
+
+            t = LoadTiming.start();
             if (!stamp.matchesDisk()) {
+                LoadTiming.logMs("cache/" + scope, "stamp disk mtime/size mismatch", t);
                 return Optional.empty();
             }
-            return Optional.of(readPack(packPath));
+            LoadTiming.logMs("cache/" + scope, "stamp disk validate", t);
+
+            t = LoadTiming.start();
+            final JsonFilePack pack = readPack(packPath);
+            LoadTiming.log(
+                "cache/" + scope,
+                "gunzip pack files=" + pack.size() + " in " + LoadTiming.msSince(t) + " ms"
+            );
+            return Optional.of(pack);
         } catch (final IOException | RuntimeException e) {
+            LoadTiming.log("cache/" + scope, "tryLoad failed: " + e.getMessage());
             return Optional.empty();
         }
     }

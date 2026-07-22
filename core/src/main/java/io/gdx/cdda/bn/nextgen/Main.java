@@ -6,11 +6,13 @@ import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
+import io.gdx.cdda.bn.nextgen.gamedata.cache.LoadTiming;
 import io.gdx.cdda.bn.nextgen.tileset.TilesetDiscovery;
 import io.gdx.cdda.bn.nextgen.view.MainMenuScreen;
 import io.gdx.cdda.bn.nextgen.view.MapEditorScreen;
 import io.gdx.cdda.bn.nextgen.view.ModConfigScreen;
 import io.gdx.cdda.bn.nextgen.view.TileDisplayScreen;
+import io.gdx.cdda.bn.nextgen.worldgen.WorldgenPreviewService;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
@@ -27,12 +29,20 @@ public class Main extends ApplicationAdapter {
     private ModConfigScreen modConfig;
     private TileDisplayScreen tileDisplay;
     private MapEditorScreen mapEditor;
+    /** Survives map-editor UI dispose so catalogs stay warm until mods change or app exit. */
+    private WorldgenPreviewService worldgenSession = new WorldgenPreviewService();
     private Mode mode = Mode.MENU;
 
     @Override
     public void create() {
         batch = new SpriteBatch();
-        menu = new MainMenuScreen(batch, this::openSpriteViewer, this::openMapEditor, this::openModConfig);
+        menu = new MainMenuScreen(
+            batch,
+            this::openSpriteViewer,
+            this::openMapEditor,
+            this::openWorldgen,
+            this::openModConfig
+        );
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
             public boolean keyDown(final int keycode) {
@@ -158,7 +168,9 @@ public class Main extends ApplicationAdapter {
 
     @Override
     public void dispose() {
-        disposeChildScreens();
+        disposeTransientScreens();
+        disposeMapEditor();
+        worldgenSession = null;
         if (menu != null) {
             menu.dispose();
         }
@@ -166,41 +178,71 @@ public class Main extends ApplicationAdapter {
     }
 
     private void openSpriteViewer() {
-        disposeChildScreens();
+        disposeTransientScreens();
         tileDisplay = new TileDisplayScreen(batch);
         tileDisplay.loadFromRegistry(TilesetDiscovery.build());
         mode = Mode.VIEWER;
     }
 
     private void openMapEditor() {
-        disposeChildScreens();
-        mapEditor = new MapEditorScreen(batch);
+        disposeTransientScreens();
+        ensureMapEditor();
         mode = Mode.EDITOR;
     }
 
+    private void openWorldgen() {
+        disposeTransientScreens();
+        ensureMapEditor();
+        mapEditor.openWorldgenMode();
+        mode = Mode.EDITOR;
+    }
+
+    private void ensureMapEditor() {
+        if (mapEditor == null) {
+            if (worldgenSession == null) {
+                worldgenSession = new WorldgenPreviewService();
+            }
+            final String warm = worldgenSession.isLoaded() ? "warm worldgen" : "cold worldgen";
+            LoadTiming.log("session", "creating MapEditorScreen (" + warm + ")");
+            mapEditor = new MapEditorScreen(batch, worldgenSession);
+        } else {
+            LoadTiming.log("session", "reusing MapEditorScreen (warm tileset/worldgen)");
+        }
+    }
+
     private void openModConfig() {
-        disposeChildScreens();
-        modConfig = new ModConfigScreen(batch, this::returnToMenu);
+        disposeTransientScreens();
+        modConfig = new ModConfigScreen(batch, this::returnToMenu, this::invalidateMapEditorAfterModSave);
         mode = Mode.MOD_CONFIG;
     }
 
     private void returnToMenu() {
-        disposeChildScreens();
+        disposeTransientScreens();
         mode = Mode.MENU;
     }
 
-    private void disposeChildScreens() {
+    private void invalidateMapEditorAfterModSave() {
+        LoadTiming.log("session", "mods saved - dropping warm MapEditorScreen + worldgen catalogs");
+        disposeMapEditor();
+        worldgenSession = new WorldgenPreviewService();
+    }
+
+    /** Viewer / mod-config only — keep map editor warm across menu round-trips. */
+    private void disposeTransientScreens() {
         if (modConfig != null) {
             modConfig.dispose();
             modConfig = null;
         }
-        if (mapEditor != null) {
-            mapEditor.dispose();
-            mapEditor = null;
-        }
         if (tileDisplay != null) {
             tileDisplay.dispose();
             tileDisplay = null;
+        }
+    }
+
+    private void disposeMapEditor() {
+        if (mapEditor != null) {
+            mapEditor.dispose();
+            mapEditor = null;
         }
     }
 }

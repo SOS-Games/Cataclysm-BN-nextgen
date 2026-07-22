@@ -69,7 +69,9 @@ public final class RoadConnectionPolisher {
             return existingId;
         }
         final String candidate = OmLines.idFor(base, line);
-        if (registry == null || registry.contains(candidate)) {
+        // BN expands LINEAR bases into directional ids at load; we may not have those
+        // registry entries yet. Still write the candidate so mapgen can read NESW bits.
+        if (candidate != null && (registry == null || registry.contains(candidate) || isLinearBase(base, registry))) {
             return candidate;
         }
         if (line == OmLines.BITS && registry.contains(base + "_nesw_manhole")) {
@@ -92,6 +94,22 @@ public final class RoadConnectionPolisher {
             return base;
         }
         return existingId;
+    }
+
+    private static boolean isLinearBase(final String base, final OvermapTerrainRegistry registry) {
+        if (base == null || base.isEmpty() || registry == null) {
+            return false;
+        }
+        return registry.find(base)
+            .map(def -> {
+                for (final String flag : def.getFlags()) {
+                    if ("LINEAR".equals(flag)) {
+                        return true;
+                    }
+                }
+                return false;
+            })
+            .orElse(false);
     }
 
     public static boolean isRoadFamily(final String omtId, final OvermapConnectionRegistry connections) {
@@ -121,7 +139,8 @@ public final class RoadConnectionPolisher {
             return false;
         }
         final String n = omtId.toLowerCase(Locale.ROOT);
-        return n.equals("bridge") || n.startsWith("bridge_") || n.equals("test_bridge");
+        return n.equals("bridge") || n.startsWith("bridge_") || n.startsWith("bridgehead")
+            || n.equals("test_bridge") || n.startsWith("test_bridge");
     }
 
     private static boolean isRoadNeighbor(

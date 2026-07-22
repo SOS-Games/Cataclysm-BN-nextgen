@@ -40,23 +40,14 @@ public final class SewerGenerator {
         if (connection == null) {
             return 0;
         }
-        final String sewerId = OrthogonalPathCarver.resolveTerrainId(
-            OrthogonalPathCarver.resolveTerrainId(connection.resolveTerrainId(), "sewer", registry),
-            "test_sewer",
-            registry
-        );
-        if (registry != null && !registry.contains(sewerId) && !hasSubtype(registry, connection)) {
-            addWarning(warnings, "sewer terrain '" + sewerId + "' not in registry; skipping sewers");
-            return 0;
-        }
-
-        int painted = 0;
-        for (final UrbanSite site : urbanSites) {
-            painted += carveSite(grid, site, connection, sewerId, registry, options, rng);
-        }
-        return painted;
+        // BN places sewers at z-1 under the city. Until overmap Z exists, painting
+        // "sewer" on the surface punches lots beside roads and breaks sidewalks.
+        addWarning(warnings, "sewer carve skipped: underground z-layer not implemented (BN uses z-1)");
+        return 0;
     }
 
+    /** Surface carve kept for when overmap Z lands; currently unused. */
+    @SuppressWarnings("unused")
     private static int carveSite(
         final OvermapGrid grid,
         final UrbanSite site,
@@ -179,9 +170,9 @@ public final class SewerGenerator {
         ids.add("test_park");
         ids.add("test_urban_house");
         ids.add("test_finale");
-        ids.add("test_road");
-        ids.add("test_road_ns");
-        ids.add("test_road_ew");
+        ids.add("test_field");
+        ids.add("open_air");
+        // Do not include roads — surface sewers must not overwrite the street grid.
         return ids;
     }
 
@@ -189,15 +180,30 @@ public final class SewerGenerator {
         if (existing == null || existing.isEmpty()) {
             return false;
         }
+        // BN sewers live at z-1; never punch surface roads / bridges (breaks sidewalks + routing).
+        if (UrbanTerrainClearables.isRoadFamily(existing) || existing.contains("bridge")) {
+            return false;
+        }
         if (existing.equals(options.getFieldId()) || existing.equals(options.getForestId())) {
             return true;
         }
+        final String n = existing.toLowerCase(java.util.Locale.ROOT);
+        if (n.contains("house")
+            || n.contains("shop")
+            || n.contains("bungalow")
+            || n.contains("building")
+            || n.contains("station")
+            || n.contains("cemetery")
+            || n.contains("garden")
+            || n.contains("park")
+            || n.contains("lot")) {
+            return false;
+        }
         return existing.startsWith("test_")
-            || existing.contains("road")
-            || existing.contains("shop")
-            || existing.contains("park")
-            || existing.contains("urban")
-            || existing.contains("sewer");
+            || existing.contains("sewer")
+            || n.equals("field")
+            || n.equals("open_air")
+            || n.startsWith("forest");
     }
 
     private static boolean hasSubtype(

@@ -15,6 +15,14 @@ public final class OvermapTerrainParser {
         final JsonValue root,
         final String sourceMod
     ) {
+        return parseObject(root, sourceMod, null);
+    }
+
+    public static List<OvermapTerrainDefinition> parseObject(
+        final JsonValue root,
+        final String sourceMod,
+        final List<String> resolvedFlags
+    ) {
         if (root == null || !root.isObject()) {
             return Collections.emptyList();
         }
@@ -33,7 +41,9 @@ public final class OvermapTerrainParser {
         final String name = root.getString("name", null);
         final String symbol = parseSymbol(root.get("sym"));
         final String color = parseColor(root);
-        final List<String> flags = parseFlags(root.get("flags"));
+        final List<String> flags = resolvedFlags != null
+            ? resolvedFlags
+            : parseFlags(root.get("flags"));
         final List<MapgenRef> mapgenRefs = parseMapgenRefs(root.get("mapgen"));
 
         final List<OvermapTerrainDefinition> definitions = new ArrayList<>();

@@ -65,10 +65,11 @@ class UndergroundNetworkGeneratorTest {
             new ArrayList<>()
         );
 
-        assertTrue(painted >= 6, "expected underground cells, got " + painted);
+        assertTrue(painted >= 4, "expected subway/rail cells, got " + painted);
         assertTrue(countTerrain(grid, "test_subway") >= 2);
         assertTrue(countTerrain(grid, "test_railroad") >= 2);
-        assertTrue(countTerrain(grid, "test_sewer") >= 2);
+        // Surface sewer OMTs deferred until overmap Z (BN uses z-1).
+        assertEquals(0, countTerrain(grid, "test_sewer"));
     }
 
     @Test

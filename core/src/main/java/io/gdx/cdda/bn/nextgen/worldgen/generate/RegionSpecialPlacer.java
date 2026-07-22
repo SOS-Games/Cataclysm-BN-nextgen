@@ -61,6 +61,7 @@ public final class RegionSpecialPlacer {
                 building.get(),
                 grid,
                 oterRegistry,
+                options,
                 clearable,
                 rng,
                 warnings,

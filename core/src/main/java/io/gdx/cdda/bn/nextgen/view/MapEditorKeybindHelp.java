@@ -13,6 +13,15 @@ public final class MapEditorKeybindHelp {
         final boolean inOvermapMode,
         final boolean multiFloorBuilding
     ) {
+        return build(overmapAvailable, inOvermapMode, multiFloorBuilding, false);
+    }
+
+    public static List<KeybindHelpDialog.HelpRow> build(
+        final boolean overmapAvailable,
+        final boolean inOvermapMode,
+        final boolean multiFloorBuilding,
+        final boolean localExploreActive
+    ) {
         final List<KeybindHelpDialog.HelpRow> rows = new ArrayList<>();
 
         rows.add(KeybindHelpDialog.HelpRow.section("General"));
@@ -55,10 +64,6 @@ public final class MapEditorKeybindHelp {
         if (overmapAvailable) {
             rows.add(KeybindHelpDialog.HelpRow.bind("M", "Switch to overmap mode"));
         }
-        if (!multiFloorBuilding) {
-            rows.add(KeybindHelpDialog.HelpRow.bind("[ / ]", "Previous / next tileset"));
-        }
-
         if (multiFloorBuilding) {
             rows.add(KeybindHelpDialog.HelpRow.section("Building floors"));
             rows.add(KeybindHelpDialog.HelpRow.bind("PgUp / PgDn", "Previous / next floor"));
@@ -71,12 +76,20 @@ public final class MapEditorKeybindHelp {
             rows.add(KeybindHelpDialog.HelpRow.section("Overmap mode (M)"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Click", "Select OMT cell"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Ctrl+Shift+C", "Copy overmap JSON to clipboard + maps/overmap_export.json"));
-            rows.add(KeybindHelpDialog.HelpRow.bind("Enter", "Visit cell — generate submap"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("Enter", "Visit — stitch neighborhood and walkaround"));
             rows.add(KeybindHelpDialog.HelpRow.bind("G", "Choose region_settings profile"));
             rows.add(KeybindHelpDialog.HelpRow.bind("[ / ]", "Smaller / larger overmap (8…256)"));
             rows.add(KeybindHelpDialog.HelpRow.bind("R", "Regenerate layout (new seed)"));
             rows.add(KeybindHelpDialog.HelpRow.bind("M", "Return to submap view"));
             rows.add(KeybindHelpDialog.HelpRow.bind("Esc", "Clear OMT selection"));
+        }
+
+        if (localExploreActive) {
+            rows.add(KeybindHelpDialog.HelpRow.section("Local walkaround (after Enter)"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("Left drag", "Pan — loads nearby OMTs as focus moves"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("Arrow keys", "Pan — same neighborhood restitch"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("Middle / right drag", "Pan without changing tool"));
+            rows.add(KeybindHelpDialog.HelpRow.bind("M", "Leave walkaround / return to overmap"));
         }
 
         rows.add(KeybindHelpDialog.HelpRow.section("Mapgen picker (Ctrl+G)"));

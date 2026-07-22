@@ -1,6 +1,7 @@
 package io.gdx.cdda.bn.nextgen.worldgen.submap;
 
 import io.gdx.cdda.bn.nextgen.map.MapGrid;
+import io.gdx.cdda.bn.nextgen.map.MapGridRotator;
 import io.gdx.cdda.bn.nextgen.mapgen.compose.OmtStitchComposer;
 import io.gdx.cdda.bn.nextgen.worldgen.connection.OmLines;
 import io.gdx.cdda.bn.nextgen.worldgen.connection.OvermapConnectionRegistry;
@@ -15,6 +16,7 @@ import java.util.Random;
 
 /**
  * BN {@code mapgen_road} subset: NESW arms, yellow dashes, curve fillets, sidewalks (R2).
+ * Canonicalizes orientation like BN ({@code rot}/{@code diag}), paints, then rotates the grid.
  */
 public final class BuiltinRoadMapgen {
 
@@ -41,7 +43,7 @@ public final class BuiltinRoadMapgen {
         final boolean placeLiteContent,
         final String mapExtraId
     ) {
-        final MapGrid grid = new MapGrid(SIZE, SIZE, "t_grass");
+        MapGrid grid = new MapGrid(SIZE, SIZE, "t_grass");
         if (groundcover != null) {
             groundcover.applyPerCellBaseFill(grid, previewSeed, "t_grass");
         }
@@ -51,10 +53,16 @@ public final class BuiltinRoadMapgen {
         final boolean[] sidewalks = sidewalkNeighbors(overmap, omtX, omtY, oterRegistry);
         final boolean anySidewalk = any(sidewalks);
 
-        if (isDiagonal(roads)) {
-            paintDiagonal(grid, roads, curve, anySidewalk);
+        final Orientation orient = canonicalize(roads, numDirs);
+        // BN nesw_array_rotate: 4-dir arrays by rot; 8-dir sidewalks by rot*2 (45° steps).
+        neswArrayRotate(roads, orient.rot);
+        neswArrayRotate(curve, orient.rot);
+        neswArrayRotate(sidewalks, orient.rot * 2);
+
+        if (orient.diag) {
+            paintDiagonalCanonical(grid, curve, sidewalks);
         } else {
-            paintOrthogonal(grid, roads, curve, sidewalks, numDirs);
+            paintOrthogonalCanonical(grid, roads, curve, sidewalks, numDirs, orient.rot);
         }
 
         if (placeLiteContent) {
@@ -62,6 +70,9 @@ public final class BuiltinRoadMapgen {
         }
         if (mapExtraId != null && !mapExtraId.isEmpty()) {
             applyExtraStub(grid, mapExtraId, previewSeed);
+        }
+        if (orient.rot != 0) {
+            grid = MapGridRotator.rotate(grid, orient.rot);
         }
         return grid;
     }
@@ -85,7 +96,7 @@ public final class BuiltinRoadMapgen {
                 return roads;
             }
         }
-        // Fallback: neighbor scan (pre-polish generic "road")
+        // Fallback: neighbor scan (pre-polish generic road / bridge spans)
         roads[0] = neighborRoad(overmap, omtX, omtY - 1, connections);
         roads[1] = neighborRoad(overmap, omtX + 1, omtY, connections);
         roads[2] = neighborRoad(overmap, omtX, omtY + 1, connections);
@@ -101,20 +112,88 @@ public final class BuiltinRoadMapgen {
                 roads[3] = true;
             }
         }
+        if (count(roads) == 0 && omtId != null && isBridgeOmtId(omtId)) {
+            // Bare bridge cell with no road neighbors yet: default to a straight NS span.
+            roads[0] = true;
+            roads[2] = true;
+        }
         if (count(roads) == 0) {
             roads[0] = roads[1] = roads[2] = roads[3] = true;
         }
         return roads;
     }
 
-    private static void paintOrthogonal(
+    static boolean isBridgeOmtId(final String omtId) {
+        if (omtId == null || omtId.isEmpty()) {
+            return false;
+        }
+        final String n = omtId.toLowerCase(Locale.ROOT);
+        return n.equals("bridge")
+            || n.startsWith("bridge_")
+            || n.startsWith("bridgehead")
+            || n.equals("test_bridge")
+            || n.startsWith("test_bridge");
+    }
+
+    /**
+     * BN {@code mapgen_road} rot/diag selection so paint only sees
+     * {@code |}, {@code '-}, {@code -'-}, {@code -|-}, or NE diagonal.
+     */
+    private static Orientation canonicalize(final boolean[] roads, final int numDirs) {
+        int rot = 0;
+        boolean diag = false;
+        switch (numDirs) {
+            case 3:
+                if (!roads[0]) {
+                    rot = 2;
+                } else if (!roads[1]) {
+                    rot = 3;
+                } else if (!roads[3]) {
+                    rot = 1;
+                }
+                break;
+            case 2:
+                if (roads[1] && roads[3]) {
+                    rot = 1;
+                } else if (roads[1] && roads[2]) {
+                    rot = 1;
+                    diag = true;
+                } else if (roads[2] && roads[3]) {
+                    rot = 2;
+                    diag = true;
+                } else if (roads[3] && roads[0]) {
+                    rot = 3;
+                    diag = true;
+                } else if (roads[0] && roads[1]) {
+                    diag = true;
+                }
+                break;
+            case 1:
+                if (roads[1]) {
+                    rot = 1;
+                } else if (roads[2]) {
+                    rot = 2;
+                } else if (roads[3]) {
+                    rot = 3;
+                }
+                break;
+            default:
+                break;
+        }
+        return new Orientation(rot, diag);
+    }
+
+    /** Sidewalks first (all arms), then pavement + fillets, then yellow dots — BN order. */
+    private static void paintOrthogonalCanonical(
         final MapGrid grid,
         final boolean[] roads,
         final int[] curve,
         final boolean[] sidewalks,
-        final int numDirs
+        final int numDirs,
+        final int mapRot
     ) {
         final int deadEndExt = numDirs == 1 ? 8 : 0;
+
         for (int dir = 0; dir < 4; dir++) {
             if (!roads[dir]) {
                 continue;
@@ -125,21 +204,37 @@ public final class BuiltinRoadMapgen {
             if (sidewalks[(dir + 1) % 4] || sidewalks[dir] || sidewalks[dir + 4]) {
                 fillRotatedRect(grid, SIDEWALK, SIZE - 4, 0, SIZE - 1, SEEY - 1 + deadEndExt, dir);
             }
+        }
+        if (deadEndExt > 0 && sidewalks[2]) {
+            fillRect(grid, SIDEWALK, 0, SEEY + deadEndExt, SIZE - 1, SEEY + deadEndExt + 4);
+        }
+
+        for (int dir = 0; dir < 4; dir++) {
+            if (!roads[dir]) {
+                continue;
+            }
             fillRotatedRect(grid, PAVEMENT, 4, 0, SIZE - 5, SEEY - 1 + deadEndExt, dir);
             if (curve[dir] != 0) {
                 for (int x = 1; x < 4; x++) {
                     for (int y = 0; y < x; y++) {
-                        int tx = curve[dir] < 0 ? x : SIZE - 1 - x;
-                        int ty = y;
+                        // BN: curvedir == -1 → x, else SIZE-1-x
+                        final int tx = curve[dir] == -1 ? x : SIZE - 1 - x;
+                        final int ty = y;
                         final int[] p = rotateCw(tx, ty, dir);
                         grid.setTerrain(p[0], p[1], PAVEMENT);
                     }
                 }
             }
+        }
+
+        for (int dir = 0; dir < 4; dir++) {
+            if (!roads[dir]) {
+                continue;
+            }
             final int maxY = (numDirs == 4 || (numDirs == 3 && dir == 0)) ? 4 : SEEY;
             for (int x = SEEX - 1; x <= SEEX; x++) {
                 for (int y = 0; y < maxY; y++) {
-                    if ((y + dir / 2) % 4 != 0) {
+                    if ((y + ((dir + mapRot) / 2 % 2)) % 4 != 0) {
                         final int[] p = rotateCw(x, y, dir);
                         if (PAVEMENT.equals(grid.get(p[0], p[1]).getTerrainId())) {
                             grid.setTerrain(p[0], p[1], PAVEMENT_Y);
@@ -150,13 +245,14 @@ public final class BuiltinRoadMapgen {
         }
     }
 
-    private static void paintDiagonal(
+    /** Always paints the NE diagonal; caller rotates the grid afterward. */
+    private static void paintDiagonalCanonical(
         final MapGrid grid,
-        final boolean[] roads,
         final int[] curve,
-        final boolean anySidewalk
+        final boolean[] sidewalks
     ) {
-        if (anySidewalk) {
+        // BN: sidewalk if NE/SE/SW neighbor (indices 4/5/6) has sidewalk after rot.
+        if (sidewalks[4] || sidewalks[5] || sidewalks[6]) {
             for (int y = 0; y < SIZE; y++) {
                 for (int x = 0; x < SIZE; x++) {
                     if (x > y - 4 && (x < 4 || y > SIZE - 5 || y >= x)) {
@@ -167,7 +263,8 @@ public final class BuiltinRoadMapgen {
         }
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {
-                if (x > y && ((x > 3 && y < SIZE - 4)
+                if (x > y
+                    && ((x > 3 && y < SIZE - 4)
                     || (x < 4 && curve[0] < 0)
                     || (y > SIZE - 5 && curve[1] > 0))) {
                     if ((x % 4) != 0 && (x - y == SEEX - 1 || x - y == SEEX)) {
@@ -177,11 +274,6 @@ public final class BuiltinRoadMapgen {
                     }
                 }
             }
-        }
-        // If corner is SW/NW/etc without NE orientation, rotate by painting all four diags via arms.
-        if (!roads[0] || !roads[1]) {
-            // Re-paint using orthogonal fallback for non-NE diagonals
-            paintOrthogonal(grid, roads, curve, new boolean[8], 2);
         }
     }
 
@@ -264,6 +356,11 @@ public final class BuiltinRoadMapgen {
         return curve;
     }
 
+    private static final int[][] NESW8_DELTA = {
+        { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 },
+        { 1, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }
+    };
+
     private static boolean[] sidewalkNeighbors(
         final OvermapGrid overmap,
         final int omtX,
@@ -271,14 +368,27 @@ public final class BuiltinRoadMapgen {
         final OvermapTerrainRegistry registry
     ) {
         final boolean[] out = new boolean[8];
-        final int[][] delta = {
-            { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 },
-            { 1, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }
-        };
         for (int i = 0; i < 8; i++) {
-            final int x = omtX + delta[i][0];
-            final int y = omtY + delta[i][1];
+            final int x = omtX + NESW8_DELTA[i][0];
+            final int y = omtY + NESW8_DELTA[i][1];
             out[i] = hasSidewalk(overmap, x, y, registry);
+        }
+        // City streets leave field/forest holes (~25% BUILDINGCHANCE skips). BN only puts
+        // sidewalks next to SIDEWALK OMTs, so those holes break the strip. Promote natural
+        // clearables that already abut an urban SIDEWALK lot so the street edge stays continuous.
+        for (int i = 0; i < 8; i++) {
+            if (out[i]) {
+                continue;
+            }
+            final int x = omtX + NESW8_DELTA[i][0];
+            final int y = omtY + NESW8_DELTA[i][1];
+            if (!inBounds(overmap, x, y)) {
+                continue;
+            }
+            final String id = overmap.getOmtId(x, y);
+            if (isNaturalUrbanHole(id) && abutsSidewalkLot(overmap, x, y, registry)) {
+                out[i] = true;
+            }
         }
         return out;
     }
@@ -289,22 +399,123 @@ public final class BuiltinRoadMapgen {
         final int y,
         final OvermapTerrainRegistry registry
     ) {
-        if (overmap == null || x < 0 || y < 0 || x >= overmap.width() || y >= overmap.height()) {
+        if (!inBounds(overmap, x, y)) {
             return false;
         }
         final String id = overmap.getOmtId(x, y);
-        if (registry != null) {
-            final OvermapTerrainDefinition def = registry.find(id).orElse(null);
-            if (def != null) {
-                for (final String flag : def.getFlags()) {
-                    if ("SIDEWALK".equals(flag) || "HAS_SIDEWALK".equals(flag)) {
-                        return true;
-                    }
-                }
+        if (id == null || id.isEmpty()) {
+            return false;
+        }
+        if (hasSidewalkFlag(registry, id)) {
+            return true;
+        }
+        // Rotatable lots may only have SIDEWALK on the unrotated base id.
+        final String base = stripFacingSuffix(id);
+        if (!base.equals(id) && hasSidewalkFlag(registry, base)) {
+            return true;
+        }
+        final String n = id.toLowerCase(Locale.ROOT);
+        return n.contains("house")
+            || n.contains("shop")
+            || n.contains("store")
+            || n.contains("apartment")
+            || n.contains("office")
+            || n.contains("building")
+            || n.contains("sidewalk")
+            || n.contains("parking")
+            || n.contains("restaurant")
+            || n.contains("library")
+            || n.contains("school")
+            || n.contains("clinic")
+            || n.contains("hospital")
+            || n.contains("hotel")
+            || n.contains("bank")
+            || n.contains("gym")
+            || n.contains("mall");
+    }
+
+    private static boolean inBounds(final OvermapGrid overmap, final int x, final int y) {
+        return overmap != null && x >= 0 && y >= 0 && x < overmap.width() && y < overmap.height();
+    }
+
+    /** Unbuilt city flank leftover (field / forest / swamp), not roads or placed lots. */
+    private static boolean isNaturalUrbanHole(final String omtId) {
+        if (omtId == null || omtId.isEmpty()) {
+            return false;
+        }
+        final String n = omtId.toLowerCase(Locale.ROOT);
+        if (n.startsWith("forest_trail") || n.startsWith("test_forest_trail") || n.startsWith("trailhead")) {
+            return false;
+        }
+        if (n.contains("road") || n.contains("bridge") || n.contains("highway")) {
+            return false;
+        }
+        return n.equals("field")
+            || n.equals("test_field")
+            || n.equals("open_air")
+            || n.contains("forest")
+            || n.contains("swamp");
+    }
+
+    private static boolean abutsSidewalkLot(
+        final OvermapGrid overmap,
+        final int x,
+        final int y,
+        final OvermapTerrainRegistry registry
+    ) {
+        for (final int[] d : NESW8_DELTA) {
+            final int nx = x + d[0];
+            final int ny = y + d[1];
+            if (!inBounds(overmap, nx, ny)) {
+                continue;
+            }
+            final String id = overmap.getOmtId(nx, ny);
+            if (id == null || id.isEmpty()) {
+                continue;
+            }
+            if (hasSidewalkFlag(registry, id)) {
+                return true;
+            }
+            final String base = stripFacingSuffix(id);
+            if (!base.equals(id) && hasSidewalkFlag(registry, base)) {
+                return true;
+            }
+            // Name heuristics for lots missing SIDEWALK on the base id.
+            if (hasSidewalk(overmap, nx, ny, registry) && !isNaturalUrbanHole(id)) {
+                return true;
             }
         }
-        final String n = id == null ? "" : id.toLowerCase(Locale.ROOT);
-        return n.contains("house") || n.contains("building") || n.contains("sidewalk");
+        return false;
+    }
+
+    private static boolean hasSidewalkFlag(final OvermapTerrainRegistry registry, final String id) {
+        if (registry == null || id == null) {
+            return false;
+        }
+        final OvermapTerrainDefinition def = registry.find(id).orElse(null);
+        if (def == null) {
+            return false;
+        }
+        for (final String flag : def.getFlags()) {
+            if ("SIDEWALK".equals(flag) || "HAS_SIDEWALK".equals(flag)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String stripFacingSuffix(final String id) {
+        final String lower = id.toLowerCase(Locale.ROOT);
+        final String[] suffixes = {
+            "_north_east", "_north_west", "_south_east", "_south_west",
+            "_north", "_east", "_south", "_west"
+        };
+        for (final String suffix : suffixes) {
+            if (lower.endsWith(suffix)) {
+                return id.substring(0, id.length() - suffix.length());
+            }
+        }
+        return id;
     }
 
     private static boolean neighborRoad(
@@ -316,15 +527,8 @@ public final class BuiltinRoadMapgen {
         if (overmap == null || x < 0 || y < 0 || x >= overmap.width() || y >= overmap.height()) {
             return false;
         }
-        return RoadConnectionPolisher.isRoadFamily(overmap.getOmtId(x, y), connections);
-    }
-
-    private static boolean isDiagonal(final boolean[] roads) {
-        final int n = count(roads);
-        if (n != 2) {
-            return false;
-        }
-        return (roads[0] && roads[1]) || (roads[1] && roads[2]) || (roads[2] && roads[3]) || (roads[3] && roads[0]);
+        return RoadConnectionPolisher.isRoadFamily(overmap.getOmtId(x, y), connections)
+            || isBridgeOmtId(overmap.getOmtId(x, y));
     }
 
     private static void fillRotatedRect(
@@ -346,6 +550,23 @@ public final class BuiltinRoadMapgen {
         }
     }
 
+    private static void fillRect(
+        final MapGrid grid,
+        final String terrain,
+        final int x1,
+        final int y1,
+        final int x2,
+        final int y2
+    ) {
+        for (int y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
+            for (int x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+                if (x >= 0 && y >= 0 && x < SIZE && y < SIZE) {
+                    grid.setTerrain(x, y, terrain);
+                }
+            }
+        }
+    }
+
     private static int[] rotateCw(final int x, final int y, final int rot) {
         int cx = x;
         int cy = y;
@@ -355,6 +576,56 @@ public final class BuiltinRoadMapgen {
             cx = (SIZE - 1) - temp;
         }
         return new int[] { cx, cy };
+    }
+
+    /**
+     * BN {@code nesw_array_rotate}: cyclic left for length 4; special 45° shuffle for
+     * length 8 ({@code N E S W NE SE SW NW}).
+     */
+    private static void neswArrayRotate(final boolean[] array, final int dist) {
+        if (array == null || array.length == 0 || dist == 0) {
+            return;
+        }
+        int steps = Math.floorMod(dist, array.length == 8 ? 8 : 4);
+        if (array.length == 4) {
+            while (steps-- > 0) {
+                final boolean temp = array[0];
+                array[0] = array[1];
+                array[1] = array[2];
+                array[2] = array[3];
+                array[3] = temp;
+            }
+            return;
+        }
+        if (array.length != 8) {
+            return;
+        }
+        while (steps-- > 0) {
+            // N E S W NE SE SW NW — one step = 45° CCW on the compass
+            final boolean temp = array[0];
+            array[0] = array[4];
+            array[4] = array[1];
+            array[1] = array[5];
+            array[5] = array[2];
+            array[2] = array[6];
+            array[6] = array[3];
+            array[3] = array[7];
+            array[7] = temp;
+        }
+    }
+
+    private static void neswArrayRotate(final int[] array, final int dist) {
+        if (array == null || array.length != 4 || dist == 0) {
+            return;
+        }
+        int steps = Math.floorMod(dist, 4);
+        while (steps-- > 0) {
+            final int temp = array[0];
+            array[0] = array[1];
+            array[1] = array[2];
+            array[2] = array[3];
+            array[3] = temp;
+        }
     }
 
     private static int count(final boolean[] flags) {
@@ -374,5 +645,15 @@ public final class BuiltinRoadMapgen {
             }
         }
         return false;
+    }
+
+    private static final class Orientation {
+        final int rot;
+        final boolean diag;
+
+        Orientation(final int rot, final boolean diag) {
+            this.rot = rot;
+            this.diag = diag;
+        }
     }
 }

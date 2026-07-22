@@ -27,7 +27,7 @@ public final class UrbanTerrainClearables {
         add(ids, "forest", registry);
         add(ids, "forest_thick", registry);
         add(ids, "forest_water", registry);
-        add(ids, "forest_trail", registry);
+        // Do not add forest_trail — trails must not be paved over by city growth.
         add(ids, "swamp", registry);
         add(ids, "test_swamp", registry);
         add(ids, "test_forest_thick", registry);
@@ -64,6 +64,10 @@ public final class UrbanTerrainClearables {
             return false;
         }
         final String n = omtId.toLowerCase(Locale.ROOT);
+        // forest_trail* contains "forest" but must stay as trails.
+        if (n.startsWith("forest_trail") || n.startsWith("test_forest_trail") || n.startsWith("trailhead")) {
+            return false;
+        }
         return n.contains("forest")
             || n.contains("swamp")
             || n.equals("field")

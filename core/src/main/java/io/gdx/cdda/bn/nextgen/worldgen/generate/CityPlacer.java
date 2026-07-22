@@ -96,6 +96,7 @@ public final class CityPlacer {
                 building,
                 grid,
                 oterRegistry,
+                options,
                 clearable,
                 rng,
                 warnings,
@@ -158,6 +159,7 @@ public final class CityPlacer {
                 building,
                 grid,
                 oterRegistry,
+                options,
                 clearable,
                 rng,
                 warnings,
@@ -179,6 +181,7 @@ public final class CityPlacer {
         final CityBuildingDefinition building,
         final OvermapGrid grid,
         final OvermapTerrainRegistry oterRegistry,
+        final OvermapGenerateOptions options,
         final Set<String> clearableIds,
         final Random rng,
         final List<String> warnings,
@@ -223,6 +226,11 @@ public final class CityPlacer {
         final int pieceCount = OmtBuildingBlitter.blitAt(
             building, grid, at[0], at[1], 0, oterRegistry, warnings
         );
+        if (pieceCount > 0) {
+            SpecialRoadStitcher.stitch(
+                grid, building, at[0], at[1], 0, null, options, oterRegistry
+            );
+        }
         if (pieceCount > 0 && placedCenters != null) {
             placedCenters.add(siteCenter(footprint, at[0], at[1]));
         }
@@ -260,6 +268,7 @@ public final class CityPlacer {
             building,
             grid,
             oterRegistry,
+            null,
             clearableIds,
             rng,
             warnings,
@@ -273,6 +282,32 @@ public final class CityPlacer {
         final CityBuildingDefinition building,
         final OvermapGrid grid,
         final OvermapTerrainRegistry oterRegistry,
+        final Set<String> clearableIds,
+        final Random rng,
+        final List<String> warnings,
+        final List<int[]> placedCenters,
+        final List<PlacedBuildingRecord> placedBuildings,
+        final PlacementSource source
+    ) {
+        return tryPlace(
+            building,
+            grid,
+            oterRegistry,
+            null,
+            clearableIds,
+            rng,
+            warnings,
+            placedCenters,
+            placedBuildings,
+            source
+        );
+    }
+
+    public static boolean tryPlace(
+        final CityBuildingDefinition building,
+        final OvermapGrid grid,
+        final OvermapTerrainRegistry oterRegistry,
+        final OvermapGenerateOptions options,
         final Set<String> clearableIds,
         final Random rng,
         final List<String> warnings,
@@ -296,6 +331,11 @@ public final class CityPlacer {
         final int pieceCount = OmtBuildingBlitter.blitAt(
             building, grid, at[0], at[1], 0, oterRegistry, warnings
         );
+        if (pieceCount > 0 && options != null) {
+            SpecialRoadStitcher.stitch(
+                grid, building, at[0], at[1], 0, null, options, oterRegistry
+            );
+        }
         if (pieceCount > 0 && placedCenters != null) {
             placedCenters.add(siteCenter(footprint, at[0], at[1]));
         }
